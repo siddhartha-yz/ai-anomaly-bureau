@@ -162,6 +162,9 @@ test('Story warns when local checkpoint writes fail and clears the warning after
   await waitForStage(page, 'inspect_data')
   await expect(page.getByRole('alert')).toContainText('LOCAL SAVE FAILED')
   await expect(page.getByRole('alert')).toContainText('当前进度不会自动保存')
+  await assertNoOverlap(page, '.story-session-save-warning', '.pixel-objective-strip')
+  await assertNoOverlap(page, '.story-session-save-warning', '.beginner-guide.compact')
+  await qaShot(page, '24-story-save-failed')
   await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
 
   await page.evaluate(() => {
