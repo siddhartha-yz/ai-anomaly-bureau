@@ -30,7 +30,15 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
   disabled?: boolean
   kind?: 'primary' | 'secondary'
 }) {
-  return <button type="button" className={`action-button ${kind}`} onClick={onClick} disabled={disabled}>{children}</button>
+  return (
+    <button type="button" className={`action-button ${kind}`} onClick={onClick} disabled={disabled}>
+      <span className="action-button-copy">
+        <span className="action-chevron">›</span>
+        {children}
+      </span>
+      <span className="action-button-cue">{kind === 'primary' ? '点击执行' : '点击检查'}</span>
+    </button>
+  )
 }
 
 function GameSession({ seed, debug, onSeedChange, onRestart }: {
@@ -195,6 +203,10 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     <main className="app-shell" style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
       <header className="topbar">
         <div className="brand"><span className="brand-mark">A/Δ</span><div><strong>AI异常调查局</strong><small>ANOMALY BUREAU · CASE 001</small></div></div>
+        <div className="case-status" aria-label="案件状态">
+          <span className="status-light" />
+          <div><small>CASE STATUS</small><strong>{state.stage === 'complete' ? 'CLOSED' : 'ACTIVE'}</strong></div>
+        </div>
         <div className="top-actions">
           <button type="button" className="ghost-button" onClick={() => setHelpOpen((open) => !open)}>帮助</button>
           <button type="button" className="ghost-button" onClick={onRestart}>重新开始</button>
@@ -211,10 +223,27 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       <TaskBanner stage={state.stage} />
 
       {state.stage === 'briefing' && (
-        <section className="incident-card">
-          <div className="incident-code">INCIDENT / C-014</div>
-          <h1>{LEVEL_META.incident}</h1>
-          <p>机器人没有“常识”。它只会依据你交给它的数据，学一个判断规则。</p>
+        <section className="incident-card case-dossier">
+          <div className="dossier-copy">
+            <div className="incident-code">INCIDENT / C-014 · PRIORITY AMBER</div>
+            <h1>{LEVEL_META.incident}</h1>
+            <p>校园识别终端正在持续产生错误报告。你的任务不是背公式，而是找出它为什么会判断错。</p>
+            <div className="briefing-tags">
+              <span>地点 / 校园北门</span>
+              <span>系统 / STRAY-VISION 2.1</span>
+              <span>权限 / 新人调查员</span>
+            </div>
+          </div>
+          <div className="incident-monitor" aria-label="错误识别示意">
+            <div className="monitor-label">LIVE ERROR CAPTURE</div>
+            <div className="scan-target cat-target">
+              <span className="target-reticle" />
+              <span className="target-glyph">CAT</span>
+            </div>
+            <div className="classification-line"><span>MODEL OUTPUT</span><strong>→ BREAD</strong></div>
+            <div className="confidence-bar"><span style={{ width: '87%' }} /></div>
+            <small>CONFIDENCE 87% · WRONG CLASSIFICATION</small>
+          </div>
         </section>
       )}
 
@@ -301,7 +330,16 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
             </section>
           )}
 
-          {stageAction()}
+          {stageAction() && (
+            <section className="action-dock">
+              <div className="action-dock-head">
+                <div><span className="dock-pulse" />NEXT ACTION</div>
+                <small>推进调查</small>
+              </div>
+              {stageAction()}
+              <p>所有关键操作都会立即反映在左侧数据图上。</p>
+            </section>
+          )}
           <AssistantPanel state={state} onHint={requestHint} />
         </div>
       </div>

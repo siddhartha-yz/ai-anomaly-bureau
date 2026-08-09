@@ -26,8 +26,11 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
       </div>
       <div className="axis-selectors">
         {([0, 1] as const).map((axis) => (
-          <label key={axis}>
-            <span>{axis === 0 ? '横轴 X' : '纵轴 Y'}</span>
+          <label className="axis-channel" key={axis}>
+            <span className="axis-channel-head">
+              <strong>{axis === 0 ? 'X' : 'Y'}</strong>
+              <span>{axis === 0 ? '横轴扫描通道' : '纵轴扫描通道'}</span>
+            </span>
             <select
               value={value[axis]}
               disabled={disabled}
@@ -39,6 +42,7 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
                 </option>
               ))}
             </select>
+            <span className="selector-hint">点击切换模型可见信息 ▾</span>
           </label>
         ))}
       </div>

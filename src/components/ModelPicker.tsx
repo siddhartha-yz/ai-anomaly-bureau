@@ -30,10 +30,11 @@ export function ModelPicker({ selected, unlocked, disabled, onChange }: Props) {
               aria-pressed={selected === id}
             >
               <span className="model-card-top">
-                <strong>{meta.label}</strong>
+                <strong><span className="model-radio" />{meta.label}</strong>
                 <span className="complexity">复杂度 {meta.complexityLabel}</span>
               </span>
               <span>{meta.description}</span>
+              <span className="model-card-foot">{selected === id ? '已装载到分析终端' : '点击选择此模型'}</span>
             </button>
           )
         })}
