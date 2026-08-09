@@ -91,7 +91,7 @@ export function ScatterPlot({
 
           <g className="training-glyphs">
             {train.map((point) => (
-              <PixelSampleGlyph key={point.id} label={point.label} x={X(point.x)} y={Y(point.y)} scale={1.08} className="train-glyph" />
+              <PixelSampleGlyph key={`${point.id}-${features[0]}-${features[1]}`} label={point.label} x={X(point.x)} y={Y(point.y)} scale={1.08} className="train-glyph" />
             ))}
           </g>
 
@@ -106,7 +106,7 @@ export function ScatterPlot({
                 const clickable = Boolean(mistake && onSelectMistake)
                 return (
                   <g
-                    key={sample.id}
+                    key={`${sample.id}-${features[0]}-${features[1]}`}
                     className={`test-pixel-group ${mistake ? 'mistake' : ''} ${selected ? 'selected' : ''} ${clickable ? 'clickable' : ''}`}
                     onClick={clickable ? () => onSelectMistake?.(sample.id) : undefined}
                     role={clickable ? 'button' : undefined}

@@ -17,24 +17,30 @@ export function PixelSampleGlyph({
   if (label === 'cat') {
     return (
       <g transform={transform} className={`pixel-data-glyph cat-glyph ${className}`} shapeRendering="crispEdges">
-        <rect x="-7" y="-7" width="4" height="4" className="glyph-main" />
-        <rect x="3" y="-7" width="4" height="4" className="glyph-main" />
-        <rect x="-7" y="-3" width="14" height="8" className="glyph-main" />
-        <rect x="-5" y="5" width="10" height="3" className="glyph-main" />
-        <rect x="-4" y="-1" width="2" height="2" className="glyph-cut" />
-        <rect x="2" y="-1" width="2" height="2" className="glyph-cut" />
-        <rect x="-1" y="2" width="2" height="2" className="glyph-cut" />
+        <g className="glyph-pixels cat-pixels">
+          <rect x="-7" y="-7" width="4" height="4" className="glyph-main glyph-ear glyph-ear-left" />
+          <rect x="3" y="-7" width="4" height="4" className="glyph-main glyph-ear glyph-ear-right" />
+          <rect x="-7" y="-3" width="14" height="8" className="glyph-main" />
+          <rect x="-5" y="5" width="10" height="3" className="glyph-main" />
+          <rect x="-4" y="-1" width="2" height="2" className="glyph-cut" />
+          <rect x="2" y="-1" width="2" height="2" className="glyph-cut" />
+          <rect x="-1" y="2" width="2" height="2" className="glyph-cut" />
+          <rect x="-6" y="2" width="2" height="2" className="glyph-stripe" />
+          <rect x="4" y="2" width="2" height="2" className="glyph-stripe" />
+        </g>
       </g>
     )
   }
 
   return (
     <g transform={transform} className={`pixel-data-glyph bread-glyph ${className}`} shapeRendering="crispEdges">
-      <rect x="-6" y="-5" width="12" height="11" className="glyph-main" />
-      <rect x="-4" y="-7" width="8" height="3" className="glyph-main" />
-      <rect x="-4" y="-3" width="3" height="3" className="glyph-cut" />
-      <rect x="2" y="0" width="2" height="3" className="glyph-cut" />
-      <rect x="-6" y="6" width="12" height="2" className="glyph-shadow" />
+      <g className="glyph-pixels bread-pixels">
+        <rect x="-6" y="-5" width="12" height="11" className="glyph-main" />
+        <rect x="-4" y="-7" width="8" height="3" className="glyph-main" />
+        <rect x="-4" y="-3" width="3" height="3" className="glyph-cut" />
+        <rect x="2" y="0" width="2" height="3" className="glyph-cut" />
+        <rect x="-6" y="6" width="12" height="2" className="glyph-shadow" />
+      </g>
     </g>
   )
 }

@@ -1,0 +1,207 @@
+/* Beginner guidance, reward feedback, audio affordance and lively pixel motion. */
+
+/* Semantic fix: cats are orange animals; blue remains the model/system color. */
+.cat-glyph .glyph-main { fill: #ef9140; }
+.cat-glyph .glyph-cut { fill: #15100c; }
+.cat-glyph .glyph-stripe { fill: #9e5226; }
+.legend-pixel-cat { background: #ef9140; }
+.evidence-mini-glyph.cat { color: #ef9140; }
+.model-icon-cat { fill: #ef9140; }
+
+/* Make the samples feel alive without changing their coordinates. */
+.glyph-pixels {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.training-glyphs .cat-pixels {
+  animation: catPixelIdle 1.8s steps(2) infinite, glyphArrive .32s steps(3) both;
+}
+.training-glyphs .bread-pixels {
+  animation: breadPixelIdle 2.4s steps(2) infinite, glyphArrive .32s steps(3) both;
+}
+.training-glyphs .pixel-data-glyph:nth-child(3n) .glyph-pixels { animation-delay: .12s, .04s; }
+.training-glyphs .pixel-data-glyph:nth-child(4n) .glyph-pixels { animation-delay: .28s, .08s; }
+.training-glyphs .pixel-data-glyph:nth-child(5n) .glyph-pixels { animation-delay: .42s, .12s; }
+.test-revealed-glyph .glyph-pixels { animation: testPop .42s steps(4) both; }
+.test-pixel-group.mistake .glyph-pixels { animation: mistakeShake .55s steps(3) 2; }
+@keyframes glyphArrive { 0% { transform: scale(.45); opacity: 0; } 70% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes catPixelIdle { 50% { transform: translateY(-1px); } }
+@keyframes breadPixelIdle { 50% { transform: translateY(1px); } }
+@keyframes testPop { 0% { transform: scale(.2); opacity: 0; } 65% { transform: scale(1.22); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes mistakeShake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+
+/* Opening replay has a little character motion and scanner response. */
+.cat-platform .pixel-cat { animation: incidentCat 1.7s steps(2) infinite; transform-origin: 50% 100%; }
+.scanner-platform .pixel-scanner { animation: incidentScanner 1.15s steps(2) infinite; transform-origin: 50% 100%; }
+.bread-platform .pixel-bread { animation: incidentBread 2s steps(2) infinite; transform-origin: 50% 100%; }
+@keyframes incidentCat { 50% { transform: translateY(-3px) rotate(-1deg); } }
+@keyframes incidentScanner { 50% { transform: translateY(-2px); filter: drop-shadow(0 0 5px rgba(79,124,255,.55)); } }
+@keyframes incidentBread { 50% { transform: translateY(2px); } }
+
+.audio-toggle.enabled { border-color: #5d4e18; background: #17150c; }
+.audio-toggle.enabled span { color: #ffe060; }
+.audio-toggle.enabled::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  position: absolute;
+  margin: -29px 0 0 36px;
+  background: #ffe060;
+  box-shadow: 0 0 7px rgba(255,224,96,.75);
+}
+
+/* Strong, plain-language onboarding. */
+.beginner-guide {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0,1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 3px solid #705e1d;
+  background: linear-gradient(90deg, #1b1709, #0d111b 64%);
+  box-shadow: 5px 5px 0 #020307, inset 0 0 0 1px #241f0d;
+}
+.beginner-guide::before {
+  content: "CURRENT TASK";
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  padding: 2px 7px;
+  background: #ffe05b;
+  color: #0b0a06;
+  font: 900 .46rem/1 ui-monospace, Consolas, monospace;
+  letter-spacing: .09em;
+}
+.guide-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: #ffe05b;
+  color: #111006;
+  box-shadow: 4px 4px 0 #65521a;
+  font: 900 1.15rem/1 ui-monospace, monospace;
+}
+.guide-copy { min-width: 0; }
+.guide-copy > span { color: #8c78e0; font: 800 .48rem/1 ui-monospace, Consolas, monospace; letter-spacing: .1em; }
+.guide-copy strong { display: block; margin-top: 4px; color: #fff2a7; font-size: .84rem; }
+.guide-copy p { margin: 5px 0 0; color: #c4c9d6; font-size: .68rem; line-height: 1.55; }
+.guide-cue {
+  max-width: 205px;
+  padding: 8px 10px;
+  border: 2px solid #68591f;
+  background: #121109;
+  color: #ffe268;
+  font: 800 .58rem/1.45 ui-monospace, Consolas, monospace;
+  box-shadow: 3px 3px 0 #050503;
+}
+.game-console-column > .beginner-guide.compact {
+  position: sticky;
+  top: 8px;
+  z-index: 9;
+}
+.beginner-guide.compact {
+  grid-template-columns: 34px 1fr;
+  gap: 9px;
+  margin-bottom: 4px;
+  padding: 11px;
+  border-width: 2px;
+}
+.beginner-guide.compact .guide-icon { width: 30px; height: 30px; box-shadow: 3px 3px 0 #65521a; }
+.beginner-guide.compact .guide-cue { grid-column: 1 / -1; max-width: none; text-align: center; }
+
+/* De-emphasize irrelevant controls while leaving them visible for orientation. */
+.game-console-column > * { transition: opacity .18s ease, filter .18s ease, transform .18s ease; }
+[data-stage='choose_features'] .model-toolbox,
+[data-stage='choose_features'] .pixel-command-dock { opacity: .42; filter: saturate(.55); }
+[data-stage='choose_model'] .pixel-control { opacity: .48; filter: saturate(.6); }
+[data-stage='train'] .pixel-control,
+[data-stage='train'] .model-toolbox { opacity: .58; }
+[data-stage='hidden_test'] .pixel-control,
+[data-stage='hidden_test'] .model-toolbox { opacity: .48; }
+[data-stage='inspect_errors'] .pixel-control,
+[data-stage='inspect_errors'] .model-toolbox,
+[data-stage='inspect_errors'] .pixel-command-dock { opacity: .46; }
+[data-stage='inspect_data'] .pixel-scanner-card,
+[data-stage='choose_features'] .pixel-control,
+[data-stage='choose_model'] .model-toolbox,
+[data-stage='train'] .pixel-command-dock,
+[data-stage='hidden_test'] .pixel-command-dock,
+[data-stage='inspect_errors'] .evidence-console {
+  position: relative;
+  z-index: 3;
+  filter: none;
+  opacity: 1;
+  animation: focusPulse 1.35s steps(2) infinite;
+}
+@keyframes focusPulse { 50% { box-shadow: 0 0 0 3px rgba(255,224,91,.2), 5px 5px 0 #020307; } }
+
+/* Reward feedback uses progress/insight, not arbitrary points. */
+.stage-reward {
+  position: fixed;
+  z-index: 120;
+  right: 24px;
+  top: 92px;
+  width: min(330px, calc(100vw - 28px));
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  padding: 12px 14px 13px;
+  border: 3px solid #4e6fd5;
+  background: #0c1429;
+  box-shadow: 7px 7px 0 #020307;
+  animation: rewardEnter 2.1s steps(5) both;
+  pointer-events: none;
+}
+.stage-reward.reward-yellow { border-color: #ffe05b; background: #1a170b; }
+.stage-reward > span { color: #809af0; font: 900 .48rem/1 ui-monospace, Consolas, monospace; letter-spacing: .13em; }
+.stage-reward.reward-yellow > span { color: #c8ae46; }
+.stage-reward strong { color: #f3f6ff; font-size: .9rem; }
+.stage-reward small { color: #8d9ab9; font-size: .62rem; }
+.reward-pixels { position: absolute; inset: -8px; pointer-events: none; }
+.reward-pixels i { position: absolute; width: 6px; height: 6px; background: #7898ff; animation: rewardPixel .9s steps(4) both; }
+.reward-yellow .reward-pixels i { background: #ffe05b; }
+.reward-pixels i:nth-child(1) { left: 8%; top: 5%; }
+.reward-pixels i:nth-child(2) { left: 35%; top: -4%; animation-delay: .05s; }
+.reward-pixels i:nth-child(3) { right: 9%; top: 8%; animation-delay: .1s; }
+.reward-pixels i:nth-child(4) { left: 18%; bottom: -4%; animation-delay: .15s; }
+.reward-pixels i:nth-child(5) { right: 29%; bottom: -7%; animation-delay: .08s; }
+.reward-pixels i:nth-child(6) { right: -4px; top: 52%; animation-delay: .18s; }
+@keyframes rewardEnter {
+  0% { transform: translateX(120%) scale(.8); opacity: 0; }
+  12% { transform: translateX(-8px) scale(1.03); opacity: 1; }
+  20%,80% { transform: translateX(0) scale(1); opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+@keyframes rewardPixel { 0% { transform: translate(0,0) scale(0); } 50% { transform: translate(8px,-10px) scale(1.4); } 100% { transform: translate(14px,-18px) scale(0); } }
+
+/* The command dock should read as the obvious next move. */
+.pixel-command-dock { position: relative; }
+.pixel-command-dock::after {
+  content: "◀ 下一步";
+  position: absolute;
+  right: 9px;
+  top: -9px;
+  padding: 2px 6px;
+  background: #ffe05b;
+  color: #0b0a05;
+  font: 900 .46rem/1 ui-monospace, Consolas, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glyph-pixels,
+  .pixel-sprite,
+  .stage-reward,
+  .reward-pixels i,
+  .xiaoxi-sprite,
+  .mistake-frame,
+  .decision-scan-line { animation: none !important; }
+}
+
+@media (max-width: 760px) {
+  .beginner-guide { grid-template-columns: 36px 1fr; }
+  .guide-cue { grid-column: 1 / -1; max-width: none; }
+  .stage-reward { right: 14px; top: 74px; }
+}

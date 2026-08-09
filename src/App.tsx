@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
+import { BeginnerGuide } from './components/BeginnerGuide'
 import { DebugPanel } from './components/DebugPanel'
 import { ErrorSamples } from './components/ErrorSamples'
 import { FeaturePicker } from './components/FeaturePicker'
@@ -7,8 +8,10 @@ import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
 import { IncidentScene } from './components/PixelScene'
 import { ScatterPlot } from './components/ScatterPlot'
+import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
 import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
+import { GameAudio } from './game/audio'
 import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
@@ -23,6 +26,21 @@ const STAGE_INDEX: Record<Stage, number> = {
   briefing: 0, inspect_data: 1, choose_features: 2, choose_model: 3, train: 4,
   first_success: 5, hidden_test: 6, inspect_errors: 7, iterate: 8,
   overfit_reveal: 9, final_audit: 10, transfer_question: 11, complete: 12,
+}
+
+const STAGE_REWARD: Partial<Record<Stage, Omit<RewardNotice, 'stage'>>> = {
+  inspect_data: { title: '案件已接手', detail: '事故现场已解锁', tone: 'blue' },
+  choose_features: { title: '观察完成', detail: '获得线索：样本分布', tone: 'blue' },
+  choose_model: { title: '传感器已配置', detail: '模型现在有了两个观察通道', tone: 'blue' },
+  train: { title: '工具已装载', detail: '可以开始第一次训练', tone: 'blue' },
+  first_success: { title: '第一次训练完成', detail: '旧样本检查通过', tone: 'yellow' },
+  hidden_test: { title: '现场抽查解锁', detail: '未知样本即将进入', tone: 'yellow' },
+  inspect_errors: { title: '发现异常证据', detail: '误判样本已标记', tone: 'yellow' },
+  iterate: { title: '修复权限开放', detail: '可以重新组合特征与模型', tone: 'blue' },
+  overfit_reveal: { title: '关键发现：过拟合', detail: '训练满分也可能是假象', tone: 'yellow' },
+  final_audit: { title: '修复验证通过', detail: '未知样本表现稳定', tone: 'yellow' },
+  transfer_question: { title: '结案权限解锁', detail: '只剩最后一个判断', tone: 'blue' },
+  complete: { title: 'CASE CLOSED', detail: '事故调查完成', tone: 'yellow' },
 }
 
 function ActionButton({ children, onClick, disabled = false, kind = 'primary' }: {
@@ -54,8 +72,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [helpOpen, setHelpOpen] = useState(false)
   const [debugShowLabels, setDebugShowLabels] = useState(false)
   const [animationSpeed, setAnimationSpeed] = useState(1)
+  const [audioEnabled, setAudioEnabled] = useState(true)
+  const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
+  const audio = useRef(new GameAudio(true))
+  const previousStage = useRef<Stage>('briefing')
 
   const trainPoints = useMemo(
     () => projectSamples(service.train, state.selectedFeatures),
@@ -87,6 +109,23 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     }
   }, [state])
 
+  useEffect(() => {
+    const from = previousStage.current
+    if (from === state.stage) return
+    previousStage.current = state.stage
+    const reward = STAGE_REWARD[state.stage]
+    if (!reward) return
+    setRewardNotice({ stage: state.stage, ...reward })
+    const rewardSound = state.stage === 'inspect_errors' || state.stage === 'overfit_reveal'
+      ? 'warning'
+      : reward.tone === 'yellow' ? 'success' : 'select'
+    audio.current.play(rewardSound)
+    const timer = window.setTimeout(() => setRewardNotice(undefined), 2100)
+    return () => window.clearTimeout(timer)
+  }, [state.stage])
+
+  useEffect(() => () => audio.current.dispose(), [])
+
   const record = (action: string, extra: Partial<Parameters<BehaviorLogger['record']>[0]> = {}) => {
     logger.current.record({
       stage: state.stage,
@@ -102,23 +141,27 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   const send = (action: GameAction, eventName: string = action.type) => {
+    audio.current.play('ui')
     record(eventName)
     dispatch(action)
   }
 
   const setFeatures = (features: [FeatureKey, FeatureKey]) => {
+    audio.current.play('select')
     setSelectedMistake(undefined)
     record('SELECT_FEATURES', { features })
     dispatch({ type: 'SET_FEATURES', features })
   }
 
   const setModel = (model: ModelId) => {
+    audio.current.play('select')
     setSelectedMistake(undefined)
     record('SELECT_MODEL', { model })
     dispatch({ type: 'SET_MODEL', model })
   }
 
   const train = () => {
+    audio.current.play('train')
     const classifier = MODEL_REGISTRY[state.selectedModel]
     const model = classifier.fit(trainPoints)
     const metrics = evaluate(model, trainPoints)
@@ -135,6 +178,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   const audit = () => {
+    audio.current.play('audit')
     const model = fitted ?? MODEL_REGISTRY[state.selectedModel].fit(trainPoints)
     const result = service.audit(model, state.selectedFeatures)
     record('RUN_AUDIT', { testAccuracy: result.accuracy })
@@ -143,15 +187,23 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   const viewMistake = (id: string) => {
+    audio.current.play('evidence')
     setSelectedMistake(id)
     record('VIEW_MISTAKE', { mistakeId: id })
     dispatch({ type: 'VIEW_MISTAKE', id })
   }
 
   const requestHint = () => {
+    audio.current.play('hint')
     const next = Math.min(3, state.hintLevel + 1) as 1 | 2 | 3
     record('REQUEST_HINT', { hintLevel: next })
     dispatch({ type: 'REQUEST_HINT' })
+  }
+
+  const toggleAudio = () => {
+    const next = !audioEnabled
+    setAudioEnabled(next)
+    audio.current.setEnabled(next)
   }
 
   const exportLog = () => {
@@ -204,7 +256,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const showMetrics = Boolean(state.training) || STAGE_INDEX[state.stage] >= STAGE_INDEX.first_success
 
   return (
-    <main className="app-shell" style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
+    <main className="app-shell" data-stage={state.stage} style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
       <header className="pixel-game-header">
         <div className="game-logo-block" aria-label="AI异常调查局">
           <span className="game-logo-pixel">A<span>/</span>Δ</span>
@@ -221,10 +273,13 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
           </span>
         </div>
         <div className="game-header-actions">
+          <button type="button" className={`pixel-icon-button audio-toggle ${audioEnabled ? 'enabled' : ''}`} onClick={toggleAudio} aria-label={audioEnabled ? '关闭声音' : '开启声音'}>
+            <span>{audioEnabled ? '♪' : '×'}</span><small>{audioEnabled ? 'AUDIO' : 'MUTE'}</small>
+          </button>
           <button type="button" className="pixel-icon-button" onClick={() => setHelpOpen((open) => !open)} aria-label="帮助">
             <span>?</span><small>HELP</small>
           </button>
-          <button type="button" className="pixel-icon-button" onClick={onRestart} aria-label="重新开始">
+          <button type="button" className="pixel-icon-button" onClick={() => { audio.current.play('ui'); onRestart() }} aria-label="重新开始">
             <span>↻</span><small>RESET</small>
           </button>
           {debug && <span className="debug-badge">DEBUG</span>}
@@ -238,9 +293,11 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       )}
 
       <TaskBanner stage={state.stage} />
+      <StageReward notice={rewardNotice} />
 
       {isBriefing ? (
         <div className="briefing-game-layout">
+          {!debug && <BeginnerGuide stage={state.stage} />}
           <IncidentScene />
           <div className="briefing-bottom-row">
             <AssistantPanel state={state} onHint={requestHint} />
@@ -273,6 +330,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
           </div>
 
           <div className="control-column game-console-column">
+            {!debug && <BeginnerGuide stage={state.stage} compact />}
             {controlsVisible && (
               <>
                 <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
@@ -309,6 +367,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
                       key={option.id}
                       className={state.transferAnswer === option.id ? 'selected' : ''}
                       onClick={() => {
+                        audio.current.play('select')
                         record('ANSWER_TRANSFER')
                         dispatch({ type: 'ANSWER_TRANSFER', id: option.id, correct: option.correct })
                       }}
