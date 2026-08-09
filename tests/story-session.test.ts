@@ -201,4 +201,16 @@ describe('Story Case local checkpoint', () => {
       expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
     }
   })
+
+  it('refuses an oversized write without overwriting the last valid checkpoint', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    expect(writeStorySession(storage, value)).toBe(true)
+    const previous = storage.getItem(storySessionKey(value.seed))
+
+    value.observationAnswer = 'x'.repeat(210_000)
+    expect(writeStorySession(storage, value)).toBe(false)
+    expect(storage.getItem(storySessionKey(value.seed))).toBe(previous)
+    expect(readStorySession(storage, value.seed)?.state.stage).toBe('inspect_data')
+  })
 })

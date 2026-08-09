@@ -276,7 +276,9 @@ export function readStorySession(storage: StorageLike, seed: number): StorySessi
 export function writeStorySession(storage: StorageLike, session: StorySessionData) {
   try {
     const sanitized: StorySessionData = { ...session, state: sanitizeState(session.state) }
-    storage.setItem(storySessionKey(session.seed), JSON.stringify(sanitized))
+    const serialized = JSON.stringify(sanitized)
+    if (serialized.length > MAX_STORY_SESSION_BYTES) return false
+    storage.setItem(storySessionKey(session.seed), serialized)
     return true
   } catch {
     return false
