@@ -281,6 +281,45 @@ test('endless investigation survives refresh without refunding audit budget', as
   await expect(page.getByLabel('已恢复本案进度')).toHaveCount(0)
 })
 
+test('wrong endless diagnosis remains locked across refresh until fresh evidence is cited', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6000')
+
+  // Baseline + one controlled field-only repair create two distinct configurations.
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await citeEndlessRuns(page, 1, 2)
+
+  await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
+  await page.getByRole('button', { name: '提交诊断' }).click()
+  await expect(page.getByText(/报告已暂时锁定/)).toBeVisible()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 3')
+
+  await page.reload()
+  await expect(page.getByLabel('已恢复本案进度')).toBeInViewport()
+  await expect(page.getByText(/刚提交：模型把训练噪声和偶然点记得太死/)).toBeVisible()
+  await expect(page.getByText(/报告已暂时锁定/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 3')
+
+  // A genuinely new model-only audit reopens evidence collection, but old E01+E02 still cannot be reused.
+  await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await citeEndlessRuns(page, 1, 2)
+  await expect(page.getByLabel('诊断证据引用状态')).toContainText('必须包含上次诊断后新增的实验记录')
+  await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
+  await page.locator('.endless-run-log').getByRole('button', { name: /已引用 E02/ }).click()
+  await citeEndlessRuns(page, 3)
+  await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
+  await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeEnabled()
+})
+
 test('endless gateway explicitly resumes or abandons a saved investigation', async ({ page }) => {
   const seed = 6020
   await page.goto(`?mode=endless&seed=${seed}`)
