@@ -205,15 +205,28 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
 
   return (
     <main className="app-shell" style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
-      <header className="topbar">
-        <div className="brand"><span className="brand-mark">A/Δ</span><div><strong>AI异常调查局</strong><small>ANOMALY_BUREAU://CASE_001</small></div></div>
-        <div className="case-status" aria-label="案件状态">
-          <span className="status-light" />
-          <div><small>CASE STATUS</small><strong>{state.stage === 'complete' ? 'CLOSED' : 'ACTIVE'}</strong></div>
+      <header className="pixel-game-header">
+        <div className="game-logo-block" aria-label="AI异常调查局">
+          <span className="game-logo-pixel">A<span>/</span>Δ</span>
+          <div className="game-title-copy">
+            <strong>AI异常调查局</strong>
+            <small>ANOMALY BUREAU</small>
+          </div>
         </div>
-        <div className="top-actions">
-          <button type="button" className="ghost-button" onClick={() => setHelpOpen((open) => !open)}>帮助</button>
-          <button type="button" className="ghost-button" onClick={onRestart}>重新开始</button>
+        <div className="case-cartridge">
+          <span className="case-cartridge-index">CASE 001</span>
+          <span className="case-cartridge-title">失控的分类器</span>
+          <span className={`case-cartridge-state ${state.stage === 'complete' ? 'closed' : ''}`}>
+            {state.stage === 'complete' ? 'CLOSED' : 'IN PROGRESS'}
+          </span>
+        </div>
+        <div className="game-header-actions">
+          <button type="button" className="pixel-icon-button" onClick={() => setHelpOpen((open) => !open)} aria-label="帮助">
+            <span>?</span><small>HELP</small>
+          </button>
+          <button type="button" className="pixel-icon-button" onClick={onRestart} aria-label="重新开始">
+            <span>↻</span><small>RESET</small>
+          </button>
           {debug && <span className="debug-badge">DEBUG</span>}
         </div>
       </header>

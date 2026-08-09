@@ -22,21 +22,32 @@ const PHASE_LABEL = ['现场取证', '未知审计', '系统修复', '结案复�
 export function TaskBanner({ stage }: { stage: Stage }) {
   const content = STAGE_CONTENT[stage]
   const phase = PHASE[stage]
+
   return (
-    <section className="pixel-mission-bar" aria-live="polite">
-      <div className="mission-command">
-        <span className="prompt-symbol">&gt;</span>
-        <span className="mission-path">CASE001/{String(phase).padStart(2, '0')}</span>
-        <strong>{content.step}</strong>
-        <span className="cursor-block" />
+    <section className="pixel-objective-strip" aria-live="polite">
+      <div className="objective-badge">
+        <small>OBJECTIVE</small>
+        <strong>{String(phase).padStart(2, '0')}</strong>
       </div>
-      <p>{content.task}</p>
-      <div className="phase-pips" aria-label={`调查阶段 ${phase}/4`}>
-        {PHASE_LABEL.map((label, index) => (
-          <span className={index + 1 === phase ? 'active' : index + 1 < phase ? 'done' : ''} key={label}>
-            <i>{index + 1 < phase ? '✓' : index + 1}</i>{label}
-          </span>
-        ))}
+      <div className="objective-main">
+        <div className="objective-meta">
+          <span>{content.role}</span>
+          <i>/</i>
+          <strong>{content.step}</strong>
+        </div>
+        <p>{content.task}</p>
+      </div>
+      <div className="pixel-phase-track" aria-label={`调查阶段 ${phase}/4`}>
+        {PHASE_LABEL.map((label, index) => {
+          const number = index + 1
+          const stateClass = number === phase ? 'active' : number < phase ? 'done' : ''
+          return (
+            <span className={stateClass} key={label}>
+              <i>{number < phase ? '✓' : number}</i>
+              <small>{label}</small>
+            </span>
+          )
+        })}
       </div>
     </section>
   )

@@ -526,17 +526,17 @@ body {
    Ordinary player mode is a game scene; debug remains a tool.
    ============================================================ */
 :root {
-  --px-bg: #090b11;
-  --px-panel: #0e1420;
-  --px-panel-2: #111a2a;
-  --px-line: #293650;
-  --px-cyan: #75e4ee;
-  --px-blue: #6b8cff;
-  --px-blue-2: #405dd8;
-  --px-amber: #ffb45e;
-  --px-red: #ff667d;
-  --px-text: #e8edf7;
-  --px-muted: #8190a9;
+  --px-bg: #07080c;
+  --px-panel: #0b1018;
+  --px-panel-2: #101725;
+  --px-line: #253655;
+  --px-cyan: #4f7cff;
+  --px-blue: #4f7cff;
+  --px-blue-2: #3153bd;
+  --px-amber: #ffd447;
+  --px-red: #ffd447;
+  --px-text: #f3f5fa;
+  --px-muted: #7f899b;
 }
 
 body {
