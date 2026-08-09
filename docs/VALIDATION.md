@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：9 个测试文件、37 个测试全部通过。
+- Vitest：10 个测试文件、47 个测试全部通过。
 - Vite production build：通过。
-- Playwright：13 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、正式证据导航、症状文案、复现实验守卫、桌面 viewport、分布变化、额度恢复与类别不平衡。
+- Playwright：16 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、桌面 viewport、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -61,14 +61,17 @@ Vitest 当前覆盖：
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
 - 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
-- 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类。
+- 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类；下一次训练前使用同一纯函数语义预览当前实验计划。
+- 诊断证据包：必须显式引用两条不同配置的 run；错误诊断后下一份报告必须包含 `lastDiagnosisRunCount` 之后的新记录，旧 E 记录不能反复用于轮猜。
+- 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome。
+- 无尽 session：版本化 seed-local payload 可往返恢复，损坏 / 旧版本 / 越界指标 / 不存在的 run 引用 / audit 配置冲突都会被拒绝；存档不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 13 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 16 条真实 Chromium 路线。
 
 零基础玩家完整案件：
 
@@ -97,9 +100,17 @@ Vitest 当前覆盖：
 - Boot 完成后使用版本化 localStorage 标记；正式模式仍可 query 直达，训练案件可重玩。
 - 正式案件首屏只描述症状，不写出 syndrome；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
 - 过拟合类历史档案的质量告警在散点图里为可点击橙色 `!`；只有玩家亲手打开后才进入 `CASE_LEADS.LOG`。
-- 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡。
-- `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；错误诊断后，原样复现不会解锁改口，必须产生一个不同配置的新正式审计。
+- 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡；`TRAIN / FIELD / 召回` 仅有字面指标词典。
+- 正式审计返回的错误卡可点击，选中后对应 public `field-*` 点会滚入 `FIELD_MATRIX` 并高亮；只有亲手检查的错误才进入 `CASE_LEADS.LOG`。
+- `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；下一次训练前先显示当前配置相对上一条记录的变化类型。
+- 达到两个不同配置后仍必须从日志引用两条记录；同配置引用会被拒绝。有效引用会生成只包含字段 / 模型 / 指标变化的客观对照，病因选项才解锁。
+- 错误诊断后，原样复现不会解锁改口；必须产生一个不同配置的新正式审计，而且下一份证据包必须包含这条新记录。
 - 诊断锁且额度为 0 时，sticky 导航会直接定位到“申请 1 次补充审计”，验证有限预算不形成软锁。
+- 正式无尽 session 按 seed 保存在本地：普通刷新不会返还正式审计额度；错误诊断锁、引用状态和已检查证据也会恢复。模式入口显式显示未结案件 / 剩余额度，生成全新案件需要二次确认。
+- 已结案 session 也会显示为 `RESOLVED CASE SAVED`；浏览器路线会从剧情页重新进入无尽入口、重开同一结案案卷并核对引用证据，再从该案生成下一 seed。
+- adversarial refresh 路线验证：错误诊断后刷新仍保持锁定，之后即使取得 E03，继续引用旧 E01+E02 也不能提交，必须把新记录写进报告。
+- `FieldManual` 的键盘路线验证焦点进入、Tab 环、Escape 关闭与焦点恢复；SVG 档案异常的 Space 激活会阻止默认 button 滚动语义。
+- CASE RESOLVED 后不再显示 stale `NEXT OBJECTIVE`；结案案卷封存最终配置、引用 E 记录、实验设计、已检查现场误判与档案复核。
 - 1280×720 以及常规桌面 viewport 验证 intro / Boot / 正式模式没有横向爆版，`定位下一步操作` 可将关键 CTA 带入视野。
 - distribution-shift 路线验证 `HISTORY BATCH / FIELD BATCH` 元数据可见，但首屏不出现“分布漂移”答案词。
 
@@ -173,7 +184,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-本轮 onboarding / 正式无尽调查改造已完成本地完整验证并 push。Pages 公网 HTML 已确认引用当前 production asset `index-BTgULGDA.js`；随后同一组 Playwright 测试直接以生产 URL 运行，不用本地结果代替远端结果。
+上一轮 onboarding / 正式无尽调查基线已经完成公网发布验证；本轮新增证据引用、可调查现场误判、session 恢复等改动已完成本地完整验证并 push。下面保留上一轮生产基线，待当前 `main` 的 Pages 部署传播后再以同一套生产 URL E2E 更新结果，不用本地结果冒充远端结果。
 
 ## GitHub Pages 部署状态
 
@@ -196,7 +207,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 - 页面 HTML：HTTP 200。
 - production JS asset：HTTP 200。
-- 2026-08-10 01:06 +08:00，同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**13 / 13 全部通过**。
+- 上一轮生产基线：2026-08-10 01:06 +08:00，同一组当时的 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**13 / 13 全部通过**。
 - 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、正式症状 / 档案证据、复现实验诊断守卫、sticky NEXT OBJECTIVE、1280×720、distribution-shift 批次元数据、额度恢复、类别不平衡与下一案生成。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。

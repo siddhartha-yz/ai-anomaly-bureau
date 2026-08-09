@@ -52,6 +52,8 @@ src/
     BootCase.tsx             # 训练案件 000：控制变量、读日志、诊断提交
     EndlessNavigator.tsx     # answer-neutral NEXT OBJECTIVE / 案件线索 / 档案记录
     FieldManual.tsx          # 玩家主动打开的静态调查方法手册
+    session.ts               # 版本化 seed-local 调查 session 与运行时校验
+    uiTypes.ts               # 实验记录、证据包、配置 delta / 对照纯函数
     EndlessMode.tsx          # 无尽模式状态与结案逻辑
     EndlessPlot.tsx          # 程序化案件二维实验台
     EndlessControls.tsx      # 特征 / 模型 / 预测 / 审计预算
@@ -224,9 +226,15 @@ Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作�
 - `class-imbalance` 由训练样本真实类别比例产生，UI 显示档案构成与分类别 recall。
 - `feature-gap` 通过同一模型在不同字段组合上的真实实验差异暴露。
 
-诊断至少要求两个**不同配置**。配置 key 由模型 + 无序特征集合构成；交换 X/Y 不算新配置。错误诊断会记录当前配置数并锁定报告，必须完成一个字段或模型发生变化的新正式审计后才能改口。完全复现实验会写入日志，但不会解锁诊断。
+诊断至少要求两个**不同配置**。配置 key 由模型 + 无序特征集合构成；交换 X/Y 不算新配置。达到两个配置后仍不会直接开放病因按钮：玩家必须从 `EXPERIMENTS.LOG` 引用恰好两条不同配置记录，`diagnosisEvidenceStatus()` 才会把证据包标记为 ready。错误诊断会同时记录当前配置数和 run count；必须完成一个字段或模型发生变化的新正式审计，并在下一份证据包中包含 `id > lastDiagnosisRunCount` 的记录，才能改口。完全复现实验会写入日志，但不会解锁诊断。
 
-`EXPERIMENTS.LOG` 还通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动。该信息只描述玩家自己做了什么；不会判断哪次实验“应该”成功。结案评分会奖励单变量对照、轻微惩罚同时改字段与模型。
+`EXPERIMENTS.LOG` 通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动；`experimentPlanDelta()` 在下一次训练前对当前配置做同一套分类。两条引用记录用 `compareExperimentRecords()` 生成 TRAIN / FIELD / min recall / error 的纯数值差分。上述信息只描述玩家自己做了什么，不判断哪次实验“应该”成功。结案评分会奖励单变量对照、轻微惩罚同时改字段与模型，结案报告封存最终引用的 E 记录和已经检查的 field/archive 证据。
+
+正式审计返回的 `mistakes` 在揭示之后可以被玩家主动检查：`EndlessAuditPanel` 使用按钮选择错误，`EndlessPlot` 只对已返回的 public `field-*` 错误点增加可视定位环，`CASE_LEADS.LOG` 仅记录玩家亲手打开的错误。这个流程不会在审计前创建额外测试标签入口。
+
+`session.ts` 使用 `aia.endless-session.v1.<seed>` 保存版本化本地调查状态。存档只包含玩家已经拥有的配置、audit history、诊断状态、证据引用和已检查错误，不保存 generator 内部 test IDs / syndrome answer。运行时 guard 校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；损坏 / 旧版本 payload 会被删除而不是恢复。剩余审计额度不单独持久化，而由 `5 + emergencyCredits - history.length` 重建，因此刷新不会返还额度。入口显式显示 resumable case；新案 / 当前案重置均有明确玩家动作。
+
+零基础指标说明与案件解释分离：正式审计和 `FieldManual` 只定义 `TRAIN`、`FIELD`、分类别 recall 的字面语义，不根据当前结果生成 syndrome 建议。`FieldManual` 作为 `aria-modal` 会把焦点移入对话框、约束 Tab、支持 Escape，并在关闭后恢复到原触发按钮；SVG 档案异常支持 Enter / Space，Space 会 `preventDefault()` 以符合 button 语义。
 
 普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。自动 evidence-policy 与玩家 UI 读取同一类信息，不允许读取隐藏 syndrome/test label 再假装推理。
 
@@ -304,6 +312,9 @@ type BehaviorEvent = {
 ### 浏览器验证
 - Playwright Chromium 剧情路线覆盖 Cold Open、图上抓异常旧样本、决策边界探针、锁定预测、错误上线后果、两条错误证据、可点击实验记录、过拟合、备用传感器修复、迁移问题与结案评级。
 - 无尽 E2E 覆盖模式说明、Boot Case 000、正式案件 answer-neutral 导航、可点击档案质量记录、不同配置诊断守卫、有限审计预算、正确诊断与下一案生成。
+- 证据 E2E 覆盖两条实验记录显式引用、同配置引用拒绝、`EVIDENCE_COMPARE`、可点击现场误判 → `FIELD_MATRIX` 定位与 `CASE_LEADS` 留痕。
+- session E2E 覆盖刷新不退款、入口显式恢复 / 二次确认新案、错误诊断锁跨刷新，以及旧证据不能在刷新后重新解锁轮猜。
+- 键盘 E2E 覆盖 SVG 档案异常 Space 激活、调查手册焦点进入 / Tab 环 / Escape / 焦点恢复。
 - 额外 smoke 使用 1280×720 viewport 验证入口 / Boot / 正式模式无横向爆版且 `定位下一步操作` 仍能把关键 CTA 带进视野。
 - distribution-shift E2E 验证历史 / 现场批次元数据真实可见，但首屏不出现“分布漂移”答案词。
 - 额度恢复 E2E 故意耗尽 5 次正式审计，验证额外审计可恢复路线但会产生评级代价，避免“有限预算 = 死局”。
