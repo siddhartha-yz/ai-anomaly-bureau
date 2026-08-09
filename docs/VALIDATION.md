@@ -173,7 +173,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-本轮证据驱动剧情与无尽模式的本地完整验证已通过；最终提交 push 后会再次以 GitHub Actions / Pages 和生产 URL E2E 作为发布验收，不用本地结果代替远端结果。
+本轮 onboarding / 正式无尽调查改造已完成本地完整验证并 push。Pages 公网 HTML 已确认引用当前 production asset `index-BTgULGDA.js`；随后同一组 Playwright 测试直接以生产 URL 运行，不用本地结果代替远端结果。
 
 ## GitHub Pages 部署状态
 
@@ -196,8 +196,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 - 页面 HTML：HTTP 200。
 - production JS asset：HTTP 200。
-- 同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行通过。
-- 沉浸式新版生产 E2E 已实际覆盖 Cold Open、两条误判证据、k=1 过拟合、备用传感器修复与 `CASE CLOSED`；debug 工程模式也同时通过。
+- 2026-08-10 01:06 +08:00，同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**13 / 13 全部通过**。
+- 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、正式症状 / 档案证据、复现实验诊断守卫、sticky NEXT OBJECTIVE、1280×720、distribution-shift 批次元数据、额度恢复、类别不平衡与下一案生成。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
