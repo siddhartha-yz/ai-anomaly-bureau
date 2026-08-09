@@ -7,6 +7,7 @@ import './styles/pixel-gameplay.css'
 import './styles/experience-layer.css'
 import './styles/entry-scene.css'
 import './styles/pixel-typography-focus.css'
+import './styles/pixel-font-onboarding.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -39,7 +39,6 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
         <span className="control-number">MODULE_01</span>
         <div>
           <h2 id="features-title">安装观察模块</h2>
-          <p>模型一次只能通过两个通道观察样本。</p>
         </div>
       </div>
 
@@ -83,8 +82,7 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
       </div>
 
       <div className="feature-readout">
-        <span>&gt; {FEATURE_META[value[activeAxis]].label}</span>
-        <p>{FEATURE_META[value[activeAxis]].description}</p>
+        <span>&gt; 当前编辑：{FEATURE_META[value[activeAxis]].label}</span>
       </div>
     </section>
   )

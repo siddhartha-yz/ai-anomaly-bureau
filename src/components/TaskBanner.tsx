@@ -35,7 +35,7 @@ export function TaskBanner({ stage }: { stage: Stage }) {
           <i>/</i>
           <strong>{content.step}</strong>
         </div>
-        <p>{content.task}</p>
+        <p>{content.step}</p>
       </div>
       <div className="pixel-phase-track" aria-label={`调查阶段 ${phase}/4`}>
         {PHASE_LABEL.map((label, index) => {

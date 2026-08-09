@@ -60,7 +60,6 @@ export function ModelPicker({ selected, unlocked, disabled, onChange }: Props) {
         <span className="control-number">MODEL_TOOLBOX / 02</span>
         <div>
           <h2 id="models-title">选择判断工具</h2>
-          <p>复杂度不是分数，只表示边界能拐多少弯。</p>
         </div>
       </div>
       <div className="model-list pixel-model-list">
@@ -81,7 +80,6 @@ export function ModelPicker({ selected, unlocked, disabled, onChange }: Props) {
                   <strong>{meta.label}</strong>
                   <span className="complexity">复杂度 {meta.complexityLabel}</span>
                 </span>
-                <span>{meta.description}</span>
                 <span className="model-card-foot">{selected === id ? '■ LOADED' : '□ LOAD TOOL'}</span>
               </span>
             </button>

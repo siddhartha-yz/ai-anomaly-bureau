@@ -1,0 +1,271 @@
+/* Actual CJK pixel font + simplified onboarding. Loaded last on purpose. */
+@font-face {
+  font-family: "FusionPixelZH";
+  src: url("https://fusion-pixel-font.takwolf.com/fusion-pixel-12px-proportional-zh_hans.otf.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "FusionPixelLatin";
+  src: url("https://fusion-pixel-font.takwolf.com/fusion-pixel-12px-proportional-latin.otf.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+:root {
+  --font-pixel: "FusionPixelZH", "FusionPixelLatin", "Microsoft YaHei", sans-serif;
+  --focus-mask: rgba(1, 2, 6, .78);
+}
+
+body,
+.entry-scene,
+.boot-sequence,
+.app-shell,
+.entry-scene *,
+.boot-sequence *,
+.app-shell * {
+  font-family: var(--font-pixel) !important;
+  font-synthesis: none !important;
+  -webkit-font-smoothing: none;
+}
+
+/* Keep developer tooling utilitarian. */
+.debug-panel,
+.debug-panel * {
+  font-family: ui-monospace, Consolas, monospace !important;
+}
+
+/* Real pixel typography replaces the fake boxed-character poster treatment. */
+.entry-brand { max-width: min(820px, 58vw); }
+.entry-pixel-title {
+  gap: clamp(3px, .3vw, 6px) !important;
+  align-items: baseline !important;
+  font-size: clamp(48px, 5vw, 72px) !important;
+  line-height: 1 !important;
+}
+.entry-pixel-title > span {
+  min-width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #eef2ff !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 1em !important;
+  font-weight: 400 !important;
+  text-shadow: 4px 4px 0 #263b78, 8px 8px 0 #03050a !important;
+}
+.entry-pixel-title > span::after { display: none !important; }
+.entry-pixel-title .entry-title-ai {
+  min-width: auto !important;
+  color: #ffe05b !important;
+  letter-spacing: 0 !important;
+  text-shadow: 4px 4px 0 #6a5718, 8px 8px 0 #03050a !important;
+}
+.entry-brand-code,
+.entry-case,
+.entry-start-copy small,
+.entry-start-button kbd,
+.boot-copy p { letter-spacing: .06em !important; }
+.entry-incident-line strong {
+  font-size: clamp(24px, 2.1vw, 36px) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-shadow: 3px 3px 0 #18213c !important;
+}
+.entry-incident-line span { font-size: 12px !important; }
+.entry-start-copy strong { font-size: 24px !important; font-weight: 400 !important; letter-spacing: 0 !important; }
+.entry-start-meta { display: none !important; }
+
+/* The top bar only says where you are. The mission card says what to do. */
+.pixel-objective-strip { min-height: 62px !important; margin-bottom: 16px !important; }
+.objective-main { padding-block: 8px !important; }
+.objective-main p {
+  margin-top: 4px !important;
+  font-size: 18px !important;
+  line-height: 1.2 !important;
+  font-weight: 400 !important;
+  text-shadow: none !important;
+}
+.objective-meta { font-size: 12px !important; }
+
+/* Remove tutorial prose that competed with the actual task. */
+.plot-note { display: none !important; }
+.control-heading p { display: none !important; }
+.feature-chip small { display: none !important; }
+.feature-readout {
+  padding: 7px 9px !important;
+  min-height: 0 !important;
+}
+.feature-readout span { font-size: 12px !important; }
+.pixel-model-card .model-card-copy > span:nth-child(2) {
+  margin-top: 6px !important;
+  color: #7184b1 !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+.model-card-foot { border-top: 0 !important; padding-top: 0 !important; }
+.assistant-dialogue p { font-size: 12px !important; line-height: 1.5 !important; }
+.hint-command { font-size: 12px !important; }
+
+/* One global dimmer, rather than a giant shadow cast by one panel. */
+.app-shell { position: relative; }
+.app-shell[data-stage='inspect_data']::after,
+.app-shell[data-stage='choose_features']::after,
+.app-shell[data-stage='choose_model']::after,
+.app-shell[data-stage='train']::after,
+.app-shell[data-stage='first_success']::after,
+.app-shell[data-stage='hidden_test']::after,
+.app-shell[data-stage='inspect_errors']::after,
+.app-shell[data-stage='overfit_reveal']::after,
+.app-shell[data-stage='final_audit']::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--focus-mask);
+  pointer-events: none;
+}
+
+/* Both halves of the instruction are above the mask: the mission and its target. */
+.beginner-guide.compact {
+  position: sticky !important;
+  top: 12px !important;
+  z-index: 70 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  padding: 16px !important;
+  border: 4px solid #ffe05b !important;
+  background: #171307 !important;
+  box-shadow:
+    0 0 0 4px #5f4e17,
+    8px 8px 0 #020307,
+    0 0 24px rgba(255,224,91,.35) !important;
+}
+.beginner-guide.compact::before {
+  content: "▶ MISSION" !important;
+  background: #ffe05b !important;
+  color: #090805 !important;
+  font-size: 12px !important;
+}
+.beginner-guide.compact .guide-copy > span { display: none !important; }
+.beginner-guide.compact .guide-copy strong {
+  margin: 0 !important;
+  color: #fff2a3 !important;
+  font-size: 24px !important;
+  line-height: 1.15 !important;
+  font-weight: 400 !important;
+  text-shadow: 3px 3px 0 #514212 !important;
+}
+.beginner-guide.compact .guide-copy p {
+  margin: 8px 0 0 !important;
+  color: #e6e1c9 !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+.beginner-guide.compact .guide-icon {
+  font-size: 24px !important;
+  font-weight: 400 !important;
+}
+.beginner-guide.compact .guide-action {
+  margin-top: 4px !important;
+  padding-top: 12px !important;
+}
+.beginner-guide.compact .guide-action .action-button {
+  min-height: 52px !important;
+  animation: missionPixelBlink 1s steps(2) infinite !important;
+}
+.beginner-guide.compact .guide-action .action-button-copy {
+  font-size: 18px !important;
+  font-weight: 400 !important;
+}
+.beginner-guide.compact .guide-action .action-button-cue {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+@keyframes missionPixelBlink {
+  50% { filter: brightness(1.18); transform: translate(-2px,-2px); }
+}
+
+[data-stage='inspect_data'] .pixel-scanner-card,
+[data-stage='choose_features'] .pixel-control,
+[data-stage='choose_model'] .model-toolbox,
+[data-stage='inspect_errors'] .evidence-console {
+  position: relative !important;
+  z-index: 60 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  animation: focusTargetBlink 1.1s steps(2) infinite !important;
+  box-shadow:
+    0 0 0 4px #ffe05b,
+    0 0 0 8px #171307,
+    8px 8px 0 #020307,
+    0 0 22px rgba(255,224,91,.3) !important;
+}
+@keyframes focusTargetBlink {
+  50% { outline: 4px solid rgba(255,224,91,.45); outline-offset: 7px; }
+}
+
+/* Action-only stages: mission card itself is the target. */
+[data-stage='train'] .beginner-guide.compact,
+[data-stage='first_success'] .beginner-guide.compact,
+[data-stage='hidden_test'] .beginner-guide.compact,
+[data-stage='overfit_reveal'] .beginner-guide.compact,
+[data-stage='final_audit'] .beginner-guide.compact {
+  z-index: 70 !important;
+  box-shadow:
+    0 0 0 4px #ffe05b,
+    0 0 0 8px #171307,
+    8px 8px 0 #020307,
+    0 0 28px rgba(255,224,91,.4) !important;
+}
+
+/* The pointer belongs to the mission card and stays bright with it. */
+.beginner-guide.compact::after {
+  z-index: 72 !important;
+  color: #ffe05b !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 18px !important;
+  text-shadow: 3px 3px 0 #3e3310 !important;
+}
+[data-stage='inspect_data'] .beginner-guide.compact::after,
+[data-stage='inspect_errors'] .beginner-guide.compact::after {
+  content: "◀ 看这里" !important;
+  left: -86px !important;
+}
+[data-stage='choose_features'] .beginner-guide.compact::after,
+[data-stage='choose_model'] .beginner-guide.compact::after {
+  content: "▼ 点这里" !important;
+  left: 36% !important;
+  bottom: -39px !important;
+}
+
+/* Ordinary labels now use integer-ish sizes so the bitmap design stays crisp. */
+.game-title-copy strong,
+.case-cartridge-title,
+.plot-heading h2,
+.control-heading h2,
+.assistant-title,
+.evidence-console-head strong { font-size: 18px !important; font-weight: 400 !important; }
+.action-button,
+.feature-chip,
+.model-card,
+.pixel-icon-button { font-weight: 400 !important; }
+
+@media (max-width: 900px) {
+  .entry-pixel-title { font-size: clamp(36px, 9vw, 60px) !important; }
+  .app-shell::after { display: none; }
+  .beginner-guide.compact::after { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beginner-guide.compact .guide-action .action-button,
+  [data-stage='inspect_data'] .pixel-scanner-card,
+  [data-stage='choose_features'] .pixel-control,
+  [data-stage='choose_model'] .model-toolbox,
+  [data-stage='inspect_errors'] .evidence-console { animation: none !important; }
+}
