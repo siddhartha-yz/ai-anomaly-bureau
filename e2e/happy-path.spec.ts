@@ -169,6 +169,13 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await auditButton.click()
   await waitForStage(page, 'overfit_reveal')
   await expect(page.getByText('先从案件记录里指出异常')).toBeVisible()
+  const laterEvidence = page.locator('.evidence-console-head')
+  await expect(laterEvidence).toContainText('本轮审计 · 9 个误判')
+  await expect(laterEvidence).not.toContainText('已调查')
+  // Later audit mistakes remain browsable, but must never continue the earlier 2-item evidence counter.
+  await page.locator('.evidence-tab').last().click()
+  await expect(laterEvidence).toContainText('本轮审计 · 9 个误判')
+  await expect(page.locator('.evidence-tab i').filter({ hasText: 'CHECKED' })).toHaveCount(0)
   await page.locator('.case-attempt-list .case-attempt').last().click()
   await expect(page.getByText('记录找对了，再解释原因')).toBeVisible()
   await qaShot(page, '16-overfit-question')

@@ -347,7 +347,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
     audio.current.play('evidence')
     setSelectedMistake(id)
     record('VIEW_MISTAKE', { mistakeId: id })
-    dispatch({ type: 'VIEW_MISTAKE', id })
+    if (state.stage === 'inspect_errors') dispatch({ type: 'VIEW_MISTAKE', id })
 
     // The evidence card sits below the scanner. Bring it into view after React has
     // rendered the selected sample so "inspect one mistake" means actually seeing it.
@@ -616,6 +616,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
               viewed={state.viewedMistakes}
               selectedId={selectedMistake}
               onSelect={viewMistake}
+              investigationTarget={state.stage === 'inspect_errors' ? 2 : undefined}
             />
           </div>
 

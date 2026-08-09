@@ -100,6 +100,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const next = advanceStage(state)
       if (!next) return diagnostic(state, 'no ADVANCE transition')
       if (next === 'complete') return { ...state, stage: next, completedAt: Date.now() }
+      if (state.stage === 'inspect_errors') return { ...state, stage: next, viewedMistakes: [] }
       return { ...state, stage: next }
     }
 
@@ -184,6 +185,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'VIEW_MISTAKE':
+      if (state.stage !== 'inspect_errors' && !state.debug) {
+        return diagnostic(state, 'mistake investigation ignored outside inspect_errors')
+      }
       if (!state.audit?.mistakes.some((mistake) => mistake.id === action.id)) {
         return diagnostic(state, `unknown mistake ${action.id}`)
       }

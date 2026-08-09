@@ -33,7 +33,28 @@ describe('game state and hidden audit boundary', () => {
     const oneViewed = gameReducer(blocked, { type: 'VIEW_MISTAKE', id: 'x' })
     expect(gameReducer(oneViewed, { type: 'ADVANCE' }).stage).toBe('inspect_errors')
     const twoViewed = gameReducer(oneViewed, { type: 'VIEW_MISTAKE', id: 'y' })
-    expect(gameReducer(twoViewed, { type: 'ADVANCE' }).stage).toBe('iterate')
+    const advanced = gameReducer(twoViewed, { type: 'ADVANCE' })
+    expect(advanced.stage).toBe('iterate')
+    expect(advanced.viewedMistakes).toEqual([])
+  })
+
+  it('does not accumulate evidence-investigation progress outside inspect_errors', () => {
+    const state = {
+      ...createInitialGameState(1, false, 0),
+      stage: 'overfit_reveal' as const,
+      audit: {
+        accuracy: 0.6,
+        errorCount: 1,
+        orangeCatErrors: 1,
+        mistakes: [
+          { id: 'field-001', actual: 'cat' as const, predicted: 'bread' as const, correct: false, features: { warmth: 1, roundness: 1, texture: 1, aspect: 1 } },
+        ],
+        confusion: { 'cat->cat': 0, 'cat->bread': 1, 'bread->cat': 0, 'bread->bread': 0 },
+      },
+    }
+    const next = gameReducer(state, { type: 'VIEW_MISTAKE', id: 'field-001' })
+    expect(next.viewedMistakes).toEqual([])
+    expect(next.diagnostics.at(-1)).toContain('mistake investigation ignored outside inspect_errors')
   })
 
   it('escalates hints without exceeding level three', () => {

@@ -11,12 +11,14 @@ export function ErrorSamples({
   viewed,
   selectedId,
   onSelect,
+  investigationTarget,
 }: {
   audit?: AuditResult
   selectedFeatures: [FeatureKey, FeatureKey]
   viewed: string[]
   selectedId?: string
   onSelect: (id: string) => void
+  investigationTarget?: number
 }) {
   if (!audit) return null
   const selected = audit.mistakes.find((mistake) => mistake.id === selectedId) ?? audit.mistakes[0]
@@ -33,11 +35,22 @@ export function ErrorSamples({
     )
   }
 
+  const currentMistakeIds = new Set(audit.mistakes.map((mistake) => mistake.id))
+  const viewedCurrent = viewed.filter((id) => currentMistakeIds.has(id))
+  const trackedInvestigation = investigationTarget !== undefined
+  const investigatedCount = trackedInvestigation
+    ? Math.min(investigationTarget, viewedCurrent.length)
+    : 0
+
   return (
     <section className="mistakes evidence-console" aria-labelledby="mistakes-title">
       <div className="evidence-console-head">
         <span>EVIDENCE.LOG</span>
-        <strong id="mistakes-title">发现 {audit.errorCount} 个误判 · 已调查 {viewed.length}/2</strong>
+        <strong id="mistakes-title">
+          {trackedInvestigation
+            ? `发现 ${audit.errorCount} 个误判 · 已调查 ${investigatedCount}/${investigationTarget}`
+            : `本轮审计 · ${audit.errorCount} 个误判`}
+        </strong>
       </div>
 
       {selected && (
@@ -82,7 +95,11 @@ export function ErrorSamples({
             <span className="evidence-tab-index">{String(index + 1).padStart(2, '0')}</span>
             <span className={`evidence-mini-glyph ${mistake.actual}`}>{mistake.actual === 'cat' ? '⌃' : '▰'}</span>
             <span>{LABEL[mistake.actual]}→{LABEL[mistake.predicted]}</span>
-            <i>{viewed.includes(mistake.id) ? 'CHECKED' : 'OPEN'}</i>
+            <i>
+              {trackedInvestigation
+                ? viewedCurrent.includes(mistake.id) ? 'CHECKED' : 'OPEN'
+                : selected?.id === mistake.id ? 'VIEWING' : 'VIEW'}
+            </i>
           </button>
         ))}
       </div>
