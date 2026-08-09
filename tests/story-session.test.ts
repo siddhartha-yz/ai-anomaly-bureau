@@ -110,6 +110,8 @@ describe('Story Case local checkpoint', () => {
       (value) => { value.version = 999 as typeof STORY_SESSION_VERSION },
       (value) => { value.state.seed += 1 },
       (value) => { value.selectedMistake = 'field-999' },
+      (value) => { value.successPrediction = 'definitely-fixed' },
+      (value) => { value.sensorReads = ['warmth', 'warmth'] },
       (value) => { value.suspiciousAttemptId = 4 },
       (value) => { value.state = { ...value.state, stage: 'inspect_errors' } },
       (value) => { value.state = { ...value.state, stage: 'overfit_reveal', hasSeenOverfit: true } },

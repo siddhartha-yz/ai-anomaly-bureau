@@ -46,6 +46,14 @@ const FEATURES = new Set<FeatureKey>(['warmth', 'roundness', 'texture', 'aspect'
 const MODELS = new Set<ModelId>(['linear', 'tree', 'knn-1', 'knn-5'])
 const LABELS = new Set<Label>(['cat', 'bread'])
 const PREDICTIONS = new Set<ExperimentPrediction>(['both-improve', 'train-up-test-down', 'test-improves', 'no-idea'])
+const OBSERVATION_ANSWERS = new Set(['clusters', 'mixed', 'random'])
+const BOUNDARY_PROBE_ANSWERS = new Set(['cat', 'bread'])
+const SUCCESS_PREDICTIONS = new Set(['fixed', 'need-new'])
+const EVIDENCE_INFERENCES = new Set(['feature-gap', 'random-bad-luck', 'need-score'])
+const OVERFIT_REFLECTIONS = new Set(['memorized', 'not-enough-score', 'new-data-invalid'])
+const FINAL_REFLECTIONS = new Set(['unknown-stable', 'highest-train', 'complex-model'])
+const INITIAL_SENSOR_READS = new Set<FeatureKey>(['warmth', 'roundness'])
+const REPAIR_SENSOR_READS = new Set<FeatureKey>(['texture', 'aspect'])
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -226,8 +234,15 @@ function isExperimentRecord(value: unknown): value is ExperimentRecord {
     && (item.predictionMatched === undefined || typeof item.predictionMatched === 'boolean')
 }
 
-function optionalString(value: unknown) {
-  return value === undefined || typeof value === 'string'
+function optionalChoice(value: unknown, choices: ReadonlySet<string>) {
+  return value === undefined || (typeof value === 'string' && choices.has(value))
+}
+
+function isSensorReadList(value: unknown, allowed: ReadonlySet<FeatureKey>) {
+  return Array.isArray(value)
+    && value.length <= 2
+    && new Set(value).size === value.length
+    && value.every((feature) => allowed.has(feature as FeatureKey))
 }
 
 function isBehaviorEvent(value: unknown, seed: number, sessionId: string): value is BehaviorEvent {
@@ -271,11 +286,16 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   const state = item.state
   if (!ENTRY_PHASES.has(item.entryPhase as EntryPhase)) return false
   if (item.entryPhase === 'game' ? state.stage === 'briefing' : state.stage !== 'briefing') return false
-  if (!optionalString(item.selectedMistake) || !optionalString(item.observationAnswer) || !optionalString(item.suspectSampleId)) return false
-  if (!optionalString(item.boundaryProbeAnswer) || !optionalString(item.successPrediction) || !optionalString(item.evidenceInference)) return false
-  if (!optionalString(item.overfitReflection) || !optionalString(item.finalReflection)) return false
-  if (!Array.isArray(item.sensorReads) || !item.sensorReads.every((feature) => FEATURES.has(feature as FeatureKey))) return false
-  if (!Array.isArray(item.repairSensorReads) || !item.repairSensorReads.every((feature) => FEATURES.has(feature as FeatureKey))) return false
+  if (item.selectedMistake !== undefined && (typeof item.selectedMistake !== 'string' || !/^field-\d{3}$/.test(item.selectedMistake))) return false
+  if (!optionalChoice(item.observationAnswer, OBSERVATION_ANSWERS)) return false
+  if (item.suspectSampleId !== undefined && (typeof item.suspectSampleId !== 'string' || !/^train-(cat|bread)-\d{1,3}$/.test(item.suspectSampleId))) return false
+  if (!optionalChoice(item.boundaryProbeAnswer, BOUNDARY_PROBE_ANSWERS)) return false
+  if (!optionalChoice(item.successPrediction, SUCCESS_PREDICTIONS)) return false
+  if (!optionalChoice(item.evidenceInference, EVIDENCE_INFERENCES)) return false
+  if (!optionalChoice(item.overfitReflection, OVERFIT_REFLECTIONS)) return false
+  if (!optionalChoice(item.finalReflection, FINAL_REFLECTIONS)) return false
+  if (!isSensorReadList(item.sensorReads, INITIAL_SENSOR_READS)) return false
+  if (!isSensorReadList(item.repairSensorReads, REPAIR_SENSOR_READS)) return false
   if (typeof item.modelConfirmed !== 'boolean') return false
   if (item.suspiciousAttemptId !== undefined && !isNonNegativeInteger(item.suspiciousAttemptId)) return false
   if (!Array.isArray(item.experimentLog) || !item.experimentLog.every(isExperimentRecord)) return false
