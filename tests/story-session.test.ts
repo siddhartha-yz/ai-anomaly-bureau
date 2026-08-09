@@ -317,6 +317,35 @@ describe('Story Case local checkpoint', () => {
     }
   })
 
+  it('rejects behavior telemetry whose completion flag contradicts its stage', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const logger = new BehaviorLogger(value.seed)
+    logger.record({
+      stage: 'inspect_data', action: 'OBSERVE_DONE', retryCount: 0, completed: false,
+      features: ['warmth', 'roundness'], model: 'linear',
+    })
+    const log = logger.snapshot()
+    log.events[0] = { ...log.events[0], completed: true }
+    value.behaviorLog = log
+    storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+
+    expect(readStorySession(storage, value.seed)).toBeUndefined()
+    expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
+
+    const badTimeline = session()
+    const timelineLogger = new BehaviorLogger(badTimeline.seed)
+    timelineLogger.record({
+      stage: 'inspect_data', action: 'OBSERVE_DONE', retryCount: 0, completed: false,
+      features: ['warmth', 'roundness'], model: 'linear',
+    })
+    const timelineLog = timelineLogger.snapshot()
+    timelineLog.events[0] = { ...timelineLog.events[0], elapsedMs: timelineLog.events[0].elapsedMs + 1 }
+    badTimeline.behaviorLog = timelineLog
+    storage.setItem(storySessionKey(badTimeline.seed), JSON.stringify(badTimeline))
+    expect(readStorySession(storage, badTimeline.seed)).toBeUndefined()
+  })
+
   it('round-trips a bounded long-session behavior log instead of poisoning autosave', () => {
     const storage = new MemoryStorage()
     const value = session()

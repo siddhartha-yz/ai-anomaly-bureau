@@ -339,6 +339,7 @@ function isBehaviorEvent(value: unknown, seed: number, sessionId: string): value
     && (item.hintLevel === undefined || (isNonNegativeInteger(item.hintLevel) && item.hintLevel >= 1 && item.hintLevel <= 3))
     && isNonNegativeInteger(item.retryCount)
     && typeof item.completed === 'boolean'
+    && item.completed === (item.stage === 'complete')
 }
 
 function isBehaviorLog(value: unknown, seed: number): value is BehaviorLog {
@@ -349,8 +350,18 @@ function isBehaviorLog(value: unknown, seed: number): value is BehaviorLog {
   if (typeof item.exportedAt !== 'string' || !Number.isFinite(Date.parse(item.exportedAt))) return false
   if (!Array.isArray(item.events) || item.events.length > MAX_BEHAVIOR_LOG_EVENTS || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
   if (item.droppedEvents !== undefined && !isNonNegativeInteger(item.droppedEvents)) return false
-  const events = item.events
-  return events.every((event, index) => index === 0 || event.elapsedMs >= events[index - 1].elapsedMs)
+
+  const startedAt = Date.parse(item.startedAt)
+  const exportedAt = Date.parse(item.exportedAt)
+  if (exportedAt < startedAt) return false
+  if ((item.droppedEvents ?? 0) > 0 && item.events.length !== MAX_BEHAVIOR_LOG_EVENTS) return false
+
+  return item.events.every((event, index) => {
+    const timestamp = Date.parse(event.timestamp)
+    if (timestamp < startedAt || timestamp > exportedAt) return false
+    if (event.elapsedMs !== timestamp - startedAt) return false
+    return index === 0 || event.elapsedMs >= item.events![index - 1].elapsedMs
+  })
 }
 
 function isStorySession(value: unknown, seed: number): value is StorySessionData {
