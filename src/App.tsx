@@ -910,7 +910,14 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
                     reasoningMisses={reasoningMisses}
                   />
                 )}
-                <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
+                {!debug ? (
+                  <div className="dual-actions completion-actions">
+                    <ActionButton kind="secondary" onClick={exportLog}>导出匿名调查记录</ActionButton>
+                    <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
+                  </div>
+                ) : (
+                  <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
+                )}
               </section>
             )}
 

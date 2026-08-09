@@ -1,5 +1,7 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { endlessSessionKey } from '../src/endless/session'
+import type { BehaviorLog } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
 import { STORY_SESSION_VERSION, storyAuditCredits, storySessionKey, type StorySessionData } from '../src/game/session'
 
@@ -723,6 +725,22 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   expect(reopenedCompletedCheckpoint.behaviorLog?.sessionId).toBe(completedCheckpoint.behaviorLog?.sessionId)
   expect(reopenedCompletedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
   await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
+
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: /导出匿名调查记录/ }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toMatch(/^ai-anomaly-.*\.behavior-log\.json$/)
+  const downloadPath = await download.path()
+  expect(downloadPath).toBeTruthy()
+  const exportedLogText = await readFile(downloadPath!, 'utf8')
+  expect(exportedLogText).not.toMatch(/test-(cat|bread)/)
+  expect(exportedLogText).not.toContain('"flags"')
+  const exportedLog = JSON.parse(exportedLogText) as BehaviorLog
+  expect(exportedLog.sessionId).toBe(completedCheckpoint.behaviorLog?.sessionId)
+  expect(exportedLog.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
+  expect(exportedLog.events.some((event) => event.action === 'VIEW_MISTAKE')).toBe(true)
+  expect(exportedLog.events.some((event) => event.action === 'RUN_AUDIT')).toBe(true)
+  expect(exportedLog.events.at(-1)?.action).toBe('EXPORT_LOG')
 
   // Explicit restart is the escape hatch from persistence: it must delete the checkpoint and return to a fresh title.
   await page.getByRole('button', { name: '重新调查一次' }).click()
