@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENDLESS_SESSION_VERSION, endlessSessionKey, readEndlessSession, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
+import { ENDLESS_SESSION_VERSION, endlessSessionKey, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
 
 class MemoryStorage implements StorageLike {
   values = new Map<string, string>()
@@ -94,5 +94,21 @@ describe('endless local session persistence', () => {
     impossibleInspection.inspectedFieldErrors[0].runId = 7
     storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleInspection))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
+  it('distinguishes blank storage from resumable progress and derives remaining budget', () => {
+    const active = session()
+    expect(hasEndlessSessionProgress(active)).toBe(true)
+    expect(remainingEndlessAuditCredits(active)).toBe(4)
+
+    const blank: EndlessSessionData = {
+      ...active,
+      trained: false,
+      auditComplete: false,
+      history: [],
+      inspectedFieldErrors: [],
+    }
+    expect(hasEndlessSessionProgress(blank)).toBe(false)
+    expect(remainingEndlessAuditCredits(blank)).toBe(5)
   })
 })

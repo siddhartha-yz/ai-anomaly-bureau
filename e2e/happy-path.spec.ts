@@ -262,6 +262,37 @@ test('endless investigation survives refresh without refunding audit budget', as
   await expect(page.getByLabel('已恢复本案进度')).toHaveCount(0)
 })
 
+test('endless gateway explicitly resumes or abandons a saved investigation', async ({ page }) => {
+  const seed = 6020
+  await page.goto(`?mode=endless&seed=${seed}`)
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
+
+  await page.getByRole('button', { name: '返回剧情案件' }).click()
+  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  const savedCase = page.getByLabel('已保存无尽案件')
+  await expect(savedCase).toContainText('UNFINISHED CASE SAVED')
+  await expect(savedCase).toContainText('CASE 6020')
+  await expect(savedCase).toContainText('1 次正式审计 · 剩余审计额度 4')
+  await expect(page.getByRole('button', { name: /继续 CASE 6020/ })).toBeVisible()
+  await qaShot(page, '35-endless-gateway-resume')
+
+  await page.getByRole('button', { name: /继续 CASE 6020/ }).click()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
+  await expect(page.getByLabel('已恢复本案进度')).toBeVisible()
+
+  await page.getByRole('button', { name: '返回剧情案件' }).click()
+  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  await page.getByRole('button', { name: '生成一宗全新案件' }).click()
+  await expect(page.getByRole('button', { name: /再次点击：放弃旧进度并生成新案件/ })).toBeVisible()
+  await page.getByRole('button', { name: /再次点击：放弃旧进度并生成新案件/ }).click()
+  await expect(page.getByText(/CASE 6021/)).toBeVisible()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 5')
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), endlessSessionKey(seed))).toBeNull()
+})
+
 test('endless onboarding and next-step navigation remain usable across desktop viewports', async ({ page }) => {
   for (const viewport of [
     { width: 1280, height: 720 },

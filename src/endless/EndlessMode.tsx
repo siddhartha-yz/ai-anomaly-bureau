@@ -10,7 +10,7 @@ import { FieldManual } from './FieldManual'
 import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
-import { ENDLESS_SESSION_VERSION, clearEndlessSession, readEndlessSession, writeEndlessSession } from './session'
+import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
 import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
@@ -28,14 +28,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const restoredAudit = restoredSession?.auditComplete && restoredSession.trained
     ? caseData.audit(restoredSession.model, restoredSession.features)
     : undefined
-  const restoredProgress = Boolean(restoredSession && (
-    restoredSession.history.length
-    || restoredSession.trained
-    || restoredSession.diagnosisAttempts
-    || restoredSession.inspectedArchiveIds.length
-    || restoredSession.inspectedFieldErrors.length
-    || restoredSession.solved
-  ))
+  const restoredProgress = hasEndlessSessionProgress(restoredSession)
   const audioRef = useRef<GameAudio | null>(null)
   if (!audioRef.current) audioRef.current = new GameAudio(true)
   const audio = audioRef.current
@@ -66,7 +59,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const [trainAccuracy, setTrainAccuracy] = useState<number | undefined>(restoredTrainAccuracy)
   const [auditResult, setAuditResult] = useState<EndlessAudit | undefined>(restoredAudit)
   const [prediction, setPrediction] = useState<BandPrediction | undefined>(restoredSession?.prediction)
-  const [credits, setCredits] = useState(Math.max(0, 5 + (restoredSession?.emergencyCredits ?? 0) - (restoredSession?.history.length ?? 0)))
+  const [credits, setCredits] = useState(restoredSession ? remainingEndlessAuditCredits(restoredSession) : 5)
   const [emergencyCredits, setEmergencyCredits] = useState(restoredSession?.emergencyCredits ?? 0)
   const [history, setHistory] = useState<EndlessRunRecord[]>(restoredSession?.history ?? [])
   const [diagnosis, setDiagnosis] = useState<EndlessSyndrome | undefined>(restoredSession?.diagnosis)

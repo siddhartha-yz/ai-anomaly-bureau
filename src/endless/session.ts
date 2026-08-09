@@ -127,6 +127,21 @@ export function endlessSessionKey(seed: number) {
   return `aia.endless-session.v${ENDLESS_SESSION_VERSION}.${seed}`
 }
 
+export function hasEndlessSessionProgress(session: EndlessSessionData | undefined) {
+  return Boolean(session && (
+    session.history.length
+    || session.trained
+    || session.diagnosisAttempts
+    || session.inspectedArchiveIds.length
+    || session.inspectedFieldErrors.length
+    || session.solved
+  ))
+}
+
+export function remainingEndlessAuditCredits(session: EndlessSessionData) {
+  return Math.max(0, 5 + session.emergencyCredits - session.history.length)
+}
+
 export function readEndlessSession(storage: StorageLike, seed: number): EndlessSessionData | undefined {
   const key = endlessSessionKey(seed)
   try {

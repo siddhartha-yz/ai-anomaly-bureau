@@ -1,9 +1,23 @@
-export function EndlessIntro({ bootCompleted, onBoot, onSkip, onBack }: {
+import { useState } from 'react'
+
+export type EndlessResumeSummary = {
+  seed: number
+  historyCount: number
+  remainingCredits: number
+  solved: boolean
+}
+
+export function EndlessIntro({ bootCompleted, resume, onBoot, onSkip, onNewCase, onBack }: {
   bootCompleted: boolean
+  resume?: EndlessResumeSummary
   onBoot: () => void
   onSkip: () => void
+  onNewCase: () => void
   onBack: () => void
 }) {
+  const [newCaseArmed, setNewCaseArmed] = useState(false)
+  const caseNo = resume ? String(Math.abs(resume.seed) % 10000).padStart(4, '0') : undefined
+
   return (
     <main className="endless-intro-shell">
       <section className="endless-intro-card">
@@ -27,14 +41,49 @@ export function EndlessIntro({ bootCompleted, onBoot, onSkip, onBack }: {
           <span>错误诊断允许发生，但要拿到新证据才能改口。</span>
         </div>
 
+        {resume && (
+          <section className={`endless-resume-card ${resume.solved ? 'solved' : ''}`} aria-label="已保存无尽案件">
+            <div>
+              <small>{resume.solved ? 'RESOLVED CASE SAVED' : 'UNFINISHED CASE SAVED'}</small>
+              <strong>CASE {caseNo}</strong>
+              <span>{resume.historyCount} 次正式审计 · 剩余审计额度 {resume.remainingCredits}</span>
+            </div>
+            <p>{resume.solved ? '这宗案件已经结案。可以返回查看结案报告，或生成下一宗全新案件。' : '本案进度保存在当前浏览器中。继续调查不会返还已经使用的审计额度。'}</p>
+          </section>
+        )}
+
         <div className="endless-intro-actions">
-          <button type="button" className="endless-intro-primary" onClick={bootCompleted ? onSkip : onBoot}>
-            <small>{bootCompleted ? 'TRAINING COMPLETE' : 'RECOMMENDED FIRST'}</small>
-            <strong>{bootCompleted ? '进入正式无尽调查' : '进行训练案件 000'}</strong>
-          </button>
-          <button type="button" className="endless-intro-secondary" onClick={bootCompleted ? onBoot : onSkip}>
-            {bootCompleted ? '重玩训练案件 000' : '已熟悉流程？直接进入无尽调查'}
-          </button>
+          {resume ? (
+            <>
+              <button type="button" className="endless-intro-primary" onClick={onSkip}>
+                <small>{resume.solved ? 'CASE RESOLVED' : 'RESUME CASE'}</small>
+                <strong>{resume.solved ? `查看 CASE ${caseNo} 结案报告` : `继续 CASE ${caseNo}`}</strong>
+              </button>
+              <button
+                type="button"
+                className={`endless-intro-secondary endless-new-case ${newCaseArmed ? 'armed' : ''}`}
+                onClick={() => {
+                  if (newCaseArmed) onNewCase()
+                  else setNewCaseArmed(true)
+                }}
+              >
+                {newCaseArmed ? '再次点击：放弃旧进度并生成新案件' : '生成一宗全新案件'}
+              </button>
+              <button type="button" className="endless-intro-secondary" onClick={onBoot}>
+                {bootCompleted ? '重玩训练案件 000' : '先进行训练案件 000'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="endless-intro-primary" onClick={bootCompleted ? onSkip : onBoot}>
+                <small>{bootCompleted ? 'TRAINING COMPLETE' : 'RECOMMENDED FIRST'}</small>
+                <strong>{bootCompleted ? '进入正式无尽调查' : '进行训练案件 000'}</strong>
+              </button>
+              <button type="button" className="endless-intro-secondary" onClick={bootCompleted ? onBoot : onSkip}>
+                {bootCompleted ? '重玩训练案件 000' : '已熟悉流程？直接进入无尽调查'}
+              </button>
+            </>
+          )}
           <button type="button" className="endless-intro-back" onClick={onBack}>返回剧情案件</button>
         </div>
       </section>

@@ -24,6 +24,7 @@ import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { BootCase } from './endless/BootCase'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
+import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
 import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
@@ -901,6 +902,13 @@ function App() {
     requestedMode === 'endless' ? 'endless' : requestedMode === 'boot' ? 'boot' : 'story',
   )
   const [bootCompleted, setBootCompleted] = useState(() => window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete')
+  const savedEndlessSession = !debug ? readEndlessSession(window.localStorage, seed) : undefined
+  const endlessResume = hasEndlessSessionProgress(savedEndlessSession) && savedEndlessSession ? {
+    seed: savedEndlessSession.seed,
+    historyCount: savedEndlessSession.history.length,
+    remainingCredits: remainingEndlessAuditCredits(savedEndlessSession),
+    solved: savedEndlessSession.solved,
+  } : undefined
 
   const changeSeed = (nextSeed: number) => {
     setSeed(nextSeed)
@@ -908,7 +916,22 @@ function App() {
   }
 
   if (!debug && mode === 'endless-intro') {
-    return <EndlessIntro bootCompleted={bootCompleted} onBoot={() => setMode('boot')} onSkip={() => setMode('endless')} onBack={() => setMode('story')} />
+    return (
+      <EndlessIntro
+        bootCompleted={bootCompleted}
+        resume={endlessResume}
+        onBoot={() => setMode('boot')}
+        onSkip={() => setMode('endless')}
+        onNewCase={() => {
+          const nextSeed = seed + 1
+          clearEndlessSession(window.localStorage, seed)
+          clearEndlessSession(window.localStorage, nextSeed)
+          changeSeed(nextSeed)
+          setMode('endless')
+        }}
+        onBack={() => setMode('story')}
+      />
+    )
   }
 
   if (!debug && mode === 'boot') {
