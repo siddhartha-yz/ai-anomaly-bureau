@@ -1,0 +1,271 @@
+/* Final interaction polish: anchored guidance, floating Xiaoxi, readable rewards, chunkier 8-bit terminal chrome. */
+
+/* Remove the old hard-coded tutorial arrow. Real positioning is handled by GuideConnector. */
+.beginner-guide.compact::after { display: none !important; }
+
+.guide-connector {
+  position: fixed;
+  z-index: 82;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px 6px;
+  border: 3px solid #ffe05b;
+  background: #171307;
+  color: #ffe05b;
+  box-shadow: 4px 4px 0 #4e4012, 0 0 16px rgba(255,224,91,.25);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: guideConnectorBlink .9s steps(2) infinite;
+}
+.guide-connector strong { font-size: 14px !important; font-weight: 400 !important; }
+.guide-connector-arrow { font-size: 18px; line-height: 1; }
+.guide-connector-down {
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+@keyframes guideConnectorBlink {
+  50% { transform: translate(-50%, -50%) translateY(2px); filter: brightness(1.16); }
+}
+
+/* Xiaoxi is an NPC overlay, never a disposable panel pushed below the controls. */
+.floating-xiaoxi {
+  position: fixed !important;
+  right: 22px !important;
+  bottom: 20px !important;
+  z-index: 88 !important;
+  width: min(360px, calc(100vw - 28px)) !important;
+  min-height: 86px;
+  grid-template-columns: 82px 1fr !important;
+  gap: 8px !important;
+  padding: 10px 12px 10px 8px !important;
+  border: 3px solid #5577e8 !important;
+  background:
+    repeating-linear-gradient(0deg, rgba(90,127,255,.035) 0 2px, transparent 2px 5px),
+    #0d1425 !important;
+  box-shadow: 6px 6px 0 #020307, 0 0 20px rgba(79,124,255,.16) !important;
+}
+.floating-xiaoxi::after {
+  content: "NPC / XIAOXI";
+  position: absolute;
+  right: 8px;
+  top: -10px;
+  padding: 3px 7px;
+  border: 2px solid #5577e8;
+  background: #111a31;
+  color: #90a8ff;
+  font-size: 10px;
+}
+.xiaoxi-toggle {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.floating-xiaoxi .assistant-character { width: 76px; }
+.floating-xiaoxi .xiaoxi-sprite { width: 68px; height: 68px; }
+.floating-xiaoxi .assistant-online { font-size: 10px !important; }
+.floating-xiaoxi .assistant-dialogue {
+  align-self: center;
+  padding: 6px 0 4px 8px !important;
+}
+.floating-xiaoxi .assistant-dialogue::before { display: none !important; }
+.floating-xiaoxi .assistant-title { font-size: 16px !important; }
+.floating-xiaoxi .assistant-title span { font-size: 10px !important; }
+.floating-xiaoxi .assistant-dialogue p {
+  margin: 7px 0 !important;
+  color: #e1e7fa !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+.floating-xiaoxi .hint-command { font-size: 12px !important; color: #ffe05b !important; }
+.floating-xiaoxi.collapsed {
+  width: 92px !important;
+  min-height: 92px;
+  grid-template-columns: 1fr !important;
+  padding: 7px !important;
+}
+.floating-xiaoxi.collapsed::after { display: none; }
+.xiaoxi-collapsed-label { color: #ffe05b; font-size: 12px; margin-top: -4px; }
+.assistant-warning.floating-xiaoxi { border-color: #ffe05b !important; }
+.assistant-success.floating-xiaoxi { border-color: #ffe05b !important; }
+
+/* Rewards are readable achievements, not transient web toasts. */
+.stage-reward {
+  pointer-events: auto !important;
+  width: min(390px, calc(100vw - 32px)) !important;
+  padding: 16px 44px 15px 17px !important;
+  border-width: 4px !important;
+  animation: rewardPixelEnter .28s steps(4) both !important;
+}
+.stage-reward.important {
+  width: min(430px, calc(100vw - 32px)) !important;
+  border-width: 5px !important;
+  box-shadow: 8px 8px 0 #020307, 0 0 24px rgba(255,224,91,.22) !important;
+}
+.stage-reward > span { font-size: 11px !important; }
+.stage-reward strong { font-size: 21px !important; font-weight: 400 !important; margin-top: 3px; }
+.stage-reward small { font-size: 13px !important; margin-top: 3px; }
+.reward-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid #566b9f;
+  background: #080d18;
+  color: #aab8dd;
+  cursor: pointer;
+  font-size: 16px;
+}
+.reward-yellow .reward-close { border-color: #796721; color: #ffe05b; }
+.reward-close:hover { background: #ffe05b; color: #080704; }
+.reward-hold {
+  height: 5px;
+  margin-top: 10px;
+  padding: 1px;
+  background: #05070b;
+  border: 1px solid #31446d;
+}
+.reward-hold i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: #6f91ff;
+  animation: rewardHold 4.8s steps(24) linear forwards;
+}
+.reward-yellow .reward-hold i { background: #ffe05b; }
+.stage-reward.important .reward-hold i { animation-duration: 7s; }
+@keyframes rewardPixelEnter {
+  from { transform: translateX(115%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes rewardHold { to { transform: scaleX(0); } }
+
+/* Terminal/pixel chrome: replace hairline web separators with blocky pixel rails. */
+:root {
+  --pixel-rail-blue: #334a7b;
+  --pixel-rail-dark: #0a0f1a;
+  --pixel-rail-yellow: #ffe05b;
+}
+
+.plot-card,
+.control-block,
+.metrics article,
+.mistakes,
+.evidence-console,
+.pixel-result-card,
+.concept-card,
+.transfer-card,
+.completion-card,
+.case-cartridge,
+.pixel-objective-strip,
+.pixel-icon-button {
+  border-radius: 0 !important;
+  border-width: 3px !important;
+  box-shadow: 5px 5px 0 #020307 !important;
+}
+
+.plot-heading,
+.control-heading,
+.evidence-console-head,
+.terminal-titlebar {
+  position: relative;
+  border-bottom: 0 !important;
+  padding-bottom: 12px !important;
+  background-image:
+    repeating-linear-gradient(90deg, var(--pixel-rail-blue) 0 10px, transparent 10px 15px) !important;
+  background-repeat: no-repeat !important;
+  background-position: left bottom !important;
+  background-size: 100% 3px !important;
+}
+.plot-heading { padding-bottom: 10px !important; }
+
+.pixel-phase-track {
+  border-left: 0 !important;
+  gap: 3px;
+  padding-left: 3px;
+  background: #060910;
+}
+.pixel-phase-track > span {
+  border-left: 0 !important;
+  outline: 2px solid #17243d;
+  outline-offset: -2px;
+}
+.pixel-phase-track > span.active {
+  outline-color: #6a5819;
+  box-shadow: inset 0 -4px 0 #665417;
+}
+
+.feature-slot,
+.feature-chip,
+.pixel-model-card,
+.transfer-options button,
+.evidence-tab,
+.action-button {
+  border-radius: 0 !important;
+  border-width: 2px !important;
+  box-shadow: 3px 3px 0 #03050a !important;
+}
+.feature-slot.active,
+.pixel-model-card.selected {
+  border-width: 3px !important;
+  box-shadow: 4px 4px 0 #4b3e12 !important;
+}
+
+.feature-readout {
+  border-left: 0 !important;
+  padding-left: 12px !important;
+  background:
+    repeating-linear-gradient(0deg, #415a91 0 8px, transparent 8px 12px) left center/3px 100% no-repeat,
+    #0b111b !important;
+}
+
+.metrics { gap: 9px !important; }
+.metrics article {
+  position: relative;
+  overflow: hidden;
+}
+.metrics article::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, #293f6f 0 8px, transparent 8px 13px);
+}
+
+/* Make selected/active UI feel like discrete terminal blocks, not thin modern outlines. */
+.action-button.primary,
+.beginner-guide.compact,
+[data-stage='inspect_data'] .pixel-scanner-card,
+[data-stage='choose_features'] .pixel-control,
+[data-stage='choose_model'] .model-toolbox,
+[data-stage='inspect_errors'] .evidence-console {
+  image-rendering: pixelated;
+}
+
+@media (max-width: 980px) {
+  .floating-xiaoxi {
+    right: 12px !important;
+    bottom: 12px !important;
+    width: min(330px, calc(100vw - 24px)) !important;
+  }
+  .guide-connector { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-connector,
+  .reward-hold i,
+  .stage-reward { animation: none !important; }
+}

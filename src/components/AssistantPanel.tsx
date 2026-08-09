@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { STAGE_CONTENT } from '../content/level1'
 import { hintFor } from '../game/hints'
 import type { GameState, Stage } from '../game/types'
@@ -58,26 +59,38 @@ function XiaoxiSprite({ mood }: { mood: AssistantMood }) {
   )
 }
 
-export function AssistantPanel({ state, onHint }: { state: GameState; onHint: () => void }) {
+export function AssistantPanel({ state, onHint, floating = true }: { state: GameState; onHint: () => void; floating?: boolean }) {
+  const [collapsed, setCollapsed] = useState(false)
   const message = state.hintLevel > 0 ? hintFor(state) : STAGE_CONTENT[state.stage].assistant
   const mood = MOOD_BY_STAGE[state.stage]
   const statusText = mood === 'warning' ? 'ALERT' : mood === 'thinking' ? 'ANALYZING' : mood === 'success' ? 'NICE!' : 'ONLINE'
 
   return (
-    <aside className={`assistant-panel pixel-assistant assistant-${mood}`}>
-      <div className="assistant-character">
-        <XiaoxiSprite mood={mood} />
-        <span className="assistant-online">{statusText}</span>
-      </div>
-      <div className="assistant-dialogue">
-        <div className="assistant-title">小析 <span>// AI 调查助理</span></div>
-        <p>{message}</p>
-        {state.stage !== 'complete' && (
-          <button type="button" className="text-button hint-command" onClick={onHint}>
-            &gt; 请求{state.hintLevel === 0 ? '一级' : state.hintLevel >= 3 ? '再次' : '更具体'}提示
-          </button>
-        )}
-      </div>
+    <aside className={`assistant-panel pixel-assistant ${floating ? 'floating-xiaoxi' : ''} assistant-${mood} ${collapsed ? 'collapsed' : ''}`}>
+      <button
+        type="button"
+        className="xiaoxi-toggle"
+        onClick={() => setCollapsed((value) => !value)}
+        aria-label={collapsed ? '展开小析' : '收起小析'}
+        aria-expanded={!collapsed}
+      >
+        <span className="assistant-character">
+          <XiaoxiSprite mood={mood} />
+          <span className="assistant-online">{statusText}</span>
+        </span>
+        {collapsed && <span className="xiaoxi-collapsed-label">小析</span>}
+      </button>
+      {!collapsed && (
+        <div className="assistant-dialogue">
+          <div className="assistant-title">小析 <span>// AI 调查助理</span></div>
+          <p>{message}</p>
+          {state.stage !== 'complete' && (
+            <button type="button" className="text-button hint-command" onClick={onHint}>
+              &gt; 请求{state.hintLevel === 0 ? '一级' : state.hintLevel >= 3 ? '再次' : '更具体'}提示
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   )
 }

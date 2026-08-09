@@ -5,6 +5,7 @@ import { DebugPanel } from './components/DebugPanel'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
 import { FeaturePicker } from './components/FeaturePicker'
+import { GuideConnector } from './components/GuideConnector'
 import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
 import { IncidentScene } from './components/PixelScene'
@@ -34,14 +35,14 @@ const STAGE_REWARD: Partial<Record<Stage, Omit<RewardNotice, 'stage'>>> = {
   choose_features: { title: '观察完成', detail: '获得线索：样本分布', tone: 'blue' },
   choose_model: { title: '传感器已配置', detail: '模型现在有了两个观察通道', tone: 'blue' },
   train: { title: '工具已装载', detail: '可以开始第一次训练', tone: 'blue' },
-  first_success: { title: '第一次训练完成', detail: '旧样本检查通过', tone: 'yellow' },
+  first_success: { title: '第一次训练完成', detail: '旧样本检查通过', tone: 'yellow', important: true },
   hidden_test: { title: '现场抽查解锁', detail: '未知样本即将进入', tone: 'yellow' },
   inspect_errors: { title: '发现异常证据', detail: '误判样本已标记', tone: 'yellow' },
   iterate: { title: '修复权限开放', detail: '可以重新组合特征与模型', tone: 'blue' },
-  overfit_reveal: { title: '关键发现：过拟合', detail: '训练满分也可能是假象', tone: 'yellow' },
-  final_audit: { title: '修复验证通过', detail: '未知样本表现稳定', tone: 'yellow' },
+  overfit_reveal: { title: '关键发现：过拟合', detail: '训练满分也可能是假象', tone: 'yellow', important: true },
+  final_audit: { title: '修复验证通过', detail: '未知样本表现稳定', tone: 'yellow', important: true },
   transfer_question: { title: '结案权限解锁', detail: '只剩最后一个判断', tone: 'blue' },
-  complete: { title: 'CASE CLOSED', detail: '事故调查完成', tone: 'yellow' },
+  complete: { title: 'CASE CLOSED', detail: '事故调查完成', tone: 'yellow', important: true },
 }
 
 function ActionButton({ children, onClick, disabled = false, kind = 'primary' }: {
@@ -122,7 +123,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       ? 'warning'
       : reward.tone === 'yellow' ? 'success' : 'select'
     audio.current.play(rewardSound)
-    const timer = window.setTimeout(() => setRewardNotice(undefined), 2100)
+    const timer = window.setTimeout(() => setRewardNotice(undefined), reward.important ? 7000 : 4800)
     return () => window.clearTimeout(timer)
   }, [state.stage])
 
@@ -318,14 +319,15 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       )}
 
       <TaskBanner stage={state.stage} />
-      <StageReward notice={rewardNotice} />
+      <StageReward notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
+      {!debug && <GuideConnector stage={state.stage} />}
 
       {isBriefing ? (
         <div className="briefing-game-layout">
           {!debug && <BeginnerGuide stage={state.stage} />}
           <IncidentScene />
           <div className="briefing-bottom-row">
-            <AssistantPanel state={state} onHint={requestHint} />
+            <AssistantPanel state={state} onHint={requestHint} floating={!debug} />
             {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
           </div>
         </div>
@@ -417,7 +419,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
             )}
 
             {debug && currentAction && <section className="pixel-command-dock">{currentAction}</section>}
-            <AssistantPanel state={state} onHint={requestHint} />
+            <AssistantPanel state={state} onHint={requestHint} floating={!debug} />
           </div>
         </div>
       )}

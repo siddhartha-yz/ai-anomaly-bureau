@@ -8,6 +8,7 @@ import './styles/experience-layer.css'
 import './styles/entry-scene.css'
 import './styles/pixel-typography-focus.css'
 import './styles/pixel-font-onboarding.css'
+import './styles/pixel-terminal-polish.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
