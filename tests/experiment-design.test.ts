@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, experimentPlanDelta, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -34,6 +34,14 @@ describe('endless experiment comparison metadata', () => {
       .toBe(experimentConfigKey('linear', ['roundness', 'warmth']))
     expect(experimentConfigKey('tree', ['warmth', 'roundness']))
       .not.toBe(experimentConfigKey('linear', ['warmth', 'roundness']))
+  })
+
+  it('classifies the next experiment plan before another audit is spent', () => {
+    const previous = record()
+    expect(experimentPlanDelta(previous, 'linear', ['roundness', 'warmth'])).toBe('repeat')
+    expect(experimentPlanDelta(previous, 'linear', ['texture', 'aspect'])).toBe('fields-only')
+    expect(experimentPlanDelta(previous, 'tree', ['warmth', 'roundness'])).toBe('model-only')
+    expect(experimentPlanDelta(previous, 'tree', ['texture', 'aspect'])).toBe('mixed')
   })
 
   it('requires two cited runs from genuinely different configurations', () => {

@@ -52,6 +52,7 @@
 .sensor-evidence i { padding:3px 5px; border:1px solid #30446f; background:#080e1a; color:#7e92c0; font:normal 800 8px/1 ui-monospace,Consolas,monospace; }
 .endless-feature-list button.installed .sensor-evidence i { border-color:#675b27; color:#c1aa50; }
 .endless-model-list { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:10px; }
+.endless-plan-delta{margin:0 10px 8px;padding:8px 9px;border:2px solid #445b89;background:#08101c}.endless-plan-delta small,.endless-plan-delta strong,.endless-plan-delta span{display:block}.endless-plan-delta small{color:#6e83ae;font:800 7px/1 ui-monospace,Consolas,monospace}.endless-plan-delta strong{margin-top:5px;color:#b9c7e1;font-size:11px}.endless-plan-delta span{margin-top:4px;color:#7f90b1;font-size:8px;line-height:1.45}.endless-plan-delta.fields-only,.endless-plan-delta.model-only{border-color:#627742;background:#0d150c}.endless-plan-delta.fields-only strong,.endless-plan-delta.model-only strong{color:#b8d88a}.endless-plan-delta.mixed{border-color:#9a623c;background:#1b100a}.endless-plan-delta.mixed strong{color:#efae7d}.endless-plan-delta.repeat{border-style:dashed}
 .endless-primary { width:calc(100% - 20px); min-height:46px; margin:4px 10px 0; border:3px solid #806a1d; background:#ffe05b; color:#0b0a05; box-shadow:4px 4px 0 #554612; font-weight:900; cursor:pointer; }
 .endless-primary:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
 .experiment-console > p, .endless-diagnosis > p, .endless-round-complete > p { margin:10px 12px; color:#8f9dbc; font-size:11px; line-height:1.5; }

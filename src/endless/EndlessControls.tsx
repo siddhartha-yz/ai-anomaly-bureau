@@ -3,14 +3,14 @@ import type { FeatureKey } from '../ml/types'
 import type { EndlessCase } from './generator'
 import type { EndlessFocus } from './EndlessNavigator'
 import { featureObservation } from './observables'
-import type { BandPrediction } from './uiTypes'
+import { experimentPlanDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
 
 const FEATURES: FeatureKey[] = ['warmth', 'roundness', 'texture', 'aspect']
 const MODELS: ModelId[] = ['linear', 'tree', 'knn-1', 'knn-5']
 
 export function EndlessControls({
   caseData, features, activeSlot, model, trained, trainAccuracy, prediction, credits, auditComplete,
-  focus, onActiveSlot, onFeature, onModel, onTrain, onPrediction, onAudit, onEmergency,
+  previousRun, focus, onActiveSlot, onFeature, onModel, onTrain, onPrediction, onAudit, onEmergency,
 }: {
   caseData: EndlessCase
   features: [FeatureKey, FeatureKey]
@@ -21,6 +21,7 @@ export function EndlessControls({
   prediction?: BandPrediction
   credits: number
   auditComplete: boolean
+  previousRun?: EndlessRunRecord
   focus?: EndlessFocus
   onActiveSlot: (slot: 0 | 1) => void
   onFeature: (feature: FeatureKey) => void
@@ -30,6 +31,16 @@ export function EndlessControls({
   onAudit: () => void
   onEmergency: () => void
 }) {
+  const planDelta = experimentPlanDelta(previousRun, model, features)
+  const plan = planDelta === 'repeat'
+    ? { label: '复现实验', detail: '配置与上一条记录相同；可以检查稳定性，但不会增加新的配置证据。' }
+    : planDelta === 'fields-only'
+      ? { label: '只换字段', detail: '判断规则保持不变。本轮与上一条记录形成字段维度的单变量对照。' }
+      : planDelta === 'model-only'
+        ? { label: '只换模型', detail: '观察字段保持不变。本轮与上一条记录形成模型维度的单变量对照。' }
+        : planDelta === 'mixed'
+          ? { label: '字段 + 模型都换', detail: '本轮仍可执行，但两个因素同时变化，单条结果无法区分各自贡献。' }
+          : undefined
   return (
     <div className={`endless-controls-stack ${focus === 'configure' ? 'configure-focus' : ''}`}>
       <section className="endless-control-panel sensor-deck">
@@ -64,6 +75,13 @@ export function EndlessControls({
             </button>
           ))}
         </div>
+        {previousRun && plan && (
+          <div className={`endless-plan-delta ${planDelta}`} aria-label="当前实验计划对照">
+            <small>NEXT RUN vs E{String(previousRun.id).padStart(2, '0')}</small>
+            <strong>{plan.label}</strong>
+            <span>{plan.detail}</span>
+          </div>
+        )}
         <button type="button" className={`endless-primary ${focus === 'baseline' ? 'objective-action' : ''}`} onClick={onTrain}>训练当前方案</button>
       </section>
 

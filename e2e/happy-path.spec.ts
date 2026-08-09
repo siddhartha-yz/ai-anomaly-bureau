@@ -524,6 +524,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-run-log article')).toHaveCount(1)
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('复现实验')
   await qaShot(page, '31-endless-first-audit')
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
 
@@ -547,6 +548,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(page.getByLabel('现场误判调查记录')).toHaveCount(0)
   await expect(page.locator('.endless-lead-board')).toContainText('已检查现场误判')
   await features.getByRole('button', { name: /正文重复度/ }).click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
@@ -590,6 +592,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
 
   // A controlled model-only comparison produces genuinely new evidence and reopens the report.
   await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换模型')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()

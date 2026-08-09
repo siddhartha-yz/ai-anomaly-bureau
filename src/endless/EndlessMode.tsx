@@ -409,6 +409,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               prediction={prediction}
               credits={credits}
               auditComplete={Boolean(auditResult)}
+              previousRun={history.at(-1)}
               focus={objective.focus}
               onActiveSlot={setActiveSlot}
               onFeature={installFeature}
