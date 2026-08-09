@@ -627,6 +627,26 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await expect(page.getByText('你修好的不是一个分数。')).toBeVisible()
   expect(pageErrors).toEqual([])
 
+  const completedCheckpointRaw = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  expect(completedCheckpointRaw).not.toBeNull()
+  expect(completedCheckpointRaw!.length).toBeLessThan(100_000)
+  expect(completedCheckpointRaw).not.toMatch(/test-(cat|bread)/)
+  expect(completedCheckpointRaw).not.toContain('"flags"')
+  const completedCheckpoint = JSON.parse(completedCheckpointRaw!) as StorySessionData
+  expect(completedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
+
+  await page.reload()
+  await waitForStage(page, 'complete')
+  await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
+  await expect(page.getByText('CASE CLOSED', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('调查评级 A')).toBeVisible()
+  await expect(page.locator('.phase-transition')).toHaveCount(0)
+  const reopenedCompletedCheckpointRaw = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  const reopenedCompletedCheckpoint = JSON.parse(reopenedCompletedCheckpointRaw!) as StorySessionData
+  expect(reopenedCompletedCheckpoint.behaviorLog?.sessionId).toBe(completedCheckpoint.behaviorLog?.sessionId)
+  expect(reopenedCompletedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
+  await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
+
   // Explicit restart is the escape hatch from persistence: it must delete the checkpoint and return to a fresh title.
   await page.getByRole('button', { name: '重新调查一次' }).click()
   await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
