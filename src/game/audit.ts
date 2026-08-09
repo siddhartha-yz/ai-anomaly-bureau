@@ -13,7 +13,17 @@ export type AuditService = {
 
 export function createAuditService(seed: number): AuditService {
   const dataset = createDataset(seed)
-  const publicTest: PublicSample[] = dataset.test.map(({ label: _label, ...sample }) => sample)
+  const publicIdByInternal = new Map(dataset.test.map((sample, index) => [sample.id, `field-${String(index + 1).padStart(3, '0')}`]))
+  const publicId = (internalId: string) => {
+    const id = publicIdByInternal.get(internalId)
+    if (!id) throw new Error(`Missing public id for ${internalId}`)
+    return id
+  }
+  const publicTest: PublicSample[] = dataset.test.map((sample) => ({
+    id: publicId(sample.id),
+    split: sample.split,
+    features: { ...sample.features },
+  }))
 
   return {
     train: dataset.train,
@@ -27,6 +37,7 @@ export function createAuditService(seed: number): AuditService {
         if (!sample) throw new Error(`Missing test sample ${prediction.id}`)
         return {
           ...prediction,
+          id: publicId(prediction.id),
           features: { ...sample.features },
           flags: sample.flags
             ? {
@@ -46,7 +57,11 @@ export function createAuditService(seed: number): AuditService {
       }
     },
     debugTest() {
-      return dataset.test.map((sample) => ({ ...sample, features: { ...sample.features } }))
+      return dataset.test.map((sample) => ({
+        ...sample,
+        id: publicId(sample.id),
+        features: { ...sample.features },
+      }))
     },
   }
 }

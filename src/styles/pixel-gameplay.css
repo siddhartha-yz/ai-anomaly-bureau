@@ -81,6 +81,22 @@
 
 /* Pixel sample glyphs. */
 .pixel-data-glyph { pointer-events: none; filter: drop-shadow(2px 2px 0 #020307); }
+.train-pixel-group.clickable { cursor: crosshair; }
+.train-pixel-group.clickable:focus { outline: none; }
+.model-probe { pointer-events:none; filter:drop-shadow(0 0 5px rgba(255,224,91,.7)); }
+.model-probe-frame { fill:rgba(255,224,91,.05); stroke:#ffe05b; stroke-width:2; stroke-dasharray:5 3; animation:modelProbePulse 1s steps(2) infinite; }
+.model-probe-label { fill:#ffe05b; text-anchor:middle; font:900 10px/1 ui-monospace,Consolas,monospace; letter-spacing:.08em; }
+@keyframes modelProbePulse { 50% { opacity:.35; } }
+
+.training-probe-frame {
+  fill: none;
+  stroke: #ffe05b;
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(255,224,91,.75));
+}
+.train-pixel-group.selected .pixel-data-glyph { filter: drop-shadow(0 0 5px rgba(255,224,91,.9)) drop-shadow(2px 2px 0 #020307); }
 .cat-glyph .glyph-main { fill: #78a0ff; }
 .cat-glyph .glyph-cut { fill: #0b1220; }
 .bread-glyph .glyph-main { fill: #ffd45d; }

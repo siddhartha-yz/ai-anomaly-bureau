@@ -24,6 +24,10 @@ export function ScatterPlot({
   debugShowLabels,
   selectedMistake,
   onSelectMistake,
+  trainingProbe,
+  selectedTrainingSample,
+  onSelectTrainingSample,
+  previewSample,
 }: {
   train: Point2D[]
   publicTest: PublicSample[]
@@ -35,6 +39,10 @@ export function ScatterPlot({
   debugShowLabels: boolean
   selectedMistake?: string
   onSelectMistake?: (id: string) => void
+  trainingProbe?: boolean
+  selectedTrainingSample?: string
+  onSelectTrainingSample?: (id: string) => void
+  previewSample?: PublicSample
 }) {
   const resolution = grid.length ? Math.round(Math.sqrt(grid.length)) : 0
   const cellW = resolution ? (W - PAD.l - PAD.r) / resolution : 0
@@ -97,10 +105,57 @@ export function ScatterPlot({
           <rect x={PAD.l} y={PAD.t} width={W - PAD.l - PAD.r} height={H - PAD.t - PAD.b} fill="url(#pixelGrid)" className="pixel-grid-overlay" />
 
           <g className="training-glyphs">
-            {train.map((point) => (
-              <PixelSampleGlyph key={`${point.id}-${features[0]}-${features[1]}`} label={point.label} x={X(point.x)} y={Y(point.y)} scale={1.08} className="train-glyph" />
-            ))}
+            {train.map((point) => {
+              const clickable = Boolean(trainingProbe && onSelectTrainingSample)
+              const selected = selectedTrainingSample === point.id
+              return (
+                <g
+                  key={`${point.id}-${features[0]}-${features[1]}`}
+                  className={`train-pixel-group ${clickable ? 'clickable' : ''} ${selected ? 'selected' : ''}`}
+                  data-sample-id={point.id}
+                  role={clickable ? 'button' : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  aria-label={clickable ? `检查旧样本 ${point.id}` : undefined}
+                  onClick={clickable ? () => onSelectTrainingSample?.(point.id) : undefined}
+                  onKeyDown={clickable ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') onSelectTrainingSample?.(point.id)
+                  } : undefined}
+                >
+                  {clickable && (
+                    <rect
+                      x={X(point.x) - 11}
+                      y={Y(point.y) - 11}
+                      width="22"
+                      height="22"
+                      fill="transparent"
+                      className="training-hitbox"
+                    />
+                  )}
+                  <PixelSampleGlyph label={point.label} x={X(point.x)} y={Y(point.y)} scale={1.08} className="train-glyph" />
+                  {selected && (
+                    <rect
+                      x={X(point.x) - 10}
+                      y={Y(point.y) - 10}
+                      width="20"
+                      height="20"
+                      className="training-probe-frame"
+                    />
+                  )}
+                </g>
+              )
+            })}
           </g>
+
+          {previewSample && !revealUnknown && (() => {
+            const point = unknownPoint(previewSample, features)
+            return (
+              <g className="model-probe" transform={`translate(${X(point.x)} ${Y(point.y)})`}>
+                <rect x="-18" y="-18" width="36" height="36" className="model-probe-frame" />
+                <PixelUnknownGlyph x={0} y={0} selected />
+                <text x="0" y="-24" className="model-probe-label">PROBE ?</text>
+              </g>
+            )
+          })()}
 
           {revealUnknown && (
             <g className="unknown-glyphs">

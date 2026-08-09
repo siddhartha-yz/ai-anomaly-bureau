@@ -26,7 +26,7 @@ export type Sample = {
   flags?: SampleFlags
 }
 
-export type PublicSample = Omit<Sample, 'label'> & { label?: Label }
+export type PublicSample = Omit<Sample, 'label' | 'flags'> & { label?: Label }
 
 export type Point2D = {
   id: string

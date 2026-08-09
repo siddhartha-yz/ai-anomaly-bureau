@@ -1,0 +1,66 @@
+/* Supervised endless investigation: repeated hypothesis → experiment → diagnosis loop. */
+.endless-shell { min-height: 100vh; padding: 18px clamp(14px,4vw,54px) 44px; background: #03050a; color: #e9edfa; }
+.endless-header { max-width: 1500px; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 13px 16px; border: 3px solid #30477f; background: #08101d; box-shadow: 5px 5px 0 #020307; }
+.endless-header small { color: #6680c4; font: 800 10px/1 ui-monospace,Consolas,monospace; letter-spacing: .12em; }
+.endless-header h1 { margin: 5px 0 0; color: #f5f7ff; font-size: 25px; }
+.endless-header-actions { display: flex; align-items: center; gap: 10px; color: #ffe05b; font: 800 11px/1 ui-monospace,Consolas,monospace; }
+.endless-header-actions button, .endless-solved-actions button { padding: 9px 12px; border: 3px solid #526da8; background: #0b1427; color: #cbd6f0; cursor: pointer; }
+.endless-case-brief { max-width: 1500px; margin: 0 auto 14px; display: grid; grid-template-columns: 1fr 330px; gap: 12px; }
+.endless-case-brief > div { padding: 14px; border: 3px solid #344b82; background: #080f1c; box-shadow: 4px 4px 0 #020307; }
+.endless-case-brief > div:first-child > span { color: #ffe05b; font: 900 10px/1 ui-monospace,monospace; }
+.endless-case-brief h2 { margin: 7px 0 5px; font-size: 22px; }
+.endless-case-brief p { margin: 0; color: #98a7c7; font-size: 13px; line-height: 1.55; }
+.archive-composition { margin-top:10px; padding:6px 8px; border-left:3px solid #3d568f; background:#07101d; color:#8497c2; font:800 10px/1.4 ui-monospace,Consolas,monospace; }
+.endless-objective { border-color: #796625 !important; background: #171408 !important; }
+.endless-objective strong, .endless-objective span, .endless-objective b { display: block; }
+.endless-objective strong { color: #ffe05b; }
+.endless-objective span { margin: 6px 0 10px; color: #c9bd8d; font-size: 12px; line-height: 1.5; }
+.endless-objective b { color: #fff0a2; font: 900 15px/1 ui-monospace,monospace; }
+.endless-workspace { max-width: 1500px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 410px; gap: 14px; align-items: start; }
+.endless-main-column, .endless-console { display: grid; gap: 12px; }
+.endless-plot-card, .endless-control-panel, .endless-run-log, .endless-diagnosis, .endless-evidence { border: 3px solid #30477f; background: #080f1c; box-shadow: 5px 5px 0 #020307; }
+.endless-panel-head { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 12px; border-bottom: 2px dashed #40598e; color: #6e88ca; font: 800 10px/1 ui-monospace,Consolas,monospace; }
+.endless-panel-head strong { color: #dfe6fa; }
+.endless-plot-card svg { display: block; width: 100%; max-height: 610px; background: #05080e; }
+.endless-plot-bg { fill: #060a12; stroke: #344769; stroke-width: 2; }
+.endless-grid-field { pointer-events: none; }
+.endless-cell { opacity: .12; stroke: #020307; stroke-width: .5; }
+.endless-cell.cat { fill: #4f7cff; }.endless-cell.bread { fill: #ffe05b; }
+.endless-train-a { fill: #7198ff; stroke: #0b1120; stroke-width: 2; }
+.endless-train-b { fill: #ffd85d; stroke: #4e3f0f; stroke-width: 2; }
+.endless-field-point { fill: #101827; stroke-width: 2; }.endless-field-point.cat { stroke: #7ca1ff; }.endless-field-point.bread { stroke: #ffe05b; }
+.endless-axis { stroke: #536583; stroke-width: 2; }
+.endless-axis-copy, .endless-legend { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; color: #7185b3; font-size: 10px; }
+.endless-legend { justify-content: flex-start; flex-wrap: wrap; border-top: 2px dashed #263a61; }
+.endless-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; }.shape-a { background:#7198ff }.shape-b { background:#ffd85d; clip-path:polygon(50% 0,100% 100%,0 100%) }.shape-field { border:2px solid #9cacd2; transform:rotate(45deg) }
+.endless-control-panel, .endless-run-log, .endless-diagnosis { padding-bottom: 12px; }
+.endless-feature-slots { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:10px 10px 5px; }
+.endless-feature-slots button { min-height:48px; display:grid; grid-template-columns:28px 1fr; align-items:center; gap:7px; border:3px solid #30477f; background:#0b1324; color:#b7c3df; cursor:pointer; text-align:left; }
+.endless-feature-slots button.active { border-color:#ffe05b; background:#201c0b; }.endless-feature-slots i { display:grid; place-items:center; height:26px; background:#172650; color:#ffe05b; font-style:normal; }
+.endless-feature-list { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:5px 10px 10px; }
+.endless-feature-list button, .endless-model-list button { min-height:62px; padding:8px; border:2px solid #2b3f6b; background:#091120; color:#b8c4df; text-align:left; cursor:pointer; }
+.endless-feature-list button.installed, .endless-model-list button.selected { border-color:#ffe05b; background:#1b180b; box-shadow:3px 3px 0 #4d4010; }
+.endless-feature-list strong, .endless-feature-list small, .endless-model-list strong, .endless-model-list small { display:block; }.endless-feature-list small, .endless-model-list small { margin-top:4px; color:#7588b4; font-size:9px; line-height:1.35; }
+.sensor-evidence { display:flex; flex-wrap:wrap; gap:4px; margin-top:7px; }
+.sensor-evidence-help { margin:0 10px 10px; padding:7px 8px; border-left:3px solid #395184; background:#07101d; color:#7285ad; font-size:9px; line-height:1.45; }
+.sensor-evidence-help b { color:#a9b8da; }
+.sensor-evidence i { padding:3px 5px; border:1px solid #30446f; background:#080e1a; color:#7e92c0; font:normal 800 8px/1 ui-monospace,Consolas,monospace; }
+.endless-feature-list button.installed .sensor-evidence i { border-color:#675b27; color:#c1aa50; }
+.endless-model-list { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:10px; }
+.endless-primary { width:calc(100% - 20px); min-height:46px; margin:4px 10px 0; border:3px solid #806a1d; background:#ffe05b; color:#0b0a05; box-shadow:4px 4px 0 #554612; font-weight:900; cursor:pointer; }
+.endless-primary:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
+.experiment-console > p, .endless-diagnosis > p, .endless-round-complete > p { margin:10px 12px; color:#8f9dbc; font-size:11px; line-height:1.5; }
+.endless-round-complete { border-color:#665a28; background:#15130b; }
+.endless-round-complete .endless-panel-head strong { color:#ffe05b; }
+.endless-band-picks { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:0 10px 8px; }
+.endless-band-picks button, .endless-diagnosis > button:not(.endless-primary) { padding:8px; border:2px solid #344c7e; background:#0a1222; color:#aebbd7; cursor:pointer; }
+.endless-band-picks button.selected, .endless-diagnosis > button.selected { border-color:#ffe05b; color:#fff0a4; background:#201c0b; }
+.endless-emergency { width:calc(100% - 20px); margin:8px 10px 0; padding:8px; border:2px dashed #a26a37; background:#1b1009; color:#d7a06d; cursor:pointer; }
+.endless-audit-result { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; padding:10px; border:3px solid #776523; background:#151208; box-shadow:5px 5px 0 #3f340d; }
+.endless-audit-result > div { padding:10px; border:2px solid #544a27; background:#090d14; }.endless-audit-result small,.endless-audit-result strong { display:block }.endless-audit-result small{color:#7789b5}.endless-audit-result strong{color:#ffe05b;font-size:25px}.endless-audit-result .metric-danger{border-color:#a85e37;background:#1d0f0a}.endless-audit-result .metric-danger strong{color:#ff9a62}.endless-audit-result p{grid-column:1/-1;margin:0;color:#b8aa77;font-size:11px;line-height:1.5}
+.endless-error-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:7px; padding:10px; }.endless-error-grid article{padding:9px;border:2px solid #354b79;background:#0a1221}.endless-error-grid b,.endless-error-grid span,.endless-error-grid small{display:block}.endless-error-grid b{color:#ffe05b}.endless-error-grid span{margin:3px 0;color:#c2cbe0;font-size:11px}.endless-error-grid small{color:#7587ad;font-size:9px}
+.endless-run-log article { display:grid; grid-template-columns:30px 1fr auto auto; gap:8px; align-items:center; margin:7px 10px; padding:8px; border:2px solid #2f426e; background:#0a1221; }.endless-run-log article i{display:grid;place-items:center;height:28px;background:#17254a;color:#ffe05b;font-style:normal}.endless-run-log article span{font-size:10px;color:#b8c4df}.endless-run-log article small{display:block;color:#6f83af}.endless-run-log article b{color:#ffe05b;font-size:11px}.endless-run-log article em{font-style:normal;color:#8dbca0;font-size:9px}
+.endless-diagnosis > button:not(.endless-primary) { display:block; width:calc(100% - 20px); margin:7px 10px; text-align:left; }.diagnosis-retry{margin:9px 10px 0;padding:9px;border-left:3px solid #bd793f;background:#1a100a;color:#c99f79;font-size:10px;line-height:1.4}
+.endless-solved { max-width:950px; margin:70px auto; padding:28px; border:5px solid #ffe05b; background:#151208; box-shadow:10px 10px 0 #41360d; text-align:center; }.endless-solved>span{color:#ffe05b;font:900 11px/1 ui-monospace,monospace}.endless-solved h2{font-size:27px}.endless-solved p{color:#b9ae83;line-height:1.6}.endless-rank{margin:20px auto;max-width:400px;padding:15px;border:3px solid #6b5d26;background:#080b11}.endless-rank strong{display:block;color:#ffe05b;font:900 64px/.9 ui-monospace,monospace}.endless-rank span,.endless-rank small{display:block}.endless-rank span{color:#fff0a4}.endless-rank small{margin-top:7px;color:#8595b9}.endless-solved-actions{display:flex;justify-content:center;gap:9px}
+@media(max-width:1000px){.endless-workspace{grid-template-columns:1fr}.endless-case-brief{grid-template-columns:1fr}.endless-console{grid-template-columns:repeat(2,minmax(0,1fr))}.endless-control-panel{min-width:0}}
+@media(max-width:700px){.endless-header{align-items:flex-start;flex-direction:column}.endless-console{grid-template-columns:1fr}.endless-feature-list,.endless-model-list,.endless-error-grid{grid-template-columns:1fr}.endless-band-picks{grid-template-columns:1fr}.endless-audit-result{grid-template-columns:1fr}.endless-audit-result p{grid-column:auto}}

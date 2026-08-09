@@ -2,9 +2,11 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
 import { BeginnerGuide } from './components/BeginnerGuide'
 import { CaseAttempts, type ExperimentRecord } from './components/CaseAttempts'
+import { CaseRating } from './components/CaseRating'
 import { DebugPanel } from './components/DebugPanel'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
+import { ExperimentPlan, type ExperimentPrediction } from './components/ExperimentPlan'
 import { FeaturePicker } from './components/FeaturePicker'
 import { GuideConnector } from './components/GuideConnector'
 import { InvestigationPrompt } from './components/InvestigationPrompt'
@@ -12,11 +14,14 @@ import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
 import { PhaseTransition, type PhaseTransitionCue } from './components/PhaseTransition'
 import { IncidentScene } from './components/PixelScene'
+import { PredictionOutcome } from './components/PredictionOutcome'
 import { ScatterPlot } from './components/ScatterPlot'
+import { SampleHunt } from './components/SampleHunt'
 import { SensorIntro } from './components/SensorIntro'
 import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
 import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
+import { EndlessMode } from './endless/EndlessMode'
 import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
@@ -96,11 +101,31 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
   )
 }
 
-function GameSession({ seed, debug, onSeedChange, onRestart }: {
+function predictionMatches(
+  prediction: ExperimentPrediction | undefined,
+  trainAccuracy: number,
+  auditAccuracy: number,
+  previous?: ExperimentRecord,
+): boolean | undefined {
+  if (!prediction || prediction === 'no-idea' || !previous) return undefined
+  if (prediction === 'train-up-test-down') {
+    return trainAccuracy > previous.trainAccuracy + 0.04 && auditAccuracy < previous.auditAccuracy - 0.01
+  }
+  if (prediction === 'test-improves') {
+    return auditAccuracy > previous.auditAccuracy + 0.08
+  }
+  if (prediction === 'both-improve') {
+    return trainAccuracy > previous.trainAccuracy + 0.01 && auditAccuracy > previous.auditAccuracy + 0.01
+  }
+  return undefined
+}
+
+function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   seed: number
   debug: boolean
   onSeedChange: (seed: number) => void
   onRestart: () => void
+  onEndless?: () => void
 }) {
   const service = useMemo(() => createAuditService(seed), [seed])
   const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialGameState(seed, debug))
@@ -114,14 +139,21 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
   const [hintStage, setHintStage] = useState<Stage>()
   const [observationAnswer, setObservationAnswer] = useState<string>()
+  const [suspectSampleId, setSuspectSampleId] = useState<string>()
   const [sensorReads, setSensorReads] = useState<FeatureKey[]>([])
   const [repairSensorReads, setRepairSensorReads] = useState<FeatureKey[]>([])
   const [modelConfirmed, setModelConfirmed] = useState(false)
+  const [boundaryProbeAnswer, setBoundaryProbeAnswer] = useState<string>()
   const [successPrediction, setSuccessPrediction] = useState<string>()
   const [evidenceInference, setEvidenceInference] = useState<string>()
+  const [suspiciousAttemptId, setSuspiciousAttemptId] = useState<number>()
   const [overfitReflection, setOverfitReflection] = useState<string>()
   const [finalReflection, setFinalReflection] = useState<string>()
   const [experimentLog, setExperimentLog] = useState<ExperimentRecord[]>([])
+  const [pendingPrediction, setPendingPrediction] = useState<ExperimentPrediction>()
+  const [auditCredits, setAuditCredits] = useState(4)
+  const [emergencyAudits, setEmergencyAudits] = useState(0)
+  const [reasoningMisses, setReasoningMisses] = useState(0)
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
@@ -137,6 +169,14 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     return MODEL_REGISTRY[state.selectedModel].fit(trainPoints)
   }, [state.training, state.selectedModel, trainPoints])
   const grid = useMemo(() => fitted ? createDecisionGrid(fitted, 28) : [], [fitted])
+  const boundaryProbeSample = state.stage === 'first_success' ? service.publicTest[12] : undefined
+  const boundaryProbePrediction = fitted && boundaryProbeSample
+    ? fitted.predict({
+        x: boundaryProbeSample.features[state.selectedFeatures[0]],
+        y: boundaryProbeSample.features[state.selectedFeatures[1]],
+      })
+    : undefined
+  const boundaryProbeCorrect = Boolean(boundaryProbeAnswer && boundaryProbeAnswer === boundaryProbePrediction)
   const revealUnknown = STAGE_INDEX[state.stage] >= STAGE_INDEX.hidden_test
   const debugSamples = debug ? service.debugTest() : []
   const debugPredictions = debug && fitted
@@ -224,6 +264,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const setFeatures = (features: [FeatureKey, FeatureKey]) => {
     audio.current.play('select')
     setSelectedMistake(undefined)
+    setPendingPrediction(undefined)
     record('SELECT_FEATURES', { features })
     dispatch({ type: 'SET_FEATURES', features })
   }
@@ -243,6 +284,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const setModel = (model: ModelId) => {
     audio.current.play('select')
     setSelectedMistake(undefined)
+    setPendingPrediction(undefined)
     if (state.stage === 'choose_model') setModelConfirmed(true)
     record('SELECT_MODEL', { model })
     dispatch({ type: 'SET_MODEL', model })
@@ -266,20 +308,39 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   const audit = () => {
+    if (!debug && state.stage === 'iterate' && auditCredits <= 0) {
+      audio.current.play('warning')
+      record('AUDIT_BLOCKED_NO_CREDIT')
+      return
+    }
     audio.current.play('audit')
     const model = fitted ?? MODEL_REGISTRY[state.selectedModel].fit(trainPoints)
     const result = service.audit(model, state.selectedFeatures)
+    const trainAccuracy = state.training?.accuracy ?? evaluate(model, trainPoints).accuracy
+    const previous = experimentLog.at(-1)
+    const matched = predictionMatches(pendingPrediction, trainAccuracy, result.accuracy, previous)
     record('RUN_AUDIT', { testAccuracy: result.accuracy })
     setExperimentLog((records) => [...records, {
       id: records.length + 1,
       model: state.selectedModel,
       features: [...state.selectedFeatures],
-      trainAccuracy: state.training?.accuracy ?? evaluate(model, trainPoints).accuracy,
+      trainAccuracy,
       auditAccuracy: result.accuracy,
       errors: result.errorCount,
+      prediction: state.stage === 'iterate' ? pendingPrediction : undefined,
+      predictionMatched: state.stage === 'iterate' ? matched : undefined,
     }])
+    if (!debug && state.stage === 'iterate') setAuditCredits((value) => Math.max(0, value - 1))
+    setPendingPrediction(undefined)
     dispatch({ type: 'AUDIT_RESULT', result })
     setSelectedMistake(result.mistakes[0]?.id)
+  }
+
+  const requestEmergencyAudit = () => {
+    audio.current.play('warning')
+    setAuditCredits((value) => value + 1)
+    setEmergencyAudits((value) => value + 1)
+    record('REQUEST_EMERGENCY_AUDIT')
   }
 
   const viewMistake = (id: string) => {
@@ -349,9 +410,13 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       : ['linear']
 
   const observationCorrect = observationAnswer === 'clusters'
+  const suspectCorrect = Boolean(suspectSampleId && trainPoints.find((point) => point.id === suspectSampleId)?.source.flags?.outlier)
   const evidenceCorrect = evidenceInference === 'feature-gap'
+  const suspiciousAttemptCorrect = Boolean(suspiciousAttemptId && suspiciousAttemptId === experimentLog.at(-1)?.id)
   const overfitCorrect = overfitReflection === 'memorized'
   const finalCorrect = finalReflection === 'unknown-stable'
+  const predictionHits = experimentLog.filter((record) => record.predictionMatched === true).length
+  const predictionMisses = experimentLog.filter((record) => record.predictionMatched === false).length
   const clueCount = [observationCorrect, evidenceCorrect, state.hasSeenOverfit && overfitCorrect, finalCorrect].filter(Boolean).length
   const showSensorIntro = !debug && state.stage === 'choose_features'
   const repairSensorsReady = repairSensorReads.length >= 2
@@ -366,31 +431,43 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
 
   const guideOverride = (() => {
     switch (state.stage) {
-      case 'inspect_data': return observationCorrect
-        ? { title: '第一条线索已确认', line: '旧样本确实有明显分布。下一步查机器人到底看了哪些信息。', cue: '检查机器人的眼睛' }
-        : { title: '先做一个肉眼判断', line: '不用懂坐标。只回答：橘猫和面包是不是大致聚成两团？', cue: '观察后作答' }
+      case 'inspect_data': return !observationCorrect
+        ? { title: '先做一个肉眼判断', line: '不用懂坐标。只回答：橘猫和面包是不是大致聚成两团？', cue: '观察后作答' }
+        : !suspectCorrect
+          ? { title: '现在别看按钮，直接点图', line: '两团里混着几个很反常的旧样本。找一个“站进对面阵营”的点，直接在散点图上标记。', cue: '在左图点一个可疑样本' }
+          : { title: '你抓到了旧数据里的噪声', line: '这类反常点以后会成为重要证据。下一步再查机器人到底看了哪些信息。', cue: '检查机器人的眼睛' }
       case 'choose_features': return sensorReads.length < 2
         ? { title: `读取两个观察通道 ${sensorReads.length}/2`, line: '依次点开 X、Y。机器人并没有“看懂图片”，它只收到两串数字。', cue: '点开两个通道' }
         : { title: '你已经知道它看什么了', line: '当前事故机器人只看“颜色暖度 + 轮廓圆度”。先保留原配置，看看它能学成什么样。', cue: '继续检查模型' }
       case 'choose_model': return modelConfirmed
         ? { title: '直线工具已确认', line: '它只会画一条线，把两边分开。现在真正训练一次。', cue: '进入训练' }
         : { title: '亲手装载第一个判断工具', line: '现在只有一个模型可用。点一下“直线分类器”，建立可点击控件的直觉。', cue: '点直线分类器' }
-      case 'first_success': return successPrediction
-        ? { title: '预测已记入案件本', line: '现在别猜了。把从未参加训练的新样本放进来验证。', cue: '接受现场抽查' }
-        : { title: '先别庆祝，做个预测', line: '旧样本 89%。你觉得这已经证明机器人真的修好了吗？', cue: '先回答下面的问题' }
+      case 'first_success': return !boundaryProbeCorrect
+        ? { title: '先读一遍模型的边界', line: '图里出现了一个 PROBE ?。别猜它真实是什么，只判断：按当前颜色区域，模型会把它判成哪一类？', cue: '读图后锁定模型预测' }
+        : successPrediction
+          ? { title: '现实预测已记入案件本', line: '你已经会读模型了。现在把从未参加训练的新样本放进来，看看现实是否同意。', cue: '接受现场抽查' }
+          : { title: '模型会说什么 ≠ 它真实是什么', line: '你刚读懂了决策区域。现在再判断：旧样本 89%，这足以证明机器人真的修好了吗？', cue: '回答上线判断' }
       case 'inspect_errors': {
         if (state.viewedMistakes.length < 2) return { title: `收集两条错误证据 ${state.viewedMistakes.length}/2`, line: '点击两个不同的黄色「!」。不要只看总分，看看错误长什么样。', cue: '继续调查误判' }
         if (!evidenceCorrect) return { title: '把两条证据串起来', line: '你已经看了两个错误。现在判断：问题更像出在“观察信息”还是随机倒霉？', cue: '完成证据推理' }
         return { title: '证据链完成', line: '当前观察方式会把某些猫和面包看得太像。带着这条线索进入修复。', cue: '开始修复' }
       }
       case 'iterate': return state.hasSeenOverfit
-        ? repairSensorsReady
-          ? { title: '利用证据修复，而不是碰运气', line: '备用通道已读完。现在换掉不稳的观察方式，再选择一个不过度贴旧样本的模型。', cue: '设计第三个方案' }
-          : { title: `解锁备用观察通道 ${repairSensorReads.length}/2`, line: '技术组刚恢复“表面纹理”和“长宽比例”。先把两个模块读完，再决定怎么装。', cue: '读取两个备用模块' }
-        : { title: '做一次极端实验', line: '先故意选 k=1。它最擅长“记住最近的旧样本”，看看训练满分能不能救它。', cue: '选择 k=1 → 训练 → 审计' }
-      case 'overfit_reveal': return overfitCorrect
-        ? { title: '你找到了真正的陷阱', line: '训练 100% 不等于学会了规律。现在回去设计一个更稳的方案。', cue: '重新设计' }
-        : { title: '先解释这个反常现象', line: '旧样本 100%，新样本却更差。哪一种解释最合理？', cue: '完成判断' }
+        ? !repairSensorsReady
+          ? { title: `解锁备用观察通道 ${repairSensorReads.length}/2`, line: '技术组刚恢复“表面纹理”和“长宽比例”。先把两个模块读完，再决定怎么装。', cue: '读取两个备用模块' }
+          : !pendingPrediction
+            ? { title: '先提出一个可验证的预测', line: '换完观察方式和模型以后，不要直接按训练。先写下：你认为未知样本会不会真正改善。', cue: '在实验协议里下注' }
+            : { title: '现在用实验验证你的预测', line: `正式审计还剩 ${auditCredits} 次。训练只是准备，真正花额度的是未知样本审计。`, cue: '训练 → 审计 → 对照预测' }
+        : state.selectedModel !== 'knn-1'
+          ? { title: '做一次极端实验', line: '先故意选 k=1。它最擅长“记住最近的旧样本”，看看训练满分能不能救它。', cue: '选择 k=1' }
+          : !pendingPrediction
+            ? { title: '别急着训练，先下注', line: '你准备让模型更贴旧样本。先预测：训练分更高以后，未知样本会怎样？', cue: '填写实验前预测' }
+            : { title: '预测已锁定', line: `现在可以训练并审计。正式审计还剩 ${auditCredits} 次。`, cue: '训练 → 未知审计' }
+      case 'overfit_reveal': return !suspiciousAttemptCorrect
+        ? { title: '先从案件记录里指出异常', line: '两次实验都在右边。哪一次“旧样本更高、未知样本反而更差”？先点那条记录。', cue: '点击最可疑实验' }
+        : overfitCorrect
+          ? { title: '你找到了真正的陷阱', line: '训练 100% 不等于学会了规律。现在回去设计一个更稳的方案。', cue: '重新设计' }
+          : { title: '记录找对了，再解释原因', line: '你已经指出 100% / 63% 那次实验。现在解释：为什么更贴旧样本反而更危险？', cue: '完成判断' }
       case 'final_audit': return finalCorrect
         ? { title: '修复证据成立', line: '不是旧题更满，而是新样本真正稳定了。最后把经验迁移出去。', cue: '进入结案问题' }
         : { title: '别只看“通过”两个字', line: '比较案件记录：这次真正值得信任的证据是什么？', cue: '完成最终判断' }
@@ -401,21 +478,22 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const stageAction = () => {
     switch (state.stage) {
       case 'briefing': return <ActionButton onClick={() => send({ type: 'START' })}>接受事故调查</ActionButton>
-      case 'inspect_data': return debug || observationCorrect ? <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>去看机器人到底看了什么</ActionButton> : null
+      case 'inspect_data': return debug || (observationCorrect && suspectCorrect) ? <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>带着异常样本线索继续调查</ActionButton> : null
       case 'choose_features': return debug || sensorReads.length >= 2 ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>保留原观察方式，继续调查</ActionButton> : null
       case 'choose_model': return debug || modelConfirmed ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>确认装载这个模型</ActionButton> : null
       case 'train': return <ActionButton onClick={train}>训练模型并画出边界</ActionButton>
-      case 'first_success': return debug || successPrediction ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>用没见过的新样本验证</ActionButton> : null
+      case 'first_success': return debug || (boundaryProbeCorrect && successPrediction) ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>用没见过的新样本验证</ActionButton> : null
       case 'hidden_test': return <ActionButton onClick={audit}>放入 24 个未知样本</ActionButton>
       case 'inspect_errors': return state.viewedMistakes.length >= 2 && evidenceCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着两条证据开始修复</ActionButton> : null
       case 'iterate': {
         if (!debug && !state.hasSeenOverfit && state.selectedModel !== 'knn-1') return null
         if (!debug && state.hasSeenOverfit && !repairSensorsReady) return null
+        if (!debug && !pendingPrediction) return null
         return (
           <div className="dual-actions">
             <ActionButton onClick={train}>训练当前方案</ActionButton>
-            <ActionButton kind="secondary" disabled={!state.training} onClick={audit}>
-              {state.training ? '用未知数据审计' : '先训练，再审计'}
+            <ActionButton kind="secondary" disabled={!state.training || (!debug && auditCredits <= 0)} onClick={audit}>
+              {state.training ? (auditCredits > 0 || debug ? `未知审计 · 剩 ${auditCredits}` : '审计额度耗尽') : '先训练，再审计'}
             </ActionButton>
           </div>
         )
@@ -436,6 +514,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       <EntryExperience
         phase={entryPhase}
         onStart={startEntry}
+        onEndless={onEndless}
         onIncidentComplete={completeIncident}
         onComplete={completeEntry}
         audioEnabled={audioEnabled}
@@ -502,6 +581,10 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       ) : (
         <div className="workspace game-workspace">
           <div className="visual-column game-stage-column">
+            {!debug && state.stage === 'inspect_errors' && state.audit && (
+              <PredictionOutcome prediction={successPrediction} accuracy={state.audit.accuracy} errors={state.audit.errorCount} />
+            )}
+
             <ScatterPlot
               train={trainPoints}
               publicTest={service.publicTest}
@@ -513,6 +596,16 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               debugShowLabels={debugShowLabels}
               selectedMistake={selectedMistake}
               onSelectMistake={viewMistake}
+              trainingProbe={!debug && state.stage === 'inspect_data' && observationCorrect}
+              selectedTrainingSample={state.stage === 'inspect_data' ? suspectSampleId : undefined}
+              onSelectTrainingSample={(id) => {
+                audio.current.play('evidence')
+                const picked = trainPoints.find((point) => point.id === id)
+                if (!picked?.source.flags?.outlier) setReasoningMisses((count) => count + 1)
+                setSuspectSampleId(id)
+                record(`PROBE_TRAIN_SAMPLE:${id}`)
+              }}
+              previewSample={boundaryProbeSample}
             />
 
             {showMetrics && <Metrics training={state.training} audit={state.audit} model={state.selectedModel} />}
@@ -537,27 +630,56 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               />
             )}
 
-            {!debug && state.stage === 'inspect_data' && (
+            {!debug && state.stage === 'inspect_data' && !observationCorrect && (
               <InvestigationPrompt
                 number="01 / SAMPLE ARCHIVE"
                 title="不用懂坐标：你肉眼看到了什么？"
                 question="只看橘猫和面包的位置。旧样本现在呈现出哪种最明显的结构？"
                 value={observationAnswer}
-                onChange={(value) => { audio.current.play('select'); setObservationAnswer(value); record(`OBSERVATION:${value}`) }}
+                onChange={(value) => { audio.current.play('select'); if (value !== 'clusters') setReasoningMisses((count) => count + 1); setObservationAnswer(value); record(`OBSERVATION:${value}`) }}
                 options={[
                   { id: 'clusters', label: '它们大致聚成了两团', correct: true },
                   { id: 'mixed', label: '它们完全混在一起', correct: false },
                   { id: 'random', label: '看起来没有任何规律', correct: false },
                 ]}
-                successText="线索 01：旧样本确实存在可利用的分布。接下来查机器人到底用了什么信息看出这两团。"
+                successText="第一眼没错：大部分旧样本确实分成两团。但先别走——图里还有几个反常点值得抓出来。"
               />
             )}
 
-            {!debug && state.stage === 'first_success' && (
+            {!debug && state.stage === 'inspect_data' && observationCorrect && (
+              <SampleHunt
+                selectedId={suspectSampleId}
+                correct={suspectCorrect}
+                onClear={() => setSuspectSampleId(undefined)}
+              />
+            )}
+
+            {!debug && state.stage === 'first_success' && !boundaryProbeCorrect && boundaryProbePrediction && (
               <InvestigationPrompt
-                number="02 / PREDICTION"
+                number="02 / MODEL READOUT"
+                title="这个 PROBE ? 会被模型判成什么？"
+                question="只读当前决策区域的颜色，不判断它真实是什么。模型本身会给出哪个答案？"
+                value={boundaryProbeAnswer}
+                onChange={(value) => {
+                  audio.current.play('select')
+                  if (value !== boundaryProbePrediction) setReasoningMisses((count) => count + 1)
+                  setBoundaryProbeAnswer(value)
+                  record(`BOUNDARY_PROBE:${value}`)
+                }}
+                options={[
+                  { id: 'cat', label: '模型会判成：猫', correct: boundaryProbePrediction === 'cat' },
+                  { id: 'bread', label: '模型会判成：面包', correct: boundaryProbePrediction === 'bread' },
+                ]}
+                successText="读对了。但注意：你刚读懂的是模型的判断区域，不是这个样本的真实答案。"
+                retryText="再看左边 PROBE ? 周围的决策底色。这里问的是模型会说什么，不是你觉得它真实是什么。"
+              />
+            )}
+
+            {!debug && state.stage === 'first_success' && boundaryProbeCorrect && (
+              <InvestigationPrompt
+                number="03 / DEPLOYMENT PREDICTION"
                 title="旧样本表现不错。它真的修好了吗？"
-                question="先留下你的预测，不会扣分。下一步会用一批它从没见过的样本验证。"
+                question="现在才判断现实：先留下你的预测。下一步会用一批它从没见过的样本验证。"
                 value={successPrediction}
                 onChange={(value) => { audio.current.play('select'); setSuccessPrediction(value); record(`PREDICT_GENERALIZATION:${value}`) }}
                 options={[
@@ -565,17 +687,17 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
                   { id: 'need-new', label: '还不能确定，应该看看新样本' },
                 ]}
                 evaluate={false}
-                successText="预测已记入案件本。现在用未知样本把猜测变成证据。"
+                successText="现实预测已记入案件本。现在用未知样本把猜测变成证据。"
               />
             )}
 
             {!debug && state.stage === 'inspect_errors' && state.viewedMistakes.length >= 2 && (
               <InvestigationPrompt
-                number="03 / EVIDENCE LINK"
+                number="04 / EVIDENCE LINK"
                 title="两条误判证据在告诉你什么？"
                 question="结合当前只使用“颜色暖度 + 轮廓圆度”，哪种解释更值得继续调查？"
                 value={evidenceInference}
-                onChange={(value) => { audio.current.play('select'); setEvidenceInference(value); record(`EVIDENCE_INFERENCE:${value}`) }}
+                onChange={(value) => { audio.current.play('select'); if (value !== 'feature-gap') setReasoningMisses((count) => count + 1); setEvidenceInference(value); record(`EVIDENCE_INFERENCE:${value}`) }}
                 options={[
                   { id: 'feature-gap', label: '当前两项信息会把一些猫和面包看得太像', correct: true },
                   { id: 'random-bad-luck', label: '只是随机倒霉，多训练几次就会自己消失', correct: false },
@@ -606,13 +728,29 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled} onChange={setModel} />
             )}
 
-            {state.stage === 'overfit_reveal' && state.training && state.audit && !overfitCorrect && (
+            {!debug && state.stage === 'iterate' && (
+              (!state.hasSeenOverfit && state.selectedModel === 'knn-1') || (state.hasSeenOverfit && repairSensorsReady)
+            ) && (
+              <ExperimentPlan
+                phase={state.hasSeenOverfit ? 'repair' : 'trap'}
+                value={pendingPrediction}
+                credits={auditCredits}
+                onChange={(value) => {
+                  audio.current.play('select')
+                  setPendingPrediction(value)
+                  record(`LOCK_PREDICTION:${value}`)
+                }}
+                onEmergencyCredit={requestEmergencyAudit}
+              />
+            )}
+
+            {state.stage === 'overfit_reveal' && state.training && state.audit && suspiciousAttemptCorrect && !overfitCorrect && (
               <InvestigationPrompt
-                number="04 / PATTERN FAILURE"
+                number="05 / PATTERN FAILURE"
                 title="100% 的训练分，为什么反而更危险？"
                 question={`这个方案旧样本 ${Math.round(state.training.accuracy * 100)}%，未知样本 ${Math.round(state.audit.accuracy * 100)}%。哪种解释最符合你刚看到的边界和错误？`}
                 value={overfitReflection}
-                onChange={(value) => { audio.current.play('select'); setOverfitReflection(value); record(`OVERFIT_REFLECTION:${value}`) }}
+                onChange={(value) => { audio.current.play('select'); if (value !== 'memorized') setReasoningMisses((count) => count + 1); setOverfitReflection(value); record(`OVERFIT_REFLECTION:${value}`) }}
                 options={[
                   { id: 'memorized', label: '它太贴着旧样本走，连噪声和偶然情况都记住了', correct: true },
                   { id: 'not-enough-score', label: '训练分还不够高，应该继续把旧样本刷得更满', correct: false },
@@ -632,11 +770,11 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
 
             {state.stage === 'final_audit' && !finalCorrect && (
               <InvestigationPrompt
-                number="05 / PATCH VERIFICATION"
+                number="06 / PATCH VERIFICATION"
                 title="这次为什么比“训练 100%”更值得相信？"
                 question="对照案件记录，什么证据说明修复真正解决了现场问题？"
                 value={finalReflection}
-                onChange={(value) => { audio.current.play('select'); setFinalReflection(value); record(`FINAL_REFLECTION:${value}`) }}
+                onChange={(value) => { audio.current.play('select'); if (value !== 'unknown-stable') setReasoningMisses((count) => count + 1); setFinalReflection(value); record(`FINAL_REFLECTION:${value}`) }}
                 options={[
                   { id: 'unknown-stable', label: '没见过的新样本也稳定，误判真正下降了', correct: true },
                   { id: 'highest-train', label: '因为训练分终于是所有方案里最高的', correct: false },
@@ -655,29 +793,40 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
             )}
 
             {!debug && ['iterate', 'overfit_reveal', 'final_audit', 'transfer_question', 'complete'].includes(state.stage) && (
-              <CaseAttempts records={experimentLog} />
+              <CaseAttempts
+                records={experimentLog}
+                credits={state.stage === 'iterate' ? auditCredits : undefined}
+                emergencyAudits={emergencyAudits}
+                selectedId={state.stage === 'overfit_reveal' ? suspiciousAttemptId : undefined}
+                selectionPrompt={state.stage === 'overfit_reveal' && !suspiciousAttemptCorrect ? '哪次实验最像“旧题更高、现场反而更差”？点一条记录。' : undefined}
+                onSelect={state.stage === 'overfit_reveal' ? (id) => {
+                  audio.current.play('select')
+                  if (id !== experimentLog.at(-1)?.id) setReasoningMisses((count) => count + 1)
+                  setSuspiciousAttemptId(id)
+                  record(`COMPARE_ATTEMPT:${id}`)
+                } : undefined}
+              />
             )}
 
             {state.stage === 'transfer_question' && (
-              <section className="transfer-card pixel-result-card">
-                <span>FINAL_CHECK.EXE</span>
-                <h2>{TRANSFER_QUESTION.prompt}</h2>
-                <div className="transfer-options">
-                  {TRANSFER_QUESTION.options.map((option) => (
-                    <button
-                      type="button"
-                      key={option.id}
-                      className={state.transferAnswer === option.id ? 'selected' : ''}
-                      onClick={() => {
-                        audio.current.play('select')
-                        record('ANSWER_TRANSFER')
-                        dispatch({ type: 'ANSWER_TRANSFER', id: option.id, correct: option.correct })
-                      }}
-                    >{option.label}</button>
-                  ))}
-                </div>
-                {state.transferAnswer && <p className="answer-note">{TRANSFER_QUESTION.explanation}</p>}
-                <ActionButton disabled={!state.transferAnswer} onClick={() => send({ type: 'ADVANCE' })}>提交调查报告</ActionButton>
+              <section className="transfer-lock-step">
+                <InvestigationPrompt
+                  number="07 / TRANSFER CHECK"
+                  title="最后换个场景：你会怎么查？"
+                  question={TRANSFER_QUESTION.prompt}
+                  value={state.transferAnswer}
+                  onChange={(value) => {
+                    const option = TRANSFER_QUESTION.options.find((item) => item.id === value)!
+                    audio.current.play('select')
+                    record('ANSWER_TRANSFER')
+                    if (!option.correct) setReasoningMisses((count) => count + 1)
+                    dispatch({ type: 'ANSWER_TRANSFER', id: option.id, correct: option.correct })
+                  }}
+                  options={TRANSFER_QUESTION.options.map((option) => ({ id: option.id, label: option.label, correct: option.correct }))}
+                  successText={TRANSFER_QUESTION.explanation}
+                  retryText="这个判断还不够稳。回想刚才的案件：旧分数不是答案，先找能验证未知表现的证据。"
+                />
+                {state.transferCorrect && <ActionButton onClick={() => send({ type: 'ADVANCE' })}>提交调查报告</ActionButton>}
               </section>
             )}
 
@@ -689,6 +838,17 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
                 <div className="takeaways">
                   <span>数据决定它见过什么</span><span>特征决定它能看什么</span><span>测试集检查未知世界</span><span>错误样本帮助找原因</span>
                 </div>
+                {!debug && (
+                  <CaseRating
+                    experimentCount={experimentLog.length}
+                    emergencyAudits={emergencyAudits}
+                    hintLevel={state.hintLevel}
+                    predictionHits={predictionHits}
+                    predictionMisses={predictionMisses}
+                    trustedOldScore={successPrediction === 'fixed'}
+                    reasoningMisses={reasoningMisses}
+                  />
+                )}
                 <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
               </section>
             )}
@@ -731,11 +891,25 @@ export default function App() {
   const initialSeed = Number(params.get('seed')) || 20260809
   const [seed, setSeed] = useState(initialSeed)
   const [session, setSession] = useState(0)
+  const [mode, setMode] = useState<'story' | 'endless'>(params.get('mode') === 'endless' ? 'endless' : 'story')
 
   const changeSeed = (nextSeed: number) => {
     setSeed(nextSeed)
     setSession((value) => value + 1)
   }
 
-  return <GameSession key={`${seed}-${session}`} seed={seed} debug={debug} onSeedChange={changeSeed} onRestart={() => setSession((value) => value + 1)} />
+  if (!debug && mode === 'endless') {
+    return <EndlessMode initialSeed={seed} onExit={() => setMode('story')} />
+  }
+
+  return (
+    <GameSession
+      key={`${seed}-${session}`}
+      seed={seed}
+      debug={debug}
+      onSeedChange={changeSeed}
+      onRestart={() => setSession((value) => value + 1)}
+      onEndless={!debug ? () => setMode('endless') : undefined}
+    />
+  )
 }

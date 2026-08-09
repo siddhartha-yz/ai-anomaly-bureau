@@ -3,12 +3,14 @@ import { PixelCat, PixelScanner } from './PixelScene'
 
 export type EntryPhase = 'title' | 'incident' | 'boot' | 'game'
 
-function TitleScene({ onStart, audioEnabled }: { onStart: () => void; audioEnabled: boolean }) {
+function TitleScene({ onStart, onEndless, audioEnabled }: { onStart: () => void; onEndless?: () => void; audioEnabled: boolean }) {
   const startRef = useRef(onStart)
   startRef.current = onStart
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('button, a, input, select, textarea')) return
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         startRef.current()
@@ -49,10 +51,15 @@ function TitleScene({ onStart, audioEnabled }: { onStart: () => void; audioEnabl
       <div className="entry-call-to-action">
         <button type="button" className="entry-start-button" onClick={onStart} autoFocus>
           <span className="entry-start-icon">▶</span>
-          <span className="entry-start-copy"><small>NEW CASE AVAILABLE</small><strong>查看事故录像</strong></span>
+          <span className="entry-start-copy"><small>STORY CASE 001</small><strong>查看事故录像</strong></span>
           <kbd>ENTER</kbd>
         </button>
-        <div className="entry-start-meta"><span>单人案件</span><i>·</i><span>约 15–25 分钟</span><i>·</i><span>{audioEnabled ? '♪ 8-BIT AUDIO ON' : 'AUDIO OFF'}</span></div>
+        {onEndless && (
+          <button type="button" className="entry-endless-button" onClick={onEndless}>
+            <span>∞</span><strong>监督学习 · 无尽调查</strong><small>程序化案件 / 5 次审计预算 / 提交诊断</small>
+          </button>
+        )}
+        <div className="entry-start-meta"><span>剧情案件 + 无尽调查</span><i>·</i><span>有限实验预算</span><i>·</i><span>{audioEnabled ? '♪ 8-BIT AUDIO ON' : 'AUDIO OFF'}</span></div>
       </div>
 
       <div className="entry-xiaoxi-callout">
@@ -165,14 +172,15 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-export function EntryExperience({ phase, onStart, onIncidentComplete, onComplete, audioEnabled }: {
+export function EntryExperience({ phase, onStart, onEndless, onIncidentComplete, onComplete, audioEnabled }: {
   phase: Exclude<EntryPhase, 'game'>
   onStart: () => void
+  onEndless?: () => void
   onIncidentComplete: () => void
   onComplete: () => void
   audioEnabled: boolean
 }) {
-  if (phase === 'title') return <TitleScene onStart={onStart} audioEnabled={audioEnabled} />
+  if (phase === 'title') return <TitleScene onStart={onStart} onEndless={onEndless} audioEnabled={audioEnabled} />
   if (phase === 'incident') return <IncidentColdOpen onComplete={onIncidentComplete} />
   return <BootSequence onComplete={onComplete} />
 }
