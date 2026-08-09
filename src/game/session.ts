@@ -7,6 +7,8 @@ import type { BehaviorEvent, BehaviorLog } from './logging'
 import type { AuditResult, GameState, MistakeDetail, Stage, TrainingResult } from './types'
 
 export const STORY_SESSION_VERSION = 1
+const MAX_STORY_SESSION_BYTES = 200_000
+const MAX_BEHAVIOR_EVENTS = 500
 
 export type StorySessionData = {
   version: typeof STORY_SESSION_VERSION
@@ -165,11 +167,12 @@ function isBehaviorEvent(value: unknown, seed: number, sessionId: string): value
     && STAGES.has(item.stage as Stage)
     && typeof item.action === 'string'
     && item.action.length > 0
-    && (item.features === undefined || (Array.isArray(item.features) && item.features.every((feature) => FEATURES.has(feature as FeatureKey))))
+    && item.action.length <= 80
+    && (item.features === undefined || isFeaturePair(item.features))
     && (item.model === undefined || MODELS.has(item.model as ModelId))
     && (item.trainAccuracy === undefined || isRate(item.trainAccuracy))
     && (item.testAccuracy === undefined || isRate(item.testAccuracy))
-    && (item.mistakeId === undefined || typeof item.mistakeId === 'string')
+    && (item.mistakeId === undefined || (typeof item.mistakeId === 'string' && /^field-\d{3}$/.test(item.mistakeId)))
     && (item.hintLevel === undefined || (isNonNegativeInteger(item.hintLevel) && item.hintLevel >= 1 && item.hintLevel <= 3))
     && isNonNegativeInteger(item.retryCount)
     && typeof item.completed === 'boolean'
@@ -181,7 +184,7 @@ function isBehaviorLog(value: unknown, seed: number): value is BehaviorLog {
   if (item.version !== 1 || item.seed !== seed || typeof item.sessionId !== 'string' || !/^s-[a-z0-9]+-[a-z0-9]{1,12}$/.test(item.sessionId)) return false
   if (typeof item.startedAt !== 'string' || !Number.isFinite(Date.parse(item.startedAt))) return false
   if (typeof item.exportedAt !== 'string' || !Number.isFinite(Date.parse(item.exportedAt))) return false
-  if (!Array.isArray(item.events) || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
+  if (!Array.isArray(item.events) || item.events.length > MAX_BEHAVIOR_EVENTS || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
   const events = item.events
   return events.every((event, index) => index === 0 || event.elapsedMs >= events[index - 1].elapsedMs)
 }
@@ -254,6 +257,10 @@ export function readStorySession(storage: StorageLike, seed: number): StorySessi
   try {
     const raw = storage.getItem(key)
     if (!raw) return undefined
+    if (raw.length > MAX_STORY_SESSION_BYTES) {
+      storage.removeItem(key)
+      return undefined
+    }
     const parsed: unknown = JSON.parse(raw)
     if (!isStorySession(parsed, seed)) {
       storage.removeItem(key)

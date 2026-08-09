@@ -145,4 +145,60 @@ describe('Story Case local checkpoint', () => {
     expect(clearStorySession(storage, value.seed)).toBe(true)
     expect(readStorySession(storage, value.seed)).toBeUndefined()
   })
+
+  it('rejects hidden telemetry IDs, excessive event logs and oversized raw checkpoints', () => {
+    const makeEvent = (seed: number, sessionId: string, index: number) => ({
+      sessionId,
+      seed,
+      timestamp: new Date(1_000 + index).toISOString(),
+      elapsedMs: index,
+      stage: 'inspect_errors' as const,
+      action: 'VIEW_MISTAKE',
+      features: ['warmth', 'roundness'] as ['warmth', 'roundness'],
+      model: 'linear' as const,
+      mistakeId: 'field-002',
+      retryCount: 0,
+      completed: false,
+    })
+
+    {
+      const storage = new MemoryStorage()
+      const value = session()
+      const sessionId = 's-test-123456'
+      value.behaviorLog = {
+        version: 1,
+        sessionId,
+        seed: value.seed,
+        startedAt: new Date(0).toISOString(),
+        exportedAt: new Date(2_000).toISOString(),
+        events: [{ ...makeEvent(value.seed, sessionId, 1), mistakeId: 'test-cat-01' }],
+      }
+      storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+      expect(readStorySession(storage, value.seed)).toBeUndefined()
+    }
+
+    {
+      const storage = new MemoryStorage()
+      const value = session()
+      const sessionId = 's-test-123456'
+      value.behaviorLog = {
+        version: 1,
+        sessionId,
+        seed: value.seed,
+        startedAt: new Date(0).toISOString(),
+        exportedAt: new Date(2_000).toISOString(),
+        events: Array.from({ length: 501 }, (_, index) => makeEvent(value.seed, sessionId, index)),
+      }
+      storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+      expect(readStorySession(storage, value.seed)).toBeUndefined()
+    }
+
+    {
+      const storage = new MemoryStorage()
+      const value = session()
+      storage.setItem(storySessionKey(value.seed), `${JSON.stringify(value)}${' '.repeat(200_001)}`)
+      expect(readStorySession(storage, value.seed)).toBeUndefined()
+      expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
+    }
+  })
 })
