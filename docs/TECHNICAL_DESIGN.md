@@ -48,6 +48,10 @@ src/
     generator.ts             # 四类程序化监督学习故障与传感器通道重排
     observables.ts           # 训练标签 + 无标签现场分布的公开证据
     balance.ts               # evidence-policy / random-clicker 自动玩法基线
+    EndlessIntro.tsx         # 无尽模式规则说明与 Boot / 正式模式入口
+    BootCase.tsx             # 训练案件 000：控制变量、读日志、诊断提交
+    EndlessNavigator.tsx     # answer-neutral NEXT OBJECTIVE / 案件线索 / 档案记录
+    FieldManual.tsx          # 玩家主动打开的静态调查方法手册
     EndlessMode.tsx          # 无尽模式状态与结案逻辑
     EndlessPlot.tsx          # 程序化案件二维实验台
     EndlessControls.tsx      # 特征 / 模型 / 预测 / 审计预算
@@ -206,9 +210,27 @@ Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作�
 
 每个 seed 还会确定性重排四个传感器通道，并从多个案件语境中选择皮肤；因此“稳定信息”不会固定在同一 UI 按钮。
 
+正式模式前有两层桥接，但它们不改变 generator / model：
+
+1. `EndlessIntro` 只解释“配置 → 预测 → 审计 → 对照 → 诊断”的操作循环。
+2. `BootCase 000` 使用真实程序化数据、真实分类器和真实 audit 数值完成一条控制变量教学路线；教程解释在此结束。
+
+正式 `EndlessMode` 只保留 answer-neutral 导航：`objectiveFor()` 根据训练、审计、不同配置数、诊断锁和剩余额度返回下一动作目标。`NEXT OBJECTIVE` sticky 在视口顶部，并能定位到实际可操作组件；例如诊断锁且额度为 0 时会直接定位诊断框里的补充审计按钮，而不是把玩家带到实验日志。
+
+正式案件的 syndrome 不直接写进 incident：
+
+- `overfit-noise` 的四条故意矛盾训练记录携带 `flags.noise`，并生成可点击 `archiveAlerts`；UI 只显示采集质量事实，不自动解释为过拟合。
+- `distribution-shift` 主题提供 `batchContext.history / field` 原始批次元数据；玩家同时可读取无标签现场 drift。
+- `class-imbalance` 由训练样本真实类别比例产生，UI 显示档案构成与分类别 recall。
+- `feature-gap` 通过同一模型在不同字段组合上的真实实验差异暴露。
+
+诊断至少要求两个**不同配置**。配置 key 由模型 + 无序特征集合构成；交换 X/Y 不算新配置。错误诊断会记录当前配置数并锁定报告，必须完成一个字段或模型发生变化的新正式审计后才能改口。完全复现实验会写入日志，但不会解锁诊断。
+
+`EXPERIMENTS.LOG` 还通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动。该信息只描述玩家自己做了什么；不会判断哪次实验“应该”成功。结案评分会奖励单变量对照、轻微惩罚同时改字段与模型。
+
 普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。自动 evidence-policy 与玩家 UI 读取同一类信息，不允许读取隐藏 syndrome/test label 再假装推理。
 
-正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。诊断失败后必须新增一次审计才允许再次提交，防止把答案逐个试完。
+正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
 
 ## 自动玩法平衡
 `balance.ts` 同时执行：
@@ -281,7 +303,9 @@ type BehaviorEvent = {
 
 ### 浏览器验证
 - Playwright Chromium 剧情路线覆盖 Cold Open、图上抓异常旧样本、决策边界探针、锁定预测、错误上线后果、两条错误证据、可点击实验记录、过拟合、备用传感器修复、迁移问题与结案评级。
-- 无尽 E2E 覆盖有限审计预算、错误诊断后强制新增证据、正确诊断与下一案生成。
+- 无尽 E2E 覆盖模式说明、Boot Case 000、正式案件 answer-neutral 导航、可点击档案质量记录、不同配置诊断守卫、有限审计预算、正确诊断与下一案生成。
+- 额外 smoke 使用 1280×720 viewport 验证入口 / Boot / 正式模式无横向爆版且 `定位下一步操作` 仍能把关键 CTA 带进视野。
+- distribution-shift E2E 验证历史 / 现场批次元数据真实可见，但首屏不出现“分布漂移”答案词。
 - 额度恢复 E2E 故意耗尽 5 次正式审计，验证额外审计可恢复路线但会产生评级代价，避免“有限预算 = 死局”。
 - 类别不平衡 E2E 明确验证“总体高分但少数类 recall 50%”不能结案。
 - E2E 使用真实 Playwright actionability 检查，防止 SVG、NPC、tooltip、overlay 抢走点击。

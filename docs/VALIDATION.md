@@ -1,6 +1,6 @@
 # V1 发布验证记录
 
-验证日期：2026-08-09
+验证日期：2026-08-10
 
 ## 发布级验证命令
 
@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：7 个测试文件、28 个测试全部通过。
+- Vitest：9 个测试文件、37 个测试全部通过。
 - Vite production build：通过。
-- Playwright：5 条 Chromium E2E 通过（剧情完整案件、debug 工程模式、无尽证据路线、额度耗尽恢复路线、类别不平衡路线）。
+- Playwright：13 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、正式证据导航、症状文案、复现实验守卫、桌面 viewport、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -60,12 +60,15 @@ Vitest 当前覆盖：
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
+- 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
+- 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类。
+- answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含五条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 13 条真实 Chromium 路线。
 
 零基础玩家完整案件：
 
@@ -87,7 +90,18 @@ Vitest 当前覆盖：
 
 工程模式路线会直接打开 `?debug=1`，验证 DebugPanel、阶段跳转和快速主操作仍可用，不受普通玩家 micro-beat 门槛影响。
 
-无尽证据路线用程序化案件验证：5 次正式审计预算、先预测再审计、错误诊断后不能立刻轮流试答案、必须新增一次审计才可改口、正确诊断后生成下一案。
+无尽 onboarding / 证据路线现在验证：
+
+- 标题次入口先进入模式说明，不直接把新人扔进 sandbox。
+- Boot Case 000 真实完成“建立基线 → 只换字段做对照 → 从日志认出变量 → 三类证据阅读练习 → 诊断草稿 → 正式提交”；所有分数来自真实 generator / model / audit。
+- Boot 完成后使用版本化 localStorage 标记；正式模式仍可 query 直达，训练案件可重玩。
+- 正式案件首屏只描述症状，不写出 syndrome；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
+- 过拟合类历史档案的质量告警在散点图里为可点击橙色 `!`；只有玩家亲手打开后才进入 `CASE_LEADS.LOG`。
+- 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡。
+- `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；错误诊断后，原样复现不会解锁改口，必须产生一个不同配置的新正式审计。
+- 诊断锁且额度为 0 时，sticky 导航会直接定位到“申请 1 次补充审计”，验证有限预算不形成软锁。
+- 1280×720 以及常规桌面 viewport 验证 intro / Boot / 正式模式没有横向爆版，`定位下一步操作` 可将关键 CTA 带入视野。
+- distribution-shift 路线验证 `HISTORY BATCH / FIELD BATCH` 元数据可见，但首屏不出现“分布漂移”答案词。
 
 额度恢复路线会连续耗尽 5 次正式未知审计，确认额外审计入口出现、恢复 1 次可执行额度，并且这类补救会进入结案评级扣分；有限预算因此制造决策成本，但不会造成不可恢复死局。
 
@@ -106,7 +120,7 @@ E2E 使用 Playwright 的真实可操作性检查；如果 overlay、NPC、toolt
 
 - evidence-policy 结案率约 **98.9%**；
 - random-clicker 结案率约 **15.7%**；
-- evidence-policy 平均最佳未知表现约 **99.0%**；
+- evidence-policy 平均最佳未知表现约 **99.4%**；
 - random-clicker 平均最佳未知表现约 **88.5%**。
 
 Evidence policy 只读取玩家同样可见的训练标签几何与**无标签**现场分布变化，不读取隐藏 syndrome/test label。测试硬门槛要求 evidence solve rate ≥90%、random solve rate <30%、二者结案率差 >60 个百分点，并要求未知表现存在显著差距。
@@ -141,6 +155,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - `hero.png`：Cold Open 中小析正式给出案件目标。
 - `misclassification.png`：两条未知误判证据与现场推理。
 - `endless.png`：监督学习无尽模式的首次正式审计。
+- `endless-boot.png`：Boot Case 000 的两条控制变量实验记录。
 - `imbalance.png`：总体高分但少数类召回失败的类别不平衡陷阱。
 - `demo.gif`：标题 → 事故录像 → 案件目标 → 旧样本观察 → 决策探针 → 两条证据 → 过拟合 → 备用传感器 → 最终修复的短演示。
 
