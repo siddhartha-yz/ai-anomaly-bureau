@@ -199,7 +199,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-本轮新增证据引用、可调查现场误判、session 恢复、键盘可访问性等改动已经完成本地完整验证并 push；随后等待 Pages HTML 实际引用本轮 production asset，再以同一套生产 URL E2E 做发布验收，没有用本地结果冒充远端结果。
+本轮 Story checkpoint / 显式恢复网关 / 匿名日志连续与导出 / 保存失败 retry，以及既有无尽调查功能都已经完成本地完整验证并 push；Pages HTML 实际引用本轮 production asset 后，又用同一套生产 URL E2E 做远端验收，没有用本地结果冒充远端结果。
 
 ## GitHub Pages 部署状态
 
@@ -227,6 +227,10 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 因此 Playwright 只对 `CI` 或显式外部 `PLAYWRIGHT_BASE_URL` 验收开放 1 次 test retry；localhost 开发 / 本地回归仍保持 0 retry，避免用重试掩盖稳定业务缺陷。
 - 2026-08-10 04:39 +08:00，完整 17-route 生产 E2E 再次运行，**17 / 17 全部通过**。
 - 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、症状 / 档案证据、显式实验引用与客观对照、同配置引用拒绝、现场误判定位、刷新不退款、错误诊断锁跨刷新、未结 / 已结案 session 入口、键盘手册、sticky NEXT OBJECTIVE、1280×720 基线与证据阶段、distribution-shift、额度恢复、类别不平衡与下一案生成。
+- 2026-08-10 06:35 +08:00，公网 HTML 已实际引用最新 Story checkpoint 构建 `assets/index-lSOnrOh8.js`。第一次 19-route 验收中仅 endless refresh 路线首次 `page.goto` 遇到一次 `net::ERR_CONNECTION_CLOSED`，其 retry 立即通过；该路线随后单独重跑也首轮通过，没有产品断言失败。
+- 2026-08-10 06:36 +08:00，再次完整运行最新 **19-route** 生产 E2E，**19 / 19 首轮全部通过**。新增覆盖 Story resume/discard、localStorage 写入失败 + retry、四次阶段恢复、实验预注册恢复、RESET 二次确认、结案 JSON 下载与恢复/警告布局安全。
+- 最新 production JS 与本地最终 build 做 SHA-256 字节比对：两者均为 `68bfcae5029df7af47e347a160c00c565a914e04ede7e83725b5365cf16c85a1`。
+- 当前 HEAD `1197de1` 的 GitHub `CI` 与 `Deploy Pages` workflow 均已 `completed / success`。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
