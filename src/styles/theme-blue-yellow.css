@@ -99,6 +99,34 @@
   background: #0b1018;
   box-shadow: 5px 5px 0 #020307;
 }
+.story-session-restored {
+  position: fixed;
+  z-index: 125;
+  top: 78px;
+  left: 50%;
+  width: min(620px, calc(100vw - 28px));
+  min-height: 38px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px 7px 12px;
+  border: 3px solid #8a7428;
+  background: rgba(24, 21, 8, .97);
+  color: #fff0a0;
+  box-shadow: 5px 5px 0 #3f340d;
+  font: 800 .62rem/1.35 ui-monospace, Consolas, monospace;
+}
+.story-session-restored button {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 2px solid #8a7428;
+  background: #ffe05b;
+  color: #090805;
+  cursor: pointer;
+  font: inherit;
+}
 .objective-badge {
   display: grid;
   align-content: center;

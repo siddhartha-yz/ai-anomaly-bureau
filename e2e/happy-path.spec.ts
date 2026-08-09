@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { endlessSessionKey } from '../src/endless/session'
+import { storyAuditCredits, storySessionKey, type StorySessionData } from '../src/game/session'
 
 async function waitForStage(page: Page, stage: string) {
   await expect(page.locator('.app-shell')).toHaveAttribute('data-stage', stage)
@@ -68,6 +69,7 @@ test('debug mode keeps the fast engineering controls available', async ({ page }
   await stageSelect.selectOption('overfit_reveal')
   await waitForStage(page, 'overfit_reveal')
   await expect(page.locator('.pixel-command-dock .action-button.primary')).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))).toBeNull()
 })
 
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
@@ -511,6 +513,21 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await page.getByRole('button', { name: /当前两项信息会把一些猫和面包看得太像/ }).click()
   await page.locator('.investigation-prompt .prompt-commit').click()
   await expect(page.getByText(/线索 02/)).toBeVisible()
+
+  // Story checkpoints preserve revealed evidence and micro-beat progress without serializing private test IDs/flags.
+  const storyKey = storySessionKey(20260809)
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storyKey)).not.toBeNull()
+  const storyCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  expect(storyCheckpoint).not.toMatch(/test-(cat|bread)/)
+  expect(storyCheckpoint).not.toContain('"flags"')
+  await page.reload()
+  await waitForStage(page, 'inspect_errors')
+  await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
+  await expect(page.getByText(/已调查 2\/2/)).toBeVisible()
+  await expect(page.getByText(/线索 02/)).toBeVisible()
+  await expect(page.locator('.phase-transition')).toHaveCount(0)
+  await qaShot(page, '22-story-session-restored')
+  await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
   await clickGuidePrimary(page)
 
   await waitForStage(page, 'iterate')
@@ -530,6 +547,15 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await auditButton.click()
   await waitForStage(page, 'overfit_reveal')
   await expect(page.getByText('先从案件记录里指出异常')).toBeVisible()
+  const overfitCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  expect(storyAuditCredits(JSON.parse(overfitCheckpoint!) as StorySessionData)).toBe(3)
+  await page.reload()
+  await waitForStage(page, 'overfit_reveal')
+  await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
+  await expect(page.locator('.case-attempt')).toHaveCount(2)
+  const restoredOverfitCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  expect(storyAuditCredits(JSON.parse(restoredOverfitCheckpoint!) as StorySessionData)).toBe(3)
+  await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
   const laterEvidence = page.locator('.evidence-console-head')
   await expect(laterEvidence).toContainText('本轮审计 · 9 个误判')
   await expect(laterEvidence).not.toContainText('已调查')
@@ -594,6 +620,11 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await qaShot(page, '21-case-rating')
   await expect(page.getByText('你修好的不是一个分数。')).toBeVisible()
   expect(pageErrors).toEqual([])
+
+  // Explicit restart is the escape hatch from persistence: it must delete the checkpoint and return to a fresh title.
+  await page.getByRole('button', { name: '重新调查一次' }).click()
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storyKey)).toBeNull()
 })
 
 test('endless supervised mode rewards evidence-led experiments over random clicking', async ({ page }) => {

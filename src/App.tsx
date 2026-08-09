@@ -20,7 +20,7 @@ import { SampleHunt } from './components/SampleHunt'
 import { SensorIntro } from './components/SensorIntro'
 import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
-import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
+import { STAGE_CONTENT, TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { BootCase } from './endless/BootCase'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
@@ -30,6 +30,7 @@ import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
 import { runPersonaRoute, type PersonaId } from './game/routes'
+import { STORY_SESSION_VERSION, clearStorySession, readStorySession, storyAuditCredits, storySessionHasProgress, writeStorySession } from './game/session'
 import type { GameAction, Stage } from './game/types'
 import { createDecisionGrid, evaluate } from './ml/evaluate'
 import { projectSamples } from './ml/features'
@@ -131,37 +132,40 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   onEndless?: () => void
 }) {
   const service = useMemo(() => createAuditService(seed), [seed])
-  const [state, dispatch] = useReducer(gameReducer, undefined, () => createInitialGameState(seed, debug))
-  const [selectedMistake, setSelectedMistake] = useState<string>()
+  const restoredSession = useMemo(() => debug ? undefined : readStorySession(window.localStorage, seed), [debug, seed])
+  const restoredProgress = Boolean(restoredSession && storySessionHasProgress(restoredSession))
+  const [state, dispatch] = useReducer(gameReducer, restoredSession?.state ?? createInitialGameState(seed, debug))
+  const [sessionRestoredNotice, setSessionRestoredNotice] = useState(restoredProgress)
+  const [selectedMistake, setSelectedMistake] = useState<string | undefined>(restoredSession?.selectedMistake)
   const [helpOpen, setHelpOpen] = useState(false)
   const [debugShowLabels, setDebugShowLabels] = useState(false)
   const [animationSpeed, setAnimationSpeed] = useState(1)
   const [audioEnabled, setAudioEnabled] = useState(true)
-  const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : 'title')
+  const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : restoredSession?.entryPhase ?? 'title')
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
   const [hintStage, setHintStage] = useState<Stage>()
-  const [observationAnswer, setObservationAnswer] = useState<string>()
-  const [suspectSampleId, setSuspectSampleId] = useState<string>()
-  const [sensorReads, setSensorReads] = useState<FeatureKey[]>([])
-  const [repairSensorReads, setRepairSensorReads] = useState<FeatureKey[]>([])
-  const [modelConfirmed, setModelConfirmed] = useState(false)
-  const [boundaryProbeAnswer, setBoundaryProbeAnswer] = useState<string>()
-  const [successPrediction, setSuccessPrediction] = useState<string>()
-  const [evidenceInference, setEvidenceInference] = useState<string>()
-  const [suspiciousAttemptId, setSuspiciousAttemptId] = useState<number>()
-  const [overfitReflection, setOverfitReflection] = useState<string>()
-  const [finalReflection, setFinalReflection] = useState<string>()
-  const [experimentLog, setExperimentLog] = useState<ExperimentRecord[]>([])
-  const [pendingPrediction, setPendingPrediction] = useState<ExperimentPrediction>()
-  const [auditCredits, setAuditCredits] = useState(4)
-  const [emergencyAudits, setEmergencyAudits] = useState(0)
-  const [reasoningMisses, setReasoningMisses] = useState(0)
+  const [observationAnswer, setObservationAnswer] = useState<string | undefined>(restoredSession?.observationAnswer)
+  const [suspectSampleId, setSuspectSampleId] = useState<string | undefined>(restoredSession?.suspectSampleId)
+  const [sensorReads, setSensorReads] = useState<FeatureKey[]>(restoredSession?.sensorReads ?? [])
+  const [repairSensorReads, setRepairSensorReads] = useState<FeatureKey[]>(restoredSession?.repairSensorReads ?? [])
+  const [modelConfirmed, setModelConfirmed] = useState(restoredSession?.modelConfirmed ?? false)
+  const [boundaryProbeAnswer, setBoundaryProbeAnswer] = useState<string | undefined>(restoredSession?.boundaryProbeAnswer)
+  const [successPrediction, setSuccessPrediction] = useState<string | undefined>(restoredSession?.successPrediction)
+  const [evidenceInference, setEvidenceInference] = useState<string | undefined>(restoredSession?.evidenceInference)
+  const [suspiciousAttemptId, setSuspiciousAttemptId] = useState<number | undefined>(restoredSession?.suspiciousAttemptId)
+  const [overfitReflection, setOverfitReflection] = useState<string | undefined>(restoredSession?.overfitReflection)
+  const [finalReflection, setFinalReflection] = useState<string | undefined>(restoredSession?.finalReflection)
+  const [experimentLog, setExperimentLog] = useState<ExperimentRecord[]>(restoredSession?.experimentLog ?? [])
+  const [pendingPrediction, setPendingPrediction] = useState<ExperimentPrediction | undefined>(restoredSession?.pendingPrediction)
+  const [auditCredits, setAuditCredits] = useState(restoredSession ? storyAuditCredits(restoredSession) : 4)
+  const [emergencyAudits, setEmergencyAudits] = useState(restoredSession?.emergencyAudits ?? 0)
+  const [reasoningMisses, setReasoningMisses] = useState(restoredSession?.reasoningMisses ?? 0)
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
-  const previousStage = useRef<Stage>('briefing')
-  const previousPhase = useRef<GameMusicPhase>(1)
+  const previousStage = useRef<Stage>(restoredSession?.state.stage ?? 'briefing')
+  const previousPhase = useRef<GameMusicPhase>(musicPhaseFor(restoredSession?.state.stage ?? 'briefing'))
 
   const trainPoints = useMemo(
     () => projectSamples(service.train, state.selectedFeatures),
@@ -243,6 +247,37 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   }, [state.stage])
 
   useEffect(() => () => audio.current.dispose(), [])
+
+  useEffect(() => {
+    if (debug || entryPhase !== 'game') return
+    writeStorySession(window.localStorage, {
+      version: STORY_SESSION_VERSION,
+      seed,
+      state,
+      entryPhase,
+      selectedMistake,
+      observationAnswer,
+      suspectSampleId,
+      sensorReads,
+      repairSensorReads,
+      modelConfirmed,
+      boundaryProbeAnswer,
+      successPrediction,
+      evidenceInference,
+      suspiciousAttemptId,
+      overfitReflection,
+      finalReflection,
+      experimentLog,
+      pendingPrediction,
+      emergencyAudits,
+      reasoningMisses,
+    })
+  }, [
+    debug, seed, state, entryPhase, selectedMistake, observationAnswer, suspectSampleId,
+    sensorReads, repairSensorReads, modelConfirmed, boundaryProbeAnswer, successPrediction,
+    evidenceInference, suspiciousAttemptId, overfitReflection, finalReflection, experimentLog,
+    pendingPrediction, emergencyAudits, reasoningMisses,
+  ])
 
   const record = (action: string, extra: Partial<Parameters<BehaviorLogger['record']>[0]> = {}) => {
     logger.current.record({
@@ -568,6 +603,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
       )}
 
       <TaskBanner stage={state.stage} clues={clueCount} />
+      {sessionRestoredNotice && (
+        <div className="story-session-restored" role="status" aria-label="已恢复剧情案件进度">
+          <span>↻ 已恢复本案进度 · {STAGE_CONTENT[state.stage].step}</span>
+          <button type="button" onClick={() => setSessionRestoredNotice(false)}>知道了</button>
+        </div>
+      )}
       <StageReward key={rewardNotice?.stage ?? 'reward-empty'} notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
       <PhaseTransition cue={phaseTransition} onDismiss={() => setPhaseTransition(undefined)} />
       {!debug && <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length >= 2} />}
@@ -915,6 +956,11 @@ function App() {
     setSession((value) => value + 1)
   }
 
+  const restartStory = () => {
+    if (!debug) clearStorySession(window.localStorage, seed)
+    setSession((value) => value + 1)
+  }
+
   if (!debug && mode === 'endless-intro') {
     return (
       <EndlessIntro
@@ -952,7 +998,7 @@ function App() {
       seed={seed}
       debug={debug}
       onSeedChange={changeSeed}
-      onRestart={() => setSession((value) => value + 1)}
+      onRestart={restartStory}
       onEndless={!debug ? () => setMode('endless-intro') : undefined}
     />
   )
