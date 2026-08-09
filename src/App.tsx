@@ -355,7 +355,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
           </div>
 
           <div className="control-column game-console-column">
-            {!debug && <BeginnerGuide stage={state.stage} compact />}
+            {!debug && <BeginnerGuide stage={state.stage} compact action={currentAction} />}
             {controlsVisible && (
               <>
                 <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
@@ -416,7 +416,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               </section>
             )}
 
-            {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
+            {debug && currentAction && <section className="pixel-command-dock">{currentAction}</section>}
             <AssistantPanel state={state} onHint={requestHint} />
           </div>
         </div>

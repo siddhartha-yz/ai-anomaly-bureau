@@ -29,7 +29,10 @@ function TitleScene({ onStart, audioEnabled }: { onStart: () => void; audioEnabl
 
       <div className="entry-brand">
         <span className="entry-brand-code">ANOMALY BUREAU // TRAINING CASE</span>
-        <h1>AI异常调查局</h1>
+        <h1 className="entry-pixel-title" aria-label="AI异常调查局">
+          <span className="entry-title-ai">AI</span>
+          <span>异</span><span>常</span><span>调</span><span>查</span><span>局</span>
+        </h1>
         <p className="entry-case">CASE 001 · 失控的分类器</p>
       </div>
 
