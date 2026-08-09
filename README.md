@@ -3,14 +3,12 @@
 > 一款给机器学习零基础新生玩的浏览器调查游戏：先把橘猫认成面包的机器人“修好”，再亲手发现为什么 **训练集 100% 也可能是坏消息**。
 
 <p align="center">
-  <strong>▶ Live Demo：等待首次启用 GitHub Pages</strong>
+  <a href="https://siddhartha-yz.github.io/ai-anomaly-bureau/"><strong>▶ 在线试玩 / Live Demo</strong></a>
   ·
   <a href="docs/PRODUCT_DESIGN.md">产品设计</a>
   ·
   <a href="docs/VALIDATION.md">验证记录</a>
 </p>
-
-> 仓库侧的 Pages 自动部署 workflow 已就绪。首次发布还需要仓库 owner 在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**；启用后地址将是 `https://siddhartha-yz.github.io/ai-anomaly-bureau/`。
 
 ![AI异常调查局主界面](docs/assets/hero.png)
 
@@ -84,7 +82,7 @@
 - Vitest：ML 核心、隐藏测试边界、状态机、六类自动人格路线
 - Playwright：Chromium 完整玩家 happy path
 - GitHub Actions：lint + typecheck + unit test + build + E2E
-- GitHub Pages：部署 workflow 已配置；首次启用 Pages 后，`main` 更新将自动构建部署
+- GitHub Pages：`main` 更新后自动构建部署，并用同一条 Playwright 流程验证生产站点
 
 ## 本地运行
 

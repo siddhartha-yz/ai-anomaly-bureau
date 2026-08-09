@@ -123,38 +123,33 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-2026-08-09 对提交 `a417262` 的 GitHub Actions 运行结果为 `success`，上述步骤全部通过。
+2026-08-09 对提交 `42998dd` 的 GitHub Actions 运行结果为 `success`，上述步骤全部通过。
 
 ## GitHub Pages 部署状态
 
-仓库侧已经完成：
+在线试玩：
+
+`https://siddhartha-yz.github.io/ai-anomaly-bureau/`
+
+仓库侧配置：
 
 - `.github/workflows/pages.yml`
 - Node 24 自动 build
 - `actions/configure-pages`
-- Pages artifact 上传配置
+- Pages artifact 上传
 - `actions/deploy-pages`
-- Vite production 使用相对静态资源路径，适配仓库子路径 Pages。
+- Vite production 使用相对静态资源路径，适配仓库子路径 Pages
 
-首次部署尚未成功。对提交 `a417262` 的 `Deploy Pages` workflow 中：
+仓库 owner 完成首次 Pages 启用后，提交 `42998dd` 的 `Deploy Pages` workflow 已完整 `success`。
 
-- Checkout：成功。
-- `npm ci`：成功。
-- Production build：成功。
-- `Configure GitHub Pages`：失败。
-- 后续 artifact / deploy 因此未执行。
+公网验收：
 
-公开 Pages API 当前返回 404，说明该仓库尚未首次启用 Pages。GitHub 官方文档要求仓库 owner 先在：
+- 页面 HTML：HTTP 200。
+- production JS asset：HTTP 200。
+- 同一条 Playwright happy path 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行通过。
+- 生产 E2E 从标题页完整跑到 `CASE CLOSED`。
 
-**Settings → Pages → Build and deployment → Source → GitHub Actions**
-
-启用 Pages。仓库当前只有 deploy SSH key，没有具备仓库管理权限的 PAT，因此没有尝试绕过 owner 权限或写入额外 secret。
-
-启用后，重新运行 `Deploy Pages` workflow 即可验证预期地址：
-
-`https://siddhartha-yz.github.io/ai-anomaly-bureau/`
-
-在真正部署成功前，README 不宣称 Live Demo 已上线。
+为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
 ## CSS / App.tsx 维护债务审计
 
@@ -175,7 +170,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 尚未完成真实零基础新生的多人可用性测试。
 - Playwright 当前只覆盖 Chromium + 桌面 viewport，不做浏览器 matrix。
 - 没有建立大规模视觉 snapshot 回归；视觉仍以真实截图人工检查为主。
-- GitHub Pages 仍等待仓库 owner 首次启用。
+- GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
 - 外部中文像素字体网络不可用时会回退到系统 CJK 字体，功能不受影响，但视觉会变化。
 
 ## 下一步真实玩家测试重点
