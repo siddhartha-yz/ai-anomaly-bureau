@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ALL_FEATURES, FEATURE_META } from '../ml/features'
 import type { FeatureKey } from '../ml/types'
 
@@ -7,47 +8,84 @@ type Props = {
   onChange: (features: [FeatureKey, FeatureKey]) => void
 }
 
+const ICON: Record<FeatureKey, string> = {
+  warmth: '◒',
+  roundness: '○',
+  texture: '≋',
+  aspect: '▭',
+}
+
 export function FeaturePicker({ value, disabled, onChange }: Props) {
-  const setAxis = (axis: 0 | 1, feature: FeatureKey) => {
-    if (feature === value[1 - axis]) return
+  const [activeAxis, setActiveAxis] = useState<0 | 1>(0)
+
+  const install = (feature: FeatureKey) => {
+    if (disabled) return
+    const otherAxis = activeAxis === 0 ? 1 : 0
+    if (feature === value[activeAxis]) return
+    if (feature === value[otherAxis]) {
+      onChange([value[1], value[0]])
+      setActiveAxis(otherAxis)
+      return
+    }
     const next: [FeatureKey, FeatureKey] = [...value]
-    next[axis] = feature
+    next[activeAxis] = feature
     onChange(next)
+    setActiveAxis(otherAxis)
   }
 
   return (
-    <section className="control-block" aria-labelledby="features-title">
+    <section className="control-block pixel-control" aria-labelledby="features-title">
       <div className="control-heading">
-        <span className="control-number">01</span>
+        <span className="control-number">MODULE_01</span>
         <div>
-          <h2 id="features-title">模型能看见什么</h2>
-          <p>两项信息会成为图上的横轴和纵轴。</p>
+          <h2 id="features-title">安装观察模块</h2>
+          <p>模型一次只能通过两个通道观察样本。</p>
         </div>
       </div>
-      <div className="axis-selectors">
+
+      <div className="feature-slots" aria-label="已安装特征">
         {([0, 1] as const).map((axis) => (
-          <label className="axis-channel" key={axis}>
-            <span className="axis-channel-head">
-              <strong>{axis === 0 ? 'X' : 'Y'}</strong>
-              <span>{axis === 0 ? '横轴扫描通道' : '纵轴扫描通道'}</span>
+          <button
+            type="button"
+            className={`feature-slot ${activeAxis === axis ? 'active' : ''}`}
+            key={axis}
+            disabled={disabled}
+            onClick={() => setActiveAxis(axis)}
+          >
+            <span className="slot-port">{axis === 0 ? 'X' : 'Y'}</span>
+            <span className="slot-copy">
+              <small>SCAN CHANNEL {axis + 1}</small>
+              <strong>{ICON[value[axis]]} {FEATURE_META[value[axis]].label}</strong>
             </span>
-            <select
-              value={value[axis]}
-              disabled={disabled}
-              onChange={(event) => setAxis(axis, event.target.value as FeatureKey)}
-            >
-              {ALL_FEATURES.map((feature) => (
-                <option key={feature} value={feature} disabled={feature === value[1 - axis]}>
-                  {FEATURE_META[feature].label}
-                </option>
-              ))}
-            </select>
-            <span className="selector-hint">点击切换模型可见信息 ▾</span>
-          </label>
+            <span className="slot-status">{activeAxis === axis ? 'EDIT' : 'LOCK'}</span>
+          </button>
         ))}
       </div>
-      <p className="microcopy">{FEATURE_META[value[0]].description}</p>
-      <p className="microcopy">{FEATURE_META[value[1]].description}</p>
+
+      <div className="feature-inventory" aria-label="可用特征模块">
+        {ALL_FEATURES.map((feature) => {
+          const installedAt = value.indexOf(feature)
+          const selected = installedAt >= 0
+          return (
+            <button
+              type="button"
+              className={`feature-chip ${selected ? 'installed' : ''}`}
+              key={feature}
+              disabled={disabled}
+              onClick={() => install(feature)}
+            >
+              <span className="feature-icon">{ICON[feature]}</span>
+              <span><strong>{FEATURE_META[feature].label}</strong><small>{FEATURE_META[feature].short}</small></span>
+              <i>{selected ? `${installedAt === 0 ? 'X' : 'Y'}槽` : '装入'}</i>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="feature-readout">
+        <span>&gt; {FEATURE_META[value[activeAxis]].label}</span>
+        <p>{FEATURE_META[value[activeAxis]].description}</p>
+      </div>
     </section>
   )
 }

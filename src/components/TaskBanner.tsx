@@ -17,43 +17,26 @@ const PHASE: Record<Stage, number> = {
   complete: 4,
 }
 
-const PHASES = [
-  { id: 1, code: '01', label: '现场取证' },
-  { id: 2, code: '02', label: '未知审计' },
-  { id: 3, code: '03', label: '系统修复' },
-  { id: 4, code: '04', label: '结案复盘' },
-] as const
+const PHASE_LABEL = ['现场取证', '未知审计', '系统修复', '结案复盘']
 
 export function TaskBanner({ stage }: { stage: Stage }) {
   const content = STAGE_CONTENT[stage]
   const phase = PHASE[stage]
-
   return (
-    <section className="mission-hud" aria-live="polite">
-      <div className="mission-progress" aria-label={`调查进度，第 ${phase} 阶段，共 4 阶段`}>
-        {PHASES.map((item) => (
-          <div
-            className={`phase-node ${item.id === phase ? 'active' : ''} ${item.id < phase ? 'done' : ''}`}
-            key={item.id}
-          >
-            <span className="phase-code">{item.id < phase ? '✓' : item.code}</span>
-            <span className="phase-label">{item.label}</span>
-          </div>
-        ))}
+    <section className="pixel-mission-bar" aria-live="polite">
+      <div className="mission-command">
+        <span className="prompt-symbol">&gt;</span>
+        <span className="mission-path">CASE001/{String(phase).padStart(2, '0')}</span>
+        <strong>{content.step}</strong>
+        <span className="cursor-block" />
       </div>
-
-      <div className="mission-objective">
-        <div className="objective-marker">
-          <span className="objective-pulse" />
-          CURRENT OBJECTIVE
-        </div>
-        <div className="objective-copy">
-          <div>
-            <span className="role-chip">{content.role}</span>
-            <span className="step-chip">{content.step}</span>
-          </div>
-          <p>{content.task}</p>
-        </div>
+      <p>{content.task}</p>
+      <div className="phase-pips" aria-label={`调查阶段 ${phase}/4`}>
+        {PHASE_LABEL.map((label, index) => (
+          <span className={index + 1 === phase ? 'active' : index + 1 < phase ? 'done' : ''} key={label}>
+            <i>{index + 1 < phase ? '✓' : index + 1}</i>{label}
+          </span>
+        ))}
       </div>
     </section>
   )

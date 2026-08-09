@@ -42,8 +42,8 @@ export function ScatterPlot({
     <section className="plot-card" aria-labelledby="plot-title">
       <div className="plot-heading">
         <div>
-          <span className="plot-eyebrow">模型视野</span>
-          <h2 id="plot-title">样本调查图</h2>
+          <span className="plot-eyebrow">DATA_SCANNER.EXE</span>
+          <h2 id="plot-title">样本扫描台</h2>
         </div>
         <div className="legend" aria-label="图例">
           <span><i className="legend-dot cat" /> 猫</span>
@@ -111,7 +111,7 @@ export function ScatterPlot({
         </svg>
       </div>
       <div className="plot-note">
-        <span>● / ■ = 训练样本</span>
+        <span>&gt; ● / ■ = 训练样本</span>
         {revealUnknown && <span>◇ = 未参与训练的新样本</span>}
         {grid.length > 0 && <span>淡色区域 = 当前模型判断</span>}
       </div>

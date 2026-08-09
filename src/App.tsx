@@ -5,9 +5,10 @@ import { ErrorSamples } from './components/ErrorSamples'
 import { FeaturePicker } from './components/FeaturePicker'
 import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
+import { IncidentScene } from './components/PixelScene'
 import { ScatterPlot } from './components/ScatterPlot'
 import { TaskBanner } from './components/TaskBanner'
-import { LEVEL_META, TRANSFER_QUESTION, unlockedModels } from './content/level1'
+import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
@@ -198,11 +199,14 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   const motionDuration = animationSpeed === 0 ? 0 : Math.round(260 / animationSpeed)
+  const currentAction = stageAction()
+  const isBriefing = state.stage === 'briefing'
+  const showMetrics = Boolean(state.training) || STAGE_INDEX[state.stage] >= STAGE_INDEX.first_success
 
   return (
     <main className="app-shell" style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">A/Δ</span><div><strong>AI异常调查局</strong><small>ANOMALY BUREAU · CASE 001</small></div></div>
+        <div className="brand"><span className="brand-mark">A/Δ</span><div><strong>AI异常调查局</strong><small>ANOMALY_BUREAU://CASE_001</small></div></div>
         <div className="case-status" aria-label="案件状态">
           <span className="status-light" />
           <div><small>CASE STATUS</small><strong>{state.stage === 'complete' ? 'CLOSED' : 'ACTIVE'}</strong></div>
@@ -222,127 +226,103 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
 
       <TaskBanner stage={state.stage} />
 
-      {state.stage === 'briefing' && (
-        <section className="incident-card case-dossier">
-          <div className="dossier-copy">
-            <div className="incident-code">INCIDENT / C-014 · PRIORITY AMBER</div>
-            <h1>{LEVEL_META.incident}</h1>
-            <p>校园识别终端正在持续产生错误报告。你的任务不是背公式，而是找出它为什么会判断错。</p>
-            <div className="briefing-tags">
-              <span>地点 / 校园北门</span>
-              <span>系统 / STRAY-VISION 2.1</span>
-              <span>权限 / 新人调查员</span>
-            </div>
+      {isBriefing ? (
+        <div className="briefing-game-layout">
+          <IncidentScene />
+          <div className="briefing-bottom-row">
+            <AssistantPanel state={state} onHint={requestHint} />
+            {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
           </div>
-          <div className="incident-monitor" aria-label="错误识别示意">
-            <div className="monitor-label">LIVE ERROR CAPTURE</div>
-            <div className="scan-target cat-target">
-              <span className="target-reticle" />
-              <span className="target-glyph">CAT</span>
-            </div>
-            <div className="classification-line"><span>MODEL OUTPUT</span><strong>→ BREAD</strong></div>
-            <div className="confidence-bar"><span style={{ width: '87%' }} /></div>
-            <small>CONFIDENCE 87% · WRONG CLASSIFICATION</small>
+        </div>
+      ) : (
+        <div className="workspace game-workspace">
+          <div className="visual-column game-stage-column">
+            <ScatterPlot
+              train={trainPoints}
+              publicTest={service.publicTest}
+              debugTest={debugSamples}
+              features={state.selectedFeatures}
+              grid={grid}
+              audit={state.audit}
+              revealUnknown={revealUnknown}
+              debugShowLabels={debugShowLabels}
+              selectedMistake={selectedMistake}
+            />
+            {showMetrics && <Metrics training={state.training} audit={state.audit} model={state.selectedModel} />}
+            <ErrorSamples
+              audit={state.audit}
+              selectedFeatures={state.selectedFeatures}
+              viewed={state.viewedMistakes}
+              selectedId={selectedMistake}
+              onSelect={viewMistake}
+            />
           </div>
-        </section>
+
+          <div className="control-column game-console-column">
+            {controlsVisible && (
+              <>
+                <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
+                {STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_model && (
+                  <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled && !debug} onChange={setModel} />
+                )}
+              </>
+            )}
+
+            {state.stage === 'overfit_reveal' && state.training && state.audit && (
+              <section className="concept-card pixel-result-card warning-result">
+                <span>FOUND / PATTERN_FAILURE</span>
+                <h2>过拟合 / Overfitting</h2>
+                <p>训练 {Math.round(state.training.accuracy * 100)}%，未知数据 {Math.round(state.audit.accuracy * 100)}%。模型把训练中的噪声也当成了规律。</p>
+              </section>
+            )}
+
+            {state.stage === 'final_audit' && (
+              <section className="concept-card success-card pixel-result-card">
+                <span>PATCH / VERIFIED</span>
+                <h2>不是训练满分，而是新样本也站得住。</h2>
+                <p>这就是你刚亲手验证的“泛化”：规则能否应对没见过的数据。</p>
+              </section>
+            )}
+
+            {state.stage === 'transfer_question' && (
+              <section className="transfer-card pixel-result-card">
+                <span>FINAL_CHECK.EXE</span>
+                <h2>{TRANSFER_QUESTION.prompt}</h2>
+                <div className="transfer-options">
+                  {TRANSFER_QUESTION.options.map((option) => (
+                    <button
+                      type="button"
+                      key={option.id}
+                      className={state.transferAnswer === option.id ? 'selected' : ''}
+                      onClick={() => {
+                        record('ANSWER_TRANSFER')
+                        dispatch({ type: 'ANSWER_TRANSFER', id: option.id, correct: option.correct })
+                      }}
+                    >{option.label}</button>
+                  ))}
+                </div>
+                {state.transferAnswer && <p className="answer-note">{TRANSFER_QUESTION.explanation}</p>}
+                <ActionButton disabled={!state.transferAnswer} onClick={() => send({ type: 'ADVANCE' })}>提交调查报告</ActionButton>
+              </section>
+            )}
+
+            {state.stage === 'complete' && (
+              <section className="completion-card pixel-result-card">
+                <span className="completion-stamp">CASE CLOSED</span>
+                <h1>你修好的不是一个分数。</h1>
+                <p>你让模型从“会做旧题”变成了“能面对新样本”。</p>
+                <div className="takeaways">
+                  <span>数据决定它见过什么</span><span>特征决定它能看什么</span><span>测试集检查未知世界</span><span>错误样本帮助找原因</span>
+                </div>
+                <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
+              </section>
+            )}
+
+            {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
+            <AssistantPanel state={state} onHint={requestHint} />
+          </div>
+        </div>
       )}
-
-      <div className="workspace">
-        <div className="visual-column">
-          <ScatterPlot
-            train={trainPoints}
-            publicTest={service.publicTest}
-            debugTest={debugSamples}
-            features={state.selectedFeatures}
-            grid={grid}
-            audit={state.audit}
-            revealUnknown={revealUnknown}
-            debugShowLabels={debugShowLabels}
-            selectedMistake={selectedMistake}
-          />
-          <Metrics training={state.training} audit={state.audit} model={state.selectedModel} />
-          <ErrorSamples
-            audit={state.audit}
-            selectedFeatures={state.selectedFeatures}
-            viewed={state.viewedMistakes}
-            selectedId={selectedMistake}
-            onSelect={viewMistake}
-          />
-        </div>
-
-        <div className="control-column">
-          {controlsVisible && (
-            <>
-              <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
-              {STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_model && (
-                <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled && !debug} onChange={setModel} />
-              )}
-            </>
-          )}
-
-          {state.stage === 'overfit_reveal' && state.training && state.audit && (
-            <section className="concept-card">
-              <span>现象命名</span>
-              <h2>过拟合 / Overfitting</h2>
-              <p>训练 {Math.round(state.training.accuracy * 100)}%，未知数据 {Math.round(state.audit.accuracy * 100)}%。模型把训练中的噪声也当成了规律。</p>
-            </section>
-          )}
-
-          {state.stage === 'final_audit' && (
-            <section className="concept-card success-card">
-              <span>修复标准通过</span>
-              <h2>不是训练满分，而是新样本也站得住。</h2>
-              <p>这就是你刚亲手验证的“泛化”：规则能否应对没见过的数据。</p>
-            </section>
-          )}
-
-          {state.stage === 'transfer_question' && (
-            <section className="transfer-card">
-              <span>迁移问题</span>
-              <h2>{TRANSFER_QUESTION.prompt}</h2>
-              <div className="transfer-options">
-                {TRANSFER_QUESTION.options.map((option) => (
-                  <button
-                    type="button"
-                    key={option.id}
-                    className={state.transferAnswer === option.id ? 'selected' : ''}
-                    onClick={() => {
-                      record('ANSWER_TRANSFER')
-                      dispatch({ type: 'ANSWER_TRANSFER', id: option.id, correct: option.correct })
-                    }}
-                  >{option.label}</button>
-                ))}
-              </div>
-              {state.transferAnswer && <p className="answer-note">{TRANSFER_QUESTION.explanation}</p>}
-              <ActionButton disabled={!state.transferAnswer} onClick={() => send({ type: 'ADVANCE' })}>提交调查报告</ActionButton>
-            </section>
-          )}
-
-          {state.stage === 'complete' && (
-            <section className="completion-card">
-              <span className="completion-stamp">CASE CLOSED</span>
-              <h1>你修好的不是一个分数。</h1>
-              <p>你让模型从“会做旧题”变成了“能面对新样本”。</p>
-              <div className="takeaways">
-                <span>数据决定它见过什么</span><span>特征决定它能看什么</span><span>测试集检查未知世界</span><span>错误样本帮助找原因</span>
-              </div>
-              <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
-            </section>
-          )}
-
-          {stageAction() && (
-            <section className="action-dock">
-              <div className="action-dock-head">
-                <div><span className="dock-pulse" />NEXT ACTION</div>
-                <small>推进调查</small>
-              </div>
-              {stageAction()}
-              <p>所有关键操作都会立即反映在左侧数据图上。</p>
-            </section>
-          )}
-          <AssistantPanel state={state} onHint={requestHint} />
-        </div>
-      </div>
 
       {debug && (
         <DebugPanel
