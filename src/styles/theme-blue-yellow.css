@@ -133,6 +133,38 @@
   cursor: pointer;
   font: inherit;
 }
+.story-session-save-warning {
+  max-width: 1180px;
+  margin: -5px auto 14px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 3px solid #a65f38;
+  background: #241008;
+  color: #e8a67b;
+  box-shadow: 4px 4px 0 #120704;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.story-session-save-warning strong,
+.story-session-save-warning span { display: block; }
+.story-session-save-warning strong {
+  margin-bottom: 4px;
+  color: #ffb27c;
+  font: 900 9px/1 ui-monospace, Consolas, monospace;
+  letter-spacing: .08em;
+}
+.story-session-save-warning button {
+  flex: 0 0 auto;
+  padding: 7px 9px;
+  border: 2px solid #a65f38;
+  background: #ffb27c;
+  color: #1b0b04;
+  cursor: pointer;
+  font: 900 9px/1 ui-monospace, Consolas, monospace;
+}
 .objective-badge {
   display: grid;
   align-content: center;

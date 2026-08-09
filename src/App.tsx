@@ -137,6 +137,8 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const restoredProgress = Boolean(restoredSession && storySessionHasProgress(restoredSession))
   const [state, dispatch] = useReducer(gameReducer, restoredSession?.state ?? createInitialGameState(seed, debug))
   const [sessionRestoredNotice, setSessionRestoredNotice] = useState(restoredProgress)
+  const [checkpointSaveFailed, setCheckpointSaveFailed] = useState(false)
+  const [checkpointRetryNonce, setCheckpointRetryNonce] = useState(0)
   const [resetArmed, setResetArmed] = useState(false)
   const [selectedMistake, setSelectedMistake] = useState<string | undefined>(restoredSession?.selectedMistake)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -268,7 +270,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
 
   useEffect(() => {
     if (debug || entryPhase !== 'game') return
-    writeStorySession(window.localStorage, {
+    const saved = writeStorySession(window.localStorage, {
       version: STORY_SESSION_VERSION,
       seed,
       state,
@@ -291,11 +293,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
       reasoningMisses,
       behaviorLog: logger.current.snapshot(),
     })
+    setCheckpointSaveFailed(!saved)
   }, [
     debug, seed, state, entryPhase, selectedMistake, observationAnswer, suspectSampleId,
     sensorReads, repairSensorReads, modelConfirmed, boundaryProbeAnswer, successPrediction,
     evidenceInference, suspiciousAttemptId, overfitReflection, finalReflection, experimentLog,
-    pendingPrediction, emergencyAudits, reasoningMisses,
+    pendingPrediction, emergencyAudits, reasoningMisses, checkpointRetryNonce,
   ])
 
   const record = (action: string, extra: Partial<Parameters<BehaviorLogger['record']>[0]> = {}) => {
@@ -635,6 +638,15 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
       )}
 
       <TaskBanner stage={state.stage} clues={clueCount} />
+      {checkpointSaveFailed && (
+        <div className="story-session-save-warning" role="alert">
+          <div>
+            <strong>LOCAL SAVE FAILED</strong>
+            <span>本地检查点写入失败；本页关闭或刷新前，当前进度不会自动保存。</span>
+          </div>
+          <button type="button" onClick={() => setCheckpointRetryNonce((value) => value + 1)}>重试本地保存</button>
+        </div>
+      )}
       {sessionRestoredNotice && (
         <div className="story-session-restored" role="status" aria-label="已恢复剧情案件进度">
           <span>↻ 已恢复本案进度 · {STAGE_CONTENT[state.stage].step}</span>

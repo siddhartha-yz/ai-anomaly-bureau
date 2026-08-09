@@ -131,6 +131,49 @@ test('Story resume gateway preserves or explicitly discards a saved case', async
   await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).toBeNull()
 })
 
+test('Story warns when local checkpoint writes fail and clears the warning after recovery', async ({ page }) => {
+  const seed = 20260829
+  const key = storySessionKey(seed)
+  const checkpoint: StorySessionData = {
+    version: STORY_SESSION_VERSION,
+    seed,
+    state: { ...createInitialGameState(seed, false, 1), stage: 'inspect_data' },
+    entryPhase: 'game',
+    sensorReads: [],
+    repairSensorReads: [],
+    modelConfirmed: false,
+    experimentLog: [],
+    emergencyAudits: 0,
+    reasoningMisses: 0,
+  }
+
+  await page.goto(`?seed=${seed}`)
+  await page.evaluate(([storageKey, payload]) => window.localStorage.setItem(storageKey, payload), [key, JSON.stringify(checkpoint)])
+  await page.reload()
+  await page.evaluate(() => {
+    const runtimeWindow = window as typeof window & { __storySetItem?: Storage['setItem'] }
+    runtimeWindow.__storySetItem = Storage.prototype.setItem
+    Storage.prototype.setItem = function blockedStorySave(storageKey: string, value: string) {
+      if (storageKey.startsWith('aia.story-session.')) throw new DOMException('blocked for test', 'QuotaExceededError')
+      return runtimeWindow.__storySetItem!.call(this, storageKey, value)
+    }
+  })
+  await page.getByRole('button', { name: '继续上次调查' }).click()
+  await waitForStage(page, 'inspect_data')
+  await expect(page.getByRole('alert')).toContainText('LOCAL SAVE FAILED')
+  await expect(page.getByRole('alert')).toContainText('当前进度不会自动保存')
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
+
+  await page.evaluate(() => {
+    const runtimeWindow = window as typeof window & { __storySetItem?: Storage['setItem'] }
+    Storage.prototype.setItem = runtimeWindow.__storySetItem!
+    delete runtimeWindow.__storySetItem
+  })
+  await page.getByRole('button', { name: '重试本地保存' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
+})
+
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
   await page.goto('?seed=20260809')
   await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
