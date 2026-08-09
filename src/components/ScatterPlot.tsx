@@ -124,10 +124,10 @@ export function ScatterPlot({
                   >
                     {mistake && (
                       <rect
-                        x={X(point.x) - 18}
-                        y={Y(point.y) - 18}
-                        width="36"
-                        height="36"
+                        x={X(point.x) - 13}
+                        y={Y(point.y) - 13}
+                        width="26"
+                        height="26"
                         fill="transparent"
                         className="mistake-hitbox"
                       />

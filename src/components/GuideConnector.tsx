@@ -10,7 +10,7 @@ type ConnectorState = {
 
 const TARGET: Partial<Record<Stage, { selector: string; label: string }>> = {
   inspect_data: { selector: '.pixel-scanner-card', label: '看这里' },
-  choose_features: { selector: '.pixel-control', label: '点这里' },
+  choose_features: { selector: '.sensor-intro', label: '读这里' },
   choose_model: { selector: '.model-toolbox', label: '点这里' },
   inspect_errors: { selector: '.test-pixel-group.mistake', label: '点这个 !' }
 }

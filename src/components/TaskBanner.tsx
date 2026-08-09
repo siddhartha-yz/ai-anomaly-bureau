@@ -19,7 +19,7 @@ const PHASE: Record<Stage, number> = {
 
 const PHASE_LABEL = ['现场取证', '未知审计', '系统修复', '结案复盘']
 
-export function TaskBanner({ stage }: { stage: Stage }) {
+export function TaskBanner({ stage, clues = 0 }: { stage: Stage; clues?: number }) {
   const content = STAGE_CONTENT[stage]
   const phase = PHASE[stage]
 
@@ -36,6 +36,12 @@ export function TaskBanner({ stage }: { stage: Stage }) {
           <strong>{content.step}</strong>
         </div>
         <p>{content.step}</p>
+        <div className="case-evidence-progress" aria-label={`关键线索 ${clues}/4`}>
+          <span>CASE EVIDENCE</span><b>{clues}/4</b>
+          <span className="case-evidence-pips" aria-hidden="true">
+            {[0,1,2,3].map((index) => <i className={index < clues ? 'done' : ''} key={index} />)}
+          </span>
+        </div>
       </div>
       <div className="pixel-phase-track" aria-label={`调查阶段 ${phase}/4`}>
         {PHASE_LABEL.map((label, index) => {

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
 import { BeginnerGuide } from './components/BeginnerGuide'
+import { CaseAttempts, type ExperimentRecord } from './components/CaseAttempts'
 import { DebugPanel } from './components/DebugPanel'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
 import { FeaturePicker } from './components/FeaturePicker'
 import { GuideConnector } from './components/GuideConnector'
+import { InvestigationPrompt } from './components/InvestigationPrompt'
 import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
 import { PhaseTransition, type PhaseTransitionCue } from './components/PhaseTransition'
 import { IncidentScene } from './components/PixelScene'
 import { ScatterPlot } from './components/ScatterPlot'
+import { SensorIntro } from './components/SensorIntro'
 import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
 import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
@@ -64,7 +67,6 @@ const PHASE_TRANSITION: Partial<Record<Stage, PhaseTransitionCue>> = {
 }
 
 const STAGE_REWARD: Partial<Record<Stage, Omit<RewardNotice, 'stage'>>> = {
-  inspect_data: { title: '案件已接手', detail: '事故现场已解锁', tone: 'blue' },
   choose_features: { title: '观察完成', detail: '获得线索：样本分布', tone: 'blue' },
   choose_model: { title: '传感器已配置', detail: '模型现在有了两个观察通道', tone: 'blue' },
   train: { title: '工具已装载', detail: '可以开始第一次训练', tone: 'blue' },
@@ -111,6 +113,15 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
   const [hintStage, setHintStage] = useState<Stage>()
+  const [observationAnswer, setObservationAnswer] = useState<string>()
+  const [sensorReads, setSensorReads] = useState<FeatureKey[]>([])
+  const [repairSensorReads, setRepairSensorReads] = useState<FeatureKey[]>([])
+  const [modelConfirmed, setModelConfirmed] = useState(false)
+  const [successPrediction, setSuccessPrediction] = useState<string>()
+  const [evidenceInference, setEvidenceInference] = useState<string>()
+  const [overfitReflection, setOverfitReflection] = useState<string>()
+  const [finalReflection, setFinalReflection] = useState<string>()
+  const [experimentLog, setExperimentLog] = useState<ExperimentRecord[]>([])
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
@@ -217,9 +228,22 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     dispatch({ type: 'SET_FEATURES', features })
   }
 
+  const readSensor = (feature: FeatureKey) => {
+    audio.current.play('select')
+    setSensorReads((current) => current.includes(feature) ? current : [...current, feature])
+    record(`READ_SENSOR:${feature}`)
+  }
+
+  const readRepairSensor = (feature: FeatureKey) => {
+    audio.current.play('select')
+    setRepairSensorReads((current) => current.includes(feature) ? current : [...current, feature])
+    record(`READ_REPAIR_SENSOR:${feature}`)
+  }
+
   const setModel = (model: ModelId) => {
     audio.current.play('select')
     setSelectedMistake(undefined)
+    if (state.stage === 'choose_model') setModelConfirmed(true)
     record('SELECT_MODEL', { model })
     dispatch({ type: 'SET_MODEL', model })
   }
@@ -246,6 +270,14 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     const model = fitted ?? MODEL_REGISTRY[state.selectedModel].fit(trainPoints)
     const result = service.audit(model, state.selectedFeatures)
     record('RUN_AUDIT', { testAccuracy: result.accuracy })
+    setExperimentLog((records) => [...records, {
+      id: records.length + 1,
+      model: state.selectedModel,
+      features: [...state.selectedFeatures],
+      trainAccuracy: state.training?.accuracy ?? evaluate(model, trainPoints).accuracy,
+      auditAccuracy: result.accuracy,
+      errors: result.errorCount,
+    }])
     dispatch({ type: 'AUDIT_RESULT', result })
     setSelectedMistake(result.mistakes[0]?.id)
   }
@@ -284,6 +316,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     void audio.current.ensureStarted()
     audio.current.play('select')
     record('ENTRY_START')
+    setEntryPhase('incident')
+  }
+
+  const completeIncident = () => {
+    audio.current.play('evidence')
+    record('INCIDENT_CONFIRMED')
     setEntryPhase('boot')
   }
 
@@ -310,30 +348,80 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       ? unlockedModels(state.hasSeenOverfit)
       : ['linear']
 
-  const controlsVisible = STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_features && !['final_audit', 'transfer_question', 'complete'].includes(state.stage)
-  const featureDisabled = ['briefing', 'inspect_data', 'choose_model', 'train', 'first_success', 'hidden_test', 'inspect_errors', 'overfit_reveal', 'final_audit', 'transfer_question'].includes(state.stage)
-  const modelDisabled = ['briefing', 'inspect_data', 'choose_features', 'train', 'first_success', 'hidden_test', 'inspect_errors', 'overfit_reveal', 'final_audit', 'transfer_question'].includes(state.stage)
+  const observationCorrect = observationAnswer === 'clusters'
+  const evidenceCorrect = evidenceInference === 'feature-gap'
+  const overfitCorrect = overfitReflection === 'memorized'
+  const finalCorrect = finalReflection === 'unknown-stable'
+  const clueCount = [observationCorrect, evidenceCorrect, state.hasSeenOverfit && overfitCorrect, finalCorrect].filter(Boolean).length
+  const showSensorIntro = !debug && state.stage === 'choose_features'
+  const repairSensorsReady = repairSensorReads.length >= 2
+  const showFeaturePicker = debug
+    ? STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_features && !['final_audit', 'transfer_question', 'complete'].includes(state.stage)
+    : state.stage === 'iterate' && state.hasSeenOverfit && repairSensorsReady
+  const showModelPicker = debug
+    ? STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_model && !['final_audit', 'transfer_question', 'complete'].includes(state.stage)
+    : state.stage === 'choose_model' || (state.stage === 'iterate' && (!state.hasSeenOverfit || repairSensorsReady))
+  const featureDisabled = !debug && state.stage !== 'iterate'
+  const modelDisabled = !debug && !['choose_model', 'iterate'].includes(state.stage)
+
+  const guideOverride = (() => {
+    switch (state.stage) {
+      case 'inspect_data': return observationCorrect
+        ? { title: '第一条线索已确认', line: '旧样本确实有明显分布。下一步查机器人到底看了哪些信息。', cue: '检查机器人的眼睛' }
+        : { title: '先做一个肉眼判断', line: '不用懂坐标。只回答：橘猫和面包是不是大致聚成两团？', cue: '观察后作答' }
+      case 'choose_features': return sensorReads.length < 2
+        ? { title: `读取两个观察通道 ${sensorReads.length}/2`, line: '依次点开 X、Y。机器人并没有“看懂图片”，它只收到两串数字。', cue: '点开两个通道' }
+        : { title: '你已经知道它看什么了', line: '当前事故机器人只看“颜色暖度 + 轮廓圆度”。先保留原配置，看看它能学成什么样。', cue: '继续检查模型' }
+      case 'choose_model': return modelConfirmed
+        ? { title: '直线工具已确认', line: '它只会画一条线，把两边分开。现在真正训练一次。', cue: '进入训练' }
+        : { title: '亲手装载第一个判断工具', line: '现在只有一个模型可用。点一下“直线分类器”，建立可点击控件的直觉。', cue: '点直线分类器' }
+      case 'first_success': return successPrediction
+        ? { title: '预测已记入案件本', line: '现在别猜了。把从未参加训练的新样本放进来验证。', cue: '接受现场抽查' }
+        : { title: '先别庆祝，做个预测', line: '旧样本 89%。你觉得这已经证明机器人真的修好了吗？', cue: '先回答下面的问题' }
+      case 'inspect_errors': {
+        if (state.viewedMistakes.length < 2) return { title: `收集两条错误证据 ${state.viewedMistakes.length}/2`, line: '点击两个不同的黄色「!」。不要只看总分，看看错误长什么样。', cue: '继续调查误判' }
+        if (!evidenceCorrect) return { title: '把两条证据串起来', line: '你已经看了两个错误。现在判断：问题更像出在“观察信息”还是随机倒霉？', cue: '完成证据推理' }
+        return { title: '证据链完成', line: '当前观察方式会把某些猫和面包看得太像。带着这条线索进入修复。', cue: '开始修复' }
+      }
+      case 'iterate': return state.hasSeenOverfit
+        ? repairSensorsReady
+          ? { title: '利用证据修复，而不是碰运气', line: '备用通道已读完。现在换掉不稳的观察方式，再选择一个不过度贴旧样本的模型。', cue: '设计第三个方案' }
+          : { title: `解锁备用观察通道 ${repairSensorReads.length}/2`, line: '技术组刚恢复“表面纹理”和“长宽比例”。先把两个模块读完，再决定怎么装。', cue: '读取两个备用模块' }
+        : { title: '做一次极端实验', line: '先故意选 k=1。它最擅长“记住最近的旧样本”，看看训练满分能不能救它。', cue: '选择 k=1 → 训练 → 审计' }
+      case 'overfit_reveal': return overfitCorrect
+        ? { title: '你找到了真正的陷阱', line: '训练 100% 不等于学会了规律。现在回去设计一个更稳的方案。', cue: '重新设计' }
+        : { title: '先解释这个反常现象', line: '旧样本 100%，新样本却更差。哪一种解释最合理？', cue: '完成判断' }
+      case 'final_audit': return finalCorrect
+        ? { title: '修复证据成立', line: '不是旧题更满，而是新样本真正稳定了。最后把经验迁移出去。', cue: '进入结案问题' }
+        : { title: '别只看“通过”两个字', line: '比较案件记录：这次真正值得信任的证据是什么？', cue: '完成最终判断' }
+      default: return undefined
+    }
+  })()
 
   const stageAction = () => {
     switch (state.stage) {
       case 'briefing': return <ActionButton onClick={() => send({ type: 'START' })}>接受事故调查</ActionButton>
-      case 'inspect_data': return <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>我找到了一些规律</ActionButton>
-      case 'choose_features': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>让模型看这两项</ActionButton>
-      case 'choose_model': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>使用这个模型</ActionButton>
+      case 'inspect_data': return debug || observationCorrect ? <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>去看机器人到底看了什么</ActionButton> : null
+      case 'choose_features': return debug || sensorReads.length >= 2 ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>保留原观察方式，继续调查</ActionButton> : null
+      case 'choose_model': return debug || modelConfirmed ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>确认装载这个模型</ActionButton> : null
       case 'train': return <ActionButton onClick={train}>训练模型并画出边界</ActionButton>
-      case 'first_success': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>接受未知样本挑战</ActionButton>
-      case 'hidden_test': return <ActionButton onClick={audit}>运行未知样本审计</ActionButton>
-      case 'inspect_errors': return <ActionButton disabled={state.viewedMistakes.length === 0} onClick={() => send({ type: 'ADVANCE' })}>{state.viewedMistakes.length ? '带着线索开始修复' : '先查看一个误判'}</ActionButton>
-      case 'iterate': return (
-        <div className="dual-actions">
-          <ActionButton onClick={train}>训练当前方案</ActionButton>
-          <ActionButton kind="secondary" disabled={!state.training} onClick={audit}>
-            {state.training ? '用未知数据审计' : '先训练，再审计'}
-          </ActionButton>
-        </div>
-      )
-      case 'overfit_reveal': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>我看到了，重新设计</ActionButton>
-      case 'final_audit': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>进入最后一问</ActionButton>
+      case 'first_success': return debug || successPrediction ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>用没见过的新样本验证</ActionButton> : null
+      case 'hidden_test': return <ActionButton onClick={audit}>放入 24 个未知样本</ActionButton>
+      case 'inspect_errors': return state.viewedMistakes.length >= 2 && evidenceCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着两条证据开始修复</ActionButton> : null
+      case 'iterate': {
+        if (!debug && !state.hasSeenOverfit && state.selectedModel !== 'knn-1') return null
+        if (!debug && state.hasSeenOverfit && !repairSensorsReady) return null
+        return (
+          <div className="dual-actions">
+            <ActionButton onClick={train}>训练当前方案</ActionButton>
+            <ActionButton kind="secondary" disabled={!state.training} onClick={audit}>
+              {state.training ? '用未知数据审计' : '先训练，再审计'}
+            </ActionButton>
+          </div>
+        )
+      }
+      case 'overfit_reveal': return debug || overfitCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着“过拟合”线索重新设计</ActionButton> : null
+      case 'final_audit': return debug || finalCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>进入最后一问</ActionButton> : null
       default: return null
     }
   }
@@ -348,6 +436,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       <EntryExperience
         phase={entryPhase}
         onStart={startEntry}
+        onIncidentComplete={completeIncident}
         onComplete={completeEntry}
         audioEnabled={audioEnabled}
       />
@@ -358,7 +447,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     <main
       className="app-shell"
       data-stage={state.stage}
-      data-mistake-viewed={state.viewedMistakes.length > 0 ? 'true' : 'false'}
+      data-mistake-viewed={state.viewedMistakes.length >= 2 ? 'true' : 'false'}
       style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}
     >
       <header className="pixel-game-header">
@@ -396,10 +485,10 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
         </section>
       )}
 
-      <TaskBanner stage={state.stage} />
+      <TaskBanner stage={state.stage} clues={clueCount} />
       <StageReward key={rewardNotice?.stage ?? 'reward-empty'} notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
       <PhaseTransition cue={phaseTransition} onDismiss={() => setPhaseTransition(undefined)} />
-      {!debug && <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length > 0} />}
+      {!debug && <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length >= 2} />}
 
       {isBriefing ? (
         <div className="briefing-game-layout">
@@ -425,7 +514,9 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               selectedMistake={selectedMistake}
               onSelectMistake={viewMistake}
             />
+
             {showMetrics && <Metrics training={state.training} audit={state.audit} model={state.selectedModel} />}
+
             <ErrorSamples
               audit={state.audit}
               selectedFeatures={state.selectedFeatures}
@@ -441,19 +532,97 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
                 stage={state.stage}
                 compact
                 action={currentAction}
-                mistakeViewed={state.viewedMistakes.length > 0}
+                mistakeViewed={state.viewedMistakes.length >= 2}
+                override={guideOverride}
               />
             )}
-            {controlsVisible && (
-              <>
-                <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
-                {STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_model && (
-                  <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled && !debug} onChange={setModel} />
-                )}
-              </>
+
+            {!debug && state.stage === 'inspect_data' && (
+              <InvestigationPrompt
+                number="01 / SAMPLE ARCHIVE"
+                title="不用懂坐标：你肉眼看到了什么？"
+                question="只看橘猫和面包的位置。旧样本现在呈现出哪种最明显的结构？"
+                value={observationAnswer}
+                onChange={(value) => { audio.current.play('select'); setObservationAnswer(value); record(`OBSERVATION:${value}`) }}
+                options={[
+                  { id: 'clusters', label: '它们大致聚成了两团', correct: true },
+                  { id: 'mixed', label: '它们完全混在一起', correct: false },
+                  { id: 'random', label: '看起来没有任何规律', correct: false },
+                ]}
+                successText="线索 01：旧样本确实存在可利用的分布。接下来查机器人到底用了什么信息看出这两团。"
+              />
             )}
 
-            {state.stage === 'overfit_reveal' && state.training && state.audit && (
+            {!debug && state.stage === 'first_success' && (
+              <InvestigationPrompt
+                number="02 / PREDICTION"
+                title="旧样本表现不错。它真的修好了吗？"
+                question="先留下你的预测，不会扣分。下一步会用一批它从没见过的样本验证。"
+                value={successPrediction}
+                onChange={(value) => { audio.current.play('select'); setSuccessPrediction(value); record(`PREDICT_GENERALIZATION:${value}`) }}
+                options={[
+                  { id: 'fixed', label: '89% 已经足以证明它修好了' },
+                  { id: 'need-new', label: '还不能确定，应该看看新样本' },
+                ]}
+                evaluate={false}
+                successText="预测已记入案件本。现在用未知样本把猜测变成证据。"
+              />
+            )}
+
+            {!debug && state.stage === 'inspect_errors' && state.viewedMistakes.length >= 2 && (
+              <InvestigationPrompt
+                number="03 / EVIDENCE LINK"
+                title="两条误判证据在告诉你什么？"
+                question="结合当前只使用“颜色暖度 + 轮廓圆度”，哪种解释更值得继续调查？"
+                value={evidenceInference}
+                onChange={(value) => { audio.current.play('select'); setEvidenceInference(value); record(`EVIDENCE_INFERENCE:${value}`) }}
+                options={[
+                  { id: 'feature-gap', label: '当前两项信息会把一些猫和面包看得太像', correct: true },
+                  { id: 'random-bad-luck', label: '只是随机倒霉，多训练几次就会自己消失', correct: false },
+                  { id: 'need-score', label: '只要把旧样本分数继续刷高就够了', correct: false },
+                ]}
+                successText="线索 02：错误集中暴露了观察信息的盲区。修复时应该尝试换“眼睛”，而不只是追训练分数。"
+              />
+            )}
+
+            {showSensorIntro && (
+              <SensorIntro features={state.selectedFeatures} read={sensorReads} onRead={readSensor} />
+            )}
+
+            {!debug && state.stage === 'iterate' && state.hasSeenOverfit && !repairSensorsReady && (
+              <SensorIntro
+                features={['texture', 'aspect']}
+                read={repairSensorReads}
+                onRead={readRepairSensor}
+                mode="repair"
+              />
+            )}
+
+            {showFeaturePicker && (
+              <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled} onChange={setFeatures} />
+            )}
+
+            {showModelPicker && (
+              <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled} onChange={setModel} />
+            )}
+
+            {state.stage === 'overfit_reveal' && state.training && state.audit && !overfitCorrect && (
+              <InvestigationPrompt
+                number="04 / PATTERN FAILURE"
+                title="100% 的训练分，为什么反而更危险？"
+                question={`这个方案旧样本 ${Math.round(state.training.accuracy * 100)}%，未知样本 ${Math.round(state.audit.accuracy * 100)}%。哪种解释最符合你刚看到的边界和错误？`}
+                value={overfitReflection}
+                onChange={(value) => { audio.current.play('select'); setOverfitReflection(value); record(`OVERFIT_REFLECTION:${value}`) }}
+                options={[
+                  { id: 'memorized', label: '它太贴着旧样本走，连噪声和偶然情况都记住了', correct: true },
+                  { id: 'not-enough-score', label: '训练分还不够高，应该继续把旧样本刷得更满', correct: false },
+                  { id: 'new-data-invalid', label: '新样本不可信，应该忽略未知审计', correct: false },
+                ]}
+                successText="线索 03：模型过度迎合训练数据。这个现象现在可以正式命名为——过拟合。"
+              />
+            )}
+
+            {state.stage === 'overfit_reveal' && state.training && state.audit && overfitCorrect && (
               <section className="concept-card pixel-result-card warning-result">
                 <span>FOUND / PATTERN_FAILURE</span>
                 <h2>过拟合 / Overfitting</h2>
@@ -461,12 +630,32 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               </section>
             )}
 
-            {state.stage === 'final_audit' && (
+            {state.stage === 'final_audit' && !finalCorrect && (
+              <InvestigationPrompt
+                number="05 / PATCH VERIFICATION"
+                title="这次为什么比“训练 100%”更值得相信？"
+                question="对照案件记录，什么证据说明修复真正解决了现场问题？"
+                value={finalReflection}
+                onChange={(value) => { audio.current.play('select'); setFinalReflection(value); record(`FINAL_REFLECTION:${value}`) }}
+                options={[
+                  { id: 'unknown-stable', label: '没见过的新样本也稳定，误判真正下降了', correct: true },
+                  { id: 'highest-train', label: '因为训练分终于是所有方案里最高的', correct: false },
+                  { id: 'complex-model', label: '因为最终模型一定比之前更复杂', correct: false },
+                ]}
+                successText="线索 04：真正可靠的是未知数据上的稳定表现。你已经亲手验证了“泛化”。"
+              />
+            )}
+
+            {state.stage === 'final_audit' && finalCorrect && (
               <section className="concept-card success-card pixel-result-card">
                 <span>PATCH / VERIFIED</span>
                 <h2>不是训练满分，而是新样本也站得住。</h2>
                 <p>这就是你刚亲手验证的“泛化”：规则能否应对没见过的数据。</p>
               </section>
+            )}
+
+            {!debug && ['iterate', 'overfit_reveal', 'final_audit', 'transfer_question', 'complete'].includes(state.stage) && (
+              <CaseAttempts records={experimentLog} />
             )}
 
             {state.stage === 'transfer_question' && (

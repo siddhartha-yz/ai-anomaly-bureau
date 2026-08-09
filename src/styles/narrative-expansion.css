@@ -1,0 +1,329 @@
+/* V1.2 narrative expansion: cold open, progressive disclosure and investigation beats. */
+
+.incident-cold-open {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  color: #f4f6ff;
+  background:
+    radial-gradient(circle at 67% 45%, rgba(79,124,255,.15), transparent 27%),
+    repeating-linear-gradient(90deg, rgba(79,124,255,.025) 0 1px, transparent 1px 28px),
+    #03050a;
+  isolation: isolate;
+}
+.cold-open-scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  opacity: .09;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #000 3px 5px);
+}
+.cold-open-head {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 clamp(24px, 5vw, 74px);
+  border-bottom: 3px solid #243764;
+  color: #6e87c8;
+  font: 800 11px/1 ui-monospace, Consolas, monospace;
+  letter-spacing: .1em;
+}
+.cold-open-head strong { color: #aab9df; margin-left: auto; }
+.cold-open-head i { color: #ffdf58; font-style: normal; }
+.cold-open-world {
+  position: absolute;
+  left: 4vw;
+  right: 4vw;
+  top: 74px;
+  bottom: 31vh;
+  min-height: 380px;
+}
+.cold-open-ground {
+  position: absolute;
+  left: 10%;
+  right: 6%;
+  bottom: 18%;
+  height: 5px;
+  background: #24345f;
+  box-shadow: 0 5px 0 #010204;
+}
+.cold-open-cat,
+.cold-open-scanner {
+  position: absolute;
+  bottom: calc(18% + 5px);
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  z-index: 4;
+}
+.cold-open-cat { left: 29%; animation: coldCat 1.7s steps(2) infinite; }
+.cold-open-scanner { right: 25%; animation: coldScanner 1.25s steps(2) infinite; }
+.cold-open-cat .pixel-sprite { width: clamp(120px, 12vw, 190px); filter: drop-shadow(8px 9px 0 #010204); }
+.cold-open-scanner .pixel-sprite { width: clamp(140px, 14vw, 215px); filter: drop-shadow(8px 9px 0 #010204) drop-shadow(0 0 14px rgba(79,124,255,.35)); }
+.cold-open-cat > span,
+.cold-open-scanner > span { color: #7186be; font: 800 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+@keyframes coldCat { 50% { transform: translateY(-3px); } }
+@keyframes coldScanner { 50% { transform: translateY(-2px); } }
+.cold-open-beam {
+  position: absolute;
+  left: 42%;
+  right: 37%;
+  bottom: 27%;
+  height: 150px;
+  z-index: 2;
+  opacity: .23;
+  background: #5077ff;
+  clip-path: polygon(0 28%,100% 0,100% 100%,0 72%);
+  animation: coldBeam 1.15s steps(3) infinite;
+}
+@keyframes coldBeam { 50% { opacity: .38; } }
+.cold-open-result {
+  position: absolute;
+  right: 9%;
+  top: 12%;
+  min-width: 220px;
+  padding: 16px 18px;
+  border: 4px solid #716020;
+  background: #151207;
+  box-shadow: 8px 8px 0 #020307;
+  z-index: 8;
+  animation: coldResult 1.15s steps(2) infinite;
+}
+.cold-open-result small,
+.cold-open-result strong,
+.cold-open-result span { display: block; }
+.cold-open-result small { color: #8d7b3b; font-size: 10px; }
+.cold-open-result strong { margin: 8px 0 6px; color: #ffe05b; font-size: 30px; letter-spacing: .08em; }
+.cold-open-result span { color: #a79961; font-size: 11px; }
+@keyframes coldResult { 50% { transform: translateX(2px); filter: brightness(1.1); } }
+
+.cold-open-dialogue {
+  position: absolute;
+  left: clamp(26px, 7vw, 120px);
+  right: clamp(26px, 7vw, 120px);
+  bottom: clamp(28px, 6vh, 64px);
+  min-height: 210px;
+  z-index: 30;
+  padding: 22px 26px 24px;
+  border: 4px solid #314a8d;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px),
+    rgba(7,11,21,.96);
+  box-shadow: 9px 9px 0 #010204, inset 0 0 0 3px #101a31;
+}
+.cold-open-dialogue .speaker {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #152348;
+  color: #85a0ff;
+  font: 900 10px/1 ui-monospace, Consolas, monospace;
+  letter-spacing: .12em;
+}
+.cold-open-dialogue .speaker.conflict { color: #ffe05b; background: #2b250d; }
+.cold-open-dialogue .speaker.xiaoxi { color: #ffe05b; border-left: 4px solid #4f7cff; }
+.cold-open-dialogue h2 { margin: 13px 0 7px; color: #f6f7fb; font-size: clamp(24px, 3vw, 38px); line-height: 1.15; }
+.cold-open-dialogue p { max-width: 860px; margin: 0; color: #b1bbd2; font-size: 15px; line-height: 1.7; }
+.cold-open-dialogue p strong { color: #fff0a6; }
+.cold-open-action {
+  margin-top: 18px;
+  min-width: min(460px, 100%);
+  padding: 14px 18px;
+  border: 4px solid #8b741f;
+  background: #ffe05b;
+  color: #0a0905;
+  box-shadow: 7px 7px 0 #554613;
+  cursor: pointer;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 900;
+}
+.cold-open-action:hover,
+.cold-open-action:focus-visible { transform: translate(-2px,-2px); box-shadow: 9px 9px 0 #554613; outline: none; }
+.cold-open-conflict { display: flex; align-items: center; gap: 14px; margin-top: 14px; color: #f4f6ff; font-size: 18px; }
+.cold-open-conflict i { color: #ffdf58; font-style: normal; }
+.cold-open-objectives { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.cold-open-objectives span { padding: 7px 10px; border: 2px solid #2e4278; background: #0b1224; color: #8fa5df; font-size: 12px; }
+
+/* Investigation decisions: player reads the scene, then commits to an observation. */
+.investigation-prompt {
+  position: relative;
+  margin: 12px 0 14px;
+  padding: 16px;
+  border: 3px solid #30477f;
+  background: #090f1d;
+  box-shadow: 5px 5px 0 #020307;
+}
+.investigation-prompt.correct { border-color: #ffe05b; background: #171408; }
+.investigation-prompt .prompt-kicker { color: #718de2; font: 900 10px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em; }
+.investigation-prompt h3 { margin: 8px 0 5px; color: #f0f4ff; font-size: 18px; }
+.investigation-prompt > p { margin: 0; color: #98a7c7; font-size: 13px; line-height: 1.55; }
+.prompt-options { display: grid; gap: 8px; margin-top: 13px; }
+.prompt-options.cols-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.prompt-option {
+  min-height: 46px;
+  padding: 9px 12px;
+  border: 3px solid #2c406f;
+  background: #0b1325;
+  color: #b8c4df;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+.prompt-option:hover,
+.prompt-option:focus-visible { border-color: #ffe05b; color: #fff0a6; outline: none; }
+.prompt-option.selected { border-color: #ffe05b; background: #2a240c; color: #fff0a6; box-shadow: 4px 4px 0 #4b3e10; }
+.prompt-option.wrong.selected { border-color: #c9823c; background: #24150b; }
+.prompt-feedback { margin-top: 12px; padding: 9px 11px; border-left: 4px solid #4f7cff; background: #08101e; color: #9eb0d6; font-size: 13px; }
+.prompt-feedback.good { border-left-color: #ffe05b; color: #fff0a6; }
+
+.sensor-intro {
+  border: 3px solid #30477f;
+  background: #09101d;
+  padding: 14px;
+  box-shadow: 5px 5px 0 #020307;
+}
+.sensor-intro-head span { color: #718de2; font-size: 10px; }
+.sensor-intro-head h2 { margin: 5px 0 3px; font-size: 18px; color: #f2f5ff; }
+.sensor-intro-head p { margin: 0 0 12px; color: #8999bd; font-size: 12px; line-height: 1.5; }
+.sensor-intro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.sensor-intro-card {
+  min-height: 118px;
+  padding: 12px;
+  border: 3px solid #30477f;
+  background: #0b1325;
+  color: #c1cbe3;
+  text-align: left;
+  cursor: pointer;
+}
+.sensor-intro-card:hover,
+.sensor-intro-card:focus-visible { border-color: #ffe05b; outline: none; }
+.sensor-intro-card.read { border-color: #ffe05b; background: #1c190a; }
+.sensor-intro-card b { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; background: #172752; color: #ffe05b; }
+.sensor-intro-card strong { color: #f3f6ff; }
+.sensor-intro-card small { display: block; margin: 10px 0 5px; color: #7890c9; font-size: 10px; }
+.sensor-intro-card span { display: block; color: #a9b4ce; font-size: 12px; line-height: 1.5; }
+.sensor-intro-progress { margin-top: 10px; color: #7287bc; font: 800 10px/1.4 ui-monospace, Consolas, monospace; }
+.sensor-intro-progress strong { color: #ffe05b; }
+.repair-sensor-intro {
+  border-color: #806c25;
+  background: #141208;
+  box-shadow: 6px 6px 0 #44380e;
+}
+.repair-sensor-intro .sensor-intro-card { border-color: #5c5129; }
+
+/* When evidence is below the fold, keep the reasoning question beside it. */
+[data-stage='inspect_errors'][data-mistake-viewed='true'] .game-console-column > .investigation-prompt {
+  position: sticky;
+  top: 192px;
+  z-index: 10;
+  border-color: #ffe05b;
+  box-shadow: 6px 6px 0 #4d4011;
+}
+
+.case-attempts {
+  margin-top: 10px;
+  padding: 12px;
+  border: 3px solid #2c416f;
+  background: #080e1a;
+}
+.case-attempts-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: #758dcc; font-size: 10px; }
+.case-attempts-head strong { color: #d9e1f6; }
+.case-attempt-list { display: grid; gap: 7px; }
+.case-attempt {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  padding: 8px;
+  border: 2px solid #24375f;
+  background: #0b1221;
+}
+.case-attempt-index { display: grid; place-items: center; height: 30px; background: #17264a; color: #ffe05b; font-size: 11px; }
+.case-attempt-copy strong { display: block; color: #dce4f7; font-size: 12px; }
+.case-attempt-copy span { display: block; margin-top: 2px; color: #7085b5; font-size: 10px; }
+.case-attempt-score { text-align: right; font: 900 11px/1.5 ui-monospace, Consolas, monospace; color: #92a7dc; }
+.case-attempt-score b { display: block; color: #ffe05b; }
+.case-attempt.latest { border-color: #5e5627; }
+
+.case-evidence-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 8px;
+  color: #7088c6;
+  font-size: 10px;
+}
+.case-evidence-progress b { color: #ffe05b; }
+.case-evidence-pips { display: inline-flex; gap: 3px; }
+.case-evidence-pips i { width: 8px; height: 8px; border: 1px solid #334979; background: #0a1020; }
+.case-evidence-pips i.done { background: #ffe05b; border-color: #ffe05b; box-shadow: 2px 2px 0 #51430f; }
+
+/* Progressive disclosure: hide whole tool groups instead of showing a dim cockpit. */
+[data-stage='inspect_data'] .game-console-column > .pixel-control,
+[data-stage='inspect_data'] .game-console-column > .model-toolbox,
+[data-stage='choose_model'] .game-console-column > .pixel-control,
+[data-stage='train'] .game-console-column > .pixel-control,
+[data-stage='train'] .game-console-column > .model-toolbox,
+[data-stage='first_success'] .game-console-column > .pixel-control,
+[data-stage='first_success'] .game-console-column > .model-toolbox,
+[data-stage='hidden_test'] .game-console-column > .pixel-control,
+[data-stage='hidden_test'] .game-console-column > .model-toolbox,
+[data-stage='inspect_errors'] .game-console-column > .pixel-control,
+[data-stage='inspect_errors'] .game-console-column > .model-toolbox,
+[data-stage='overfit_reveal'] .game-console-column > .pixel-control,
+[data-stage='overfit_reveal'] .game-console-column > .model-toolbox {
+  display: none !important;
+}
+
+/* A mission cue is status text, never a fake button. Solid yellow + shadow is reserved for real actions. */
+.beginner-guide:not(.with-action) .guide-cue,
+.beginner-guide.compact:not(.with-action) .guide-cue {
+  padding: 9px 2px 3px !important;
+  border: 0 !important;
+  border-top: 2px dashed #68591f !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #9f8e49 !important;
+  text-align: right;
+  pointer-events: none;
+}
+.beginner-guide:not(.with-action) .guide-cue::before { content: 'NEXT // '; color: #5f70a0; }
+
+/* Interactive things look unmistakably interactive. */
+.action-button:not(:disabled),
+.prompt-option,
+.sensor-intro-card,
+.feature-slot:not(:disabled),
+.feature-chip:not(:disabled),
+.pixel-model-card:not(:disabled),
+.evidence-tab,
+.transfer-options button {
+  cursor: pointer !important;
+}
+.action-button:not(:disabled):focus-visible,
+.prompt-option:focus-visible,
+.sensor-intro-card:focus-visible,
+.feature-slot:not(:disabled):focus-visible,
+.feature-chip:not(:disabled):focus-visible,
+.pixel-model-card:not(:disabled):focus-visible,
+.evidence-tab:focus-visible,
+.transfer-options button:focus-visible {
+  outline: 3px solid #ffe05b !important;
+  outline-offset: 3px;
+}
+
+@media (max-width: 800px) {
+  .cold-open-world { bottom: 38vh; }
+  .cold-open-result { right: 3%; min-width: 170px; }
+  .cold-open-dialogue { left: 14px; right: 14px; bottom: 18px; padding: 16px; }
+  .cold-open-dialogue h2 { font-size: 22px; }
+  .cold-open-dialogue p { font-size: 13px; }
+  .cold-open-action { font-size: 14px; min-width: 0; width: 100%; }
+  .sensor-intro-grid, .prompt-options.cols-2 { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cold-open-cat, .cold-open-scanner, .cold-open-beam, .cold-open-result { animation: none !important; }
+}

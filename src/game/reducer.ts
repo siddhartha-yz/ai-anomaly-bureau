@@ -56,7 +56,7 @@ export function isFinalAuditPass(state: GameState): boolean {
 function canAdvance(state: GameState): boolean {
   if (state.stage === 'choose_features') return state.selectedFeatures.length === 2
   if (state.stage === 'choose_model') return Boolean(state.selectedModel)
-  if (state.stage === 'inspect_errors') return state.viewedMistakes.length >= 1
+  if (state.stage === 'inspect_errors') return state.viewedMistakes.length >= 2
   if (state.stage === 'final_audit') return isFinalAuditPass(state)
   if (state.stage === 'transfer_question') return state.transferAnswer !== undefined
   return true

@@ -73,15 +73,17 @@ export function BeginnerGuide({
   compact = false,
   action,
   mistakeViewed = false,
+  override,
 }: {
   stage: Stage
   compact?: boolean
   action?: React.ReactNode
   mistakeViewed?: boolean
+  override?: { title: string; line: string; cue: string }
 }) {
-  const guide = stage === 'inspect_errors' && mistakeViewed
+  const guide = override ?? (stage === 'inspect_errors' && mistakeViewed
     ? { title: '证据已记录', line: '看看它为什么会被骗，再开始修复。', cue: '开始修复' }
-    : GUIDE[stage]
+    : GUIDE[stage])
   return (
     <aside className={`beginner-guide ${compact ? 'compact' : ''} ${action ? 'with-action' : ''}`} aria-live="polite">
       <div className="guide-icon" aria-hidden="true">!</div>

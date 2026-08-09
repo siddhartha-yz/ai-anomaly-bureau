@@ -77,7 +77,9 @@ export function runPersonaRoute(persona: PersonaId, seed = 20260809): RouteResul
   dispatch({ type: 'ADVANCE' })
   audit()
   const firstMistake = state.audit?.mistakes[0]
+  const secondMistake = state.audit?.mistakes[1]
   if (firstMistake) dispatch({ type: 'VIEW_MISTAKE', id: firstMistake.id })
+  if (secondMistake) dispatch({ type: 'VIEW_MISTAKE', id: secondMistake.id })
   if (persona === 'hint-dependent') dispatch({ type: 'REQUEST_HINT' })
   dispatch({ type: 'ADVANCE' })
 

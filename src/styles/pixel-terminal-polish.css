@@ -113,7 +113,7 @@
 
 /* Rewards are readable achievements, not transient web toasts. */
 .stage-reward {
-  pointer-events: auto !important;
+  pointer-events: none !important;
   width: min(390px, calc(100vw - 32px)) !important;
   padding: 16px 44px 15px 17px !important;
   border-width: 4px !important;
@@ -142,6 +142,7 @@
 .stage-reward strong { font-size: 21px !important; font-weight: 400 !important; margin-top: 3px; }
 .stage-reward small { font-size: 13px !important; margin-top: 3px; }
 .reward-close {
+  pointer-events: auto;
   position: absolute;
   right: 8px;
   top: 8px;

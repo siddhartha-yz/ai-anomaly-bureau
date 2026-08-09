@@ -10,6 +10,7 @@ import './styles/pixel-typography-focus.css'
 import './styles/pixel-font-onboarding.css'
 import './styles/pixel-terminal-polish.css'
 import './styles/phase-cinematics.css'
+import './styles/narrative-expansion.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

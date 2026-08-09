@@ -37,7 +37,7 @@ export function ErrorSamples({
     <section className="mistakes evidence-console" aria-labelledby="mistakes-title">
       <div className="evidence-console-head">
         <span>EVIDENCE.LOG</span>
-        <strong id="mistakes-title">发现 {audit.errorCount} 个误判</strong>
+        <strong id="mistakes-title">发现 {audit.errorCount} 个误判 · 已调查 {viewed.length}/2</strong>
       </div>
 
       {selected && (
