@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：10 个测试文件、47 个测试全部通过。
+- Vitest：12 个测试文件、53 个测试全部通过。
 - Vite production build：通过。
-- Playwright：17 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 证据阶段压力布局、分布变化、额度恢复与类别不平衡。
+- Playwright：18 条 Chromium E2E 通过，覆盖剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 结案匿名日志导出、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -59,6 +59,9 @@ Vitest 当前覆盖：
 - 六类开发者测试人格均在有限步骤内完成关卡，并经历过拟合与多次未知审计。
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
+- Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID、mistake flags 与 debug model params 不进入序列化结果。
+- Story session 关系校验：experimentLog / auditHistory 数量与 accuracy/error 必须对应，current audit 必须匹配最新 history，selected mistake / suspicious attempt 必须引用真实已存在记录；损坏、错 seed、旧版本、非法匿名日志都会删除。
+- BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；显式新局会生成新的随机 session。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
 - 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
 - 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类；下一次训练前使用同一纯函数语义预览当前实验计划。
@@ -71,7 +74,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 17 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 18 条真实 Chromium 路线。
 
 零基础玩家完整案件：
 
@@ -90,6 +93,15 @@ Vitest 当前覆盖：
 13. 重新开放完整特征 / 模型配置；改方案后必须重新留下实验预测，再训练 / 审计。
 14. 对照 `CASE_NOTES.LOG` 完成最终“为什么这次更可信”的判断。
 15. 迁移问题同样采用“草稿 → 锁定 → 反馈”，避免通过提交按钮亮灭探答案；随后进入 `CASE CLOSED` 并显示调查评级。
+
+同一 Story 路线现在额外把“刷新恢复”当成正式验收对象，而不是只在结案前一路直跑：
+
+- 两条误判已调查且证据推理已经锁定时刷新：先出现 `UNFINISHED CASE SAVED`，继续后仍是 `inspect_errors`、2/2 证据与推理结果不丢；恢复提示与 `OBJECTIVE / MISSION` 通过几何 no-overlap。
+- k=1 实验已经选择模型并锁定“训练可能满分、未知反而更差”，但尚未训练时刷新：模型、`PREDICTION LOCKED` 和正式额度 4 原样恢复，避免 F5 抹掉实验预注册。
+- k=1 正式审计后刷新：仍停在 `overfit_reveal`，两条实验记录存在，修复正式额度仍为 3。
+- CASE CLOSED 后刷新：进入 `RESOLVED CASE SAVED`，重新打开仍保持评级 A，不重播阶段过场，匿名日志的 `COMPLETE` 始终只有 1 条。
+- 普通结案页真实下载行为日志 JSON：同一 sessionId 贯穿四次恢复，最终有 4 条 `SESSION_RESTORED`，并包含早期 `VIEW_MISTAKE`、后期 `RUN_AUDIT` 与最终 `EXPORT_LOG`；文件不含内部 `test-cat/test-bread` 或 mistake flags。
+- `StoryResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
 
 工程模式路线会直接打开 `?debug=1`，验证 DebugPanel、阶段跳转和快速主操作仍可用，不受普通玩家 micro-beat 门槛影响。
 

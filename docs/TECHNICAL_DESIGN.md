@@ -26,6 +26,7 @@ src/
     reducer.ts               # 状态机
     hints.ts                 # 小析分级提示
     logging.ts               # 匿名行为日志
+    session.ts               # Story Case 版本化检查点、净化与运行时校验
     routes.ts                # debug 自动路线
   components/
     EntryExperience.tsx       # 标题页 + 剧情 / 无尽双入口 + Cold Open
@@ -189,6 +190,10 @@ type Stage =
 
 Cold Open、图上异常样本调查、边界 `PROBE ?`、传感器读取、预测下注、正式审计额度、证据推理、实验记录比较、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主 reducer 阶段语义。它们把同一 stage 拆成需要观察 / 判断 / 验证的 micro-beat，而不是增加第二套业务状态机。
 
+Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。运行时 guard 还会校验 experimentLog 与 auditHistory 数量、accuracy / error 对应关系、当前 audit 与最新 history 的一致性、selected mistake / suspicious attempt 的引用有效性。损坏或旧版本 payload 会直接删除。
+
+Story 正式审计额度也不直接持久化：第一份未知审计不计修复预算，之后由 `4 + emergencyAudits - (experimentLog.length - 1)` 重建，因此刷新不能把花掉的额度“退回”。实验前 `pendingPrediction` 属于教学证据，会随检查点恢复；这保证“先预注册假设，再训练 / 审计”的顺序不会被 F5 绕过。
+
 Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作包括 `START`、`SELECT_FEATURES`、`SELECT_MODEL`、`TRAIN`、`RUN_AUDIT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`、`RESET_STAGE`、`JUMP_STAGE`。
 
 ## 关卡配置格式
@@ -249,7 +254,7 @@ Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作�
 Vitest 会在大量 seed 上要求 evidence-policy 的结案率与平均未知表现显著优于 random-clicker。这个测试不证明游戏一定“好玩”，但能防止程序化案件退化成“随便点几次也和推理一样有效”。
 
 ## 行为日志
-内存记录后可导出 JSON：
+默认仍是本地匿名记录，但 Story 检查点会把当前 `BehaviorLog` 一同保存，因此刷新后继续使用原 `sessionId / startedAt / events`；每次真正从检查点恢复会追加一条 `SESSION_RESTORED`。结案页允许普通玩家主动导出完整 JSON，debug 面板也保留原导出入口：
 ```ts
 type BehaviorEvent = {
   sessionId: string
@@ -268,7 +273,7 @@ type BehaviorEvent = {
   completed: boolean
 }
 ```
-不写 localStorage 的个人标识；sessionId 为本地随机短 ID。
+不写姓名、账号、邮箱、IP 等个人标识；sessionId 为本地随机短 ID。Story localStorage 中保存的是同一份匿名行为日志，用于跨刷新连续性，显式清档 / 重新调查会同时删除并生成下一局新 session。
 
 ## Debug 模式
 `?debug=1` 显示独立面板：
@@ -311,6 +316,9 @@ type BehaviorEvent = {
 
 ### 浏览器验证
 - Playwright Chromium 剧情路线覆盖 Cold Open、图上抓异常旧样本、决策边界探针、锁定预测、错误上线后果、两条错误证据、可点击实验记录、过拟合、备用传感器修复、迁移问题与结案评级。
+- Story session E2E 在真实路线中四次跨刷新：两条误判证据完成后、k=1 实验预注册后、过拟合审计后、CASE CLOSED 后。分别验证微节拍 / 已锁预测 / 审计额度 / 实验历史 / 评级与唯一 COMPLETE 事件都能恢复，并验证显式 resume gateway、二次确认清档和小型 RESET 防误触。
+- Story export E2E 真实接收浏览器下载并解析 JSON，要求同一 sessionId 贯穿刷新前后、`SESSION_RESTORED` 数量与实际恢复次数一致、包含早期 / 后期调查动作，同时不包含内部 test ID 或 flags。
+- Story 恢复提示与 `OBJECTIVE / MISSION` 有几何 no-overlap 断言；resume gateway 固定在 1280×720 做横向溢出检查。
 - 无尽 E2E 覆盖模式说明、Boot Case 000、正式案件 answer-neutral 导航、可点击档案质量记录、不同配置诊断守卫、有限审计预算、正确诊断与下一案生成。
 - 证据 E2E 覆盖两条实验记录显式引用、同配置引用拒绝、`EVIDENCE_COMPARE`、可点击现场误判 → `FIELD_MATRIX` 定位与 `CASE_LEADS` 留痕。
 - session E2E 覆盖刷新不退款、入口显式恢复 / 二次确认新案、错误诊断锁跨刷新，以及旧证据不能在刷新后重新解锁轮猜。
