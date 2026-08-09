@@ -1,5 +1,5 @@
 import type { ModelId } from '../ml/registry'
-import type { FeatureKey } from '../ml/types'
+import type { FeatureKey, Label } from '../ml/types'
 
 export type BandPrediction = 'high' | 'mid' | 'low'
 
@@ -15,6 +15,8 @@ export type EndlessRunRecord = {
   recall: { cat: number; bread: number }
   reliable: boolean
 }
+
+export type InspectedFieldError = { runId: number; sampleId: string; actual: Label; predicted: Label }
 
 export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
 

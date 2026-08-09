@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { endlessSessionKey } from '../src/endless/session'
 
 async function waitForStage(page: Page, stage: string) {
   await expect(page.locator('.app-shell')).toHaveAttribute('data-stage', stage)
@@ -219,6 +220,46 @@ test('repeating the same endless configuration is replication, not new diagnosti
   await citeEndlessRuns(page, 3)
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
   await expect(page.getByRole('button', { name: /观察特征没有抓住真正差异/ })).toBeEnabled()
+})
+
+test('endless investigation survives refresh without refunding audit budget', async ({ page }) => {
+  const seed = 6012
+  const sessionKey = endlessSessionKey(seed)
+  await page.goto(`?mode=endless&seed=${seed}`)
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-run-log article')).toHaveCount(1)
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
+
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), sessionKey)).not.toBeNull()
+  const persisted = await page.evaluate((key) => window.localStorage.getItem(key) ?? '', sessionKey)
+  expect(persisted).toContain('"history"')
+  expect(persisted).not.toMatch(/test-cat|test-bread|diagnosis\.correct|"syndrome"/)
+
+  await page.reload()
+  await expect(page.getByLabel('已恢复本案进度')).toBeInViewport()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
+  await expect(page.locator('.endless-run-log article')).toHaveCount(1)
+  await expect(page.getByText('FIELD AUDIT', { exact: true })).toBeVisible()
+  await qaShot(page, '34-endless-session-resumed')
+
+  const resetButton = page.getByRole('button', { name: '重置本案' })
+  await resetButton.click()
+  await expect(page.getByRole('button', { name: '再次点击确认重置' })).toBeVisible()
+  await page.getByRole('button', { name: '再次点击确认重置' }).click()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 5')
+  await expect(page.locator('.endless-run-log')).toHaveCount(0)
+  await expect(page.getByLabel('已恢复本案进度')).toHaveCount(0)
+  await expect.poll(() => page.evaluate((key) => {
+    const raw = window.localStorage.getItem(key)
+    return raw ? JSON.parse(raw).history.length : -1
+  }, sessionKey)).toBe(0)
+
+  await page.reload()
+  await expect(page.locator('.endless-objective b')).toHaveText('审计额度 5')
+  await expect(page.locator('.endless-run-log')).toHaveCount(0)
+  await expect(page.getByLabel('已恢复本案进度')).toHaveCount(0)
 })
 
 test('endless onboarding and next-step navigation remain usable across desktop viewports', async ({ page }) => {

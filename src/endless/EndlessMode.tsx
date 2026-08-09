@@ -7,23 +7,46 @@ import type { FeatureKey } from '../ml/types'
 import { EndlessControls } from './EndlessControls'
 import { EndlessAuditPanel, EndlessDiagnosis, EndlessRunLog } from './EndlessEvidence'
 import { FieldManual } from './FieldManual'
-import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor, type InspectedFieldError } from './EndlessNavigator'
+import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
-import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
+import { ENDLESS_SESSION_VERSION, clearEndlessSession, readEndlessSession, writeEndlessSession } from './session'
+import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+
+function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
+  const points = projectSamples(caseData.train, features)
+  return evaluate(MODEL_REGISTRY[model].fit(points), points).accuracy
+}
 
 export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onExit: () => void }) {
   const [seed, setSeed] = useState(initialSeed)
   const caseData = useMemo(() => createEndlessCase(seed), [seed])
+  const restoredSession = useMemo(() => readEndlessSession(window.localStorage, seed), [seed])
+  const restoredTrainAccuracy = restoredSession?.trained
+    ? calculateTrainAccuracy(caseData, restoredSession.model, restoredSession.features)
+    : undefined
+  const restoredAudit = restoredSession?.auditComplete && restoredSession.trained
+    ? caseData.audit(restoredSession.model, restoredSession.features)
+    : undefined
+  const restoredProgress = Boolean(restoredSession && (
+    restoredSession.history.length
+    || restoredSession.trained
+    || restoredSession.diagnosisAttempts
+    || restoredSession.inspectedArchiveIds.length
+    || restoredSession.inspectedFieldErrors.length
+    || restoredSession.solved
+  ))
   const audioRef = useRef<GameAudio | null>(null)
   if (!audioRef.current) audioRef.current = new GameAudio(true)
   const audio = audioRef.current
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [manualOpen, setManualOpen] = useState(false)
+  const [sessionRestoredNotice, setSessionRestoredNotice] = useState(restoredProgress)
+  const [resetArmed, setResetArmed] = useState(false)
   const [selectedArchiveId, setSelectedArchiveId] = useState<string>()
-  const [inspectedArchiveIds, setInspectedArchiveIds] = useState<string[]>([])
+  const [inspectedArchiveIds, setInspectedArchiveIds] = useState<string[]>(restoredSession?.inspectedArchiveIds ?? [])
   const [selectedFieldErrorId, setSelectedFieldErrorId] = useState<string>()
-  const [inspectedFieldErrors, setInspectedFieldErrors] = useState<InspectedFieldError[]>([])
+  const [inspectedFieldErrors, setInspectedFieldErrors] = useState<InspectedFieldError[]>(restoredSession?.inspectedFieldErrors ?? [])
 
   useEffect(() => {
     audio.setPhase(2)
@@ -36,24 +59,53 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
       audio.dispose()
     }
   }, [audio])
-  const [features, setFeatures] = useState<[FeatureKey, FeatureKey]>(['warmth', 'roundness'])
-  const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
-  const [model, setModel] = useState<ModelId>('linear')
-  const [trained, setTrained] = useState(false)
-  const [trainAccuracy, setTrainAccuracy] = useState<number>()
-  const [auditResult, setAuditResult] = useState<EndlessAudit>()
-  const [prediction, setPrediction] = useState<BandPrediction>()
-  const [credits, setCredits] = useState(5)
-  const [emergencyCredits, setEmergencyCredits] = useState(0)
-  const [history, setHistory] = useState<EndlessRunRecord[]>([])
-  const [diagnosis, setDiagnosis] = useState<EndlessSyndrome>()
-  const [diagnosisAttempts, setDiagnosisAttempts] = useState(0)
-  const [lastDiagnosisConfigCount, setLastDiagnosisConfigCount] = useState(0)
-  const [lastDiagnosisRunCount, setLastDiagnosisRunCount] = useState(0)
-  const [selectedEvidenceRunIds, setSelectedEvidenceRunIds] = useState<number[]>([])
-  const [submittedDiagnosis, setSubmittedDiagnosis] = useState<EndlessSyndrome>()
-  const [lastDiagnosisOutcome, setLastDiagnosisOutcome] = useState<'wrong' | 'needs-reliable'>()
-  const [solved, setSolved] = useState(false)
+  const [features, setFeatures] = useState<[FeatureKey, FeatureKey]>(restoredSession?.features ?? ['warmth', 'roundness'])
+  const [activeSlot, setActiveSlot] = useState<0 | 1>(restoredSession?.activeSlot ?? 0)
+  const [model, setModel] = useState<ModelId>(restoredSession?.model ?? 'linear')
+  const [trained, setTrained] = useState(restoredSession?.trained ?? false)
+  const [trainAccuracy, setTrainAccuracy] = useState<number | undefined>(restoredTrainAccuracy)
+  const [auditResult, setAuditResult] = useState<EndlessAudit | undefined>(restoredAudit)
+  const [prediction, setPrediction] = useState<BandPrediction | undefined>(restoredSession?.prediction)
+  const [credits, setCredits] = useState(Math.max(0, 5 + (restoredSession?.emergencyCredits ?? 0) - (restoredSession?.history.length ?? 0)))
+  const [emergencyCredits, setEmergencyCredits] = useState(restoredSession?.emergencyCredits ?? 0)
+  const [history, setHistory] = useState<EndlessRunRecord[]>(restoredSession?.history ?? [])
+  const [diagnosis, setDiagnosis] = useState<EndlessSyndrome | undefined>(restoredSession?.diagnosis)
+  const [diagnosisAttempts, setDiagnosisAttempts] = useState(restoredSession?.diagnosisAttempts ?? 0)
+  const [lastDiagnosisConfigCount, setLastDiagnosisConfigCount] = useState(restoredSession?.lastDiagnosisConfigCount ?? 0)
+  const [lastDiagnosisRunCount, setLastDiagnosisRunCount] = useState(restoredSession?.lastDiagnosisRunCount ?? 0)
+  const [selectedEvidenceRunIds, setSelectedEvidenceRunIds] = useState<number[]>(restoredSession?.selectedEvidenceRunIds ?? [])
+  const [submittedDiagnosis, setSubmittedDiagnosis] = useState<EndlessSyndrome | undefined>(restoredSession?.submittedDiagnosis)
+  const [lastDiagnosisOutcome, setLastDiagnosisOutcome] = useState<'wrong' | 'needs-reliable' | undefined>(restoredSession?.lastDiagnosisOutcome)
+  const [solved, setSolved] = useState(restoredSession?.solved ?? false)
+
+  useEffect(() => {
+    writeEndlessSession(window.localStorage, {
+      version: ENDLESS_SESSION_VERSION,
+      seed,
+      features,
+      activeSlot,
+      model,
+      trained,
+      prediction,
+      auditComplete: Boolean(auditResult),
+      emergencyCredits,
+      history,
+      diagnosis,
+      diagnosisAttempts,
+      lastDiagnosisConfigCount,
+      lastDiagnosisRunCount,
+      selectedEvidenceRunIds,
+      submittedDiagnosis,
+      lastDiagnosisOutcome,
+      inspectedArchiveIds,
+      inspectedFieldErrors,
+      solved,
+    })
+  }, [
+    seed, features, activeSlot, model, trained, prediction, auditResult, emergencyCredits, history,
+    diagnosis, diagnosisAttempts, lastDiagnosisConfigCount, lastDiagnosisRunCount, selectedEvidenceRunIds,
+    submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedFieldErrors, solved,
+  ])
 
   const resetExperiment = () => {
     setTrained(false)
@@ -179,9 +231,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     })
   }
 
-  const nextCase = () => {
-    audio.play('ui')
-    setSeed((value) => value + 1)
+  const resetCaseState = () => {
     setFeatures(['warmth', 'roundness'])
     setActiveSlot(0)
     setModel('linear')
@@ -204,6 +254,23 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setSelectedFieldErrorId(undefined)
     setInspectedFieldErrors([])
     setSolved(false)
+    setSessionRestoredNotice(false)
+    setResetArmed(false)
+  }
+
+  const resetCurrentCase = () => {
+    audio.play('warning')
+    clearEndlessSession(window.localStorage, seed)
+    resetCaseState()
+  }
+
+  const nextCase = () => {
+    audio.play('ui')
+    const nextSeed = seed + 1
+    clearEndlessSession(window.localStorage, seed)
+    clearEndlessSession(window.localStorage, nextSeed)
+    resetCaseState()
+    setSeed(nextSeed)
   }
 
   const auditsUsed = history.length
@@ -234,6 +301,19 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
             audio.setEnabled(next)
           }}>{audioEnabled ? '♪ AUDIO' : '× MUTE'}</button>
           <button type="button" onClick={() => setManualOpen(true)}>调查手册</button>
+          <button
+            type="button"
+            className={`endless-reset-case ${resetArmed ? 'armed' : ''}`}
+            onClick={() => {
+              if (resetArmed) resetCurrentCase()
+              else {
+                audio.play('warning')
+                setResetArmed(true)
+              }
+            }}
+          >
+            {resetArmed ? '再次点击确认重置' : '重置本案'}
+          </button>
           <button type="button" onClick={onExit}>返回剧情案件</button>
         </div>
       </header>
@@ -267,6 +347,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
         credits={credits}
         historyCount={history.length}
         configurationCount={distinctConfigCount}
+        resumed={sessionRestoredNotice}
         onLocate={() => {
           const selector = objective.target === 'recovery'
             ? '.diagnosis-emergency'

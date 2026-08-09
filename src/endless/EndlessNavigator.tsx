@@ -1,11 +1,10 @@
-import type { FeatureKey, Label } from '../ml/types'
+import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import type { EndlessRunRecord } from './uiTypes'
+import type { EndlessRunRecord, InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
-export type InspectedFieldError = { runId: number; sampleId: string; actual: Label; predicted: Label }
 
 export function objectiveFor({
   trained,
@@ -51,11 +50,12 @@ export function objectiveFor({
   return { focus: 'configure', code: 'CONTROL / NEXT RUN', title: '配置下一次实验', detail: '尽量只改变一个因素，再训练当前方案。这样结果变化才更容易解释。', target: 'configure' }
 }
 
-export function EndlessObjective({ objective, credits, historyCount, configurationCount, onLocate }: {
+export function EndlessObjective({ objective, credits, historyCount, configurationCount, resumed = false, onLocate }: {
   objective: ReturnType<typeof objectiveFor>
   credits: number
   historyCount: number
   configurationCount: number
+  resumed?: boolean
   onLocate: () => void
 }) {
   const locateLabel = objective.target === 'recovery' ? '定位：补充审计'
@@ -68,6 +68,7 @@ export function EndlessObjective({ objective, credits, historyCount, configurati
     <section className={`endless-next-objective focus-${objective.focus}`} aria-label="当前调查目标">
       <div><small>NEXT OBJECTIVE // {objective.code}</small><h2>{objective.title}</h2><p>{objective.detail}</p></div>
       <div className="endless-objective-side">
+        {resumed && <span className="endless-session-restored" aria-label="已恢复本案进度">↻ 已恢复本案</span>}
         <div className="endless-objective-stats"><span>实验记录 <b>{historyCount}</b></span><span>不同配置 <b>{configurationCount}</b></span><span>审计额度 <b>{credits}</b></span></div>
         <button type="button" className="endless-locate-next" aria-label="定位下一步操作" onClick={onLocate}>
           ▶ {locateLabel}
