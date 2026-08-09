@@ -195,6 +195,41 @@ describe('Story Case local checkpoint', () => {
     expect(readStorySession(storage, duplicateMistakes.seed)).toBeUndefined()
   })
 
+  it('rejects forged transfer correctness even when the completed checkpoint is otherwise valid', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const audit = {
+      accuracy: 1,
+      errorCount: 0,
+      confusion: { 'cat->cat': 8, 'cat->bread': 0, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [],
+      orangeCatErrors: 0,
+    }
+    value.state = {
+      ...value.state,
+      stage: 'complete',
+      training: { accuracy: .89, errorCount: 4, complexity: 1 },
+      audit,
+      auditHistory: [audit],
+      hasSeenOverfit: true,
+      transferAnswer: 'more-training-score',
+      transferCorrect: true,
+      completedAt: 2_000,
+    }
+    value.experimentLog = [{
+      id: 1,
+      model: 'linear',
+      features: ['texture', 'aspect'],
+      trainAccuracy: .89,
+      auditAccuracy: 1,
+      errors: 0,
+    }]
+    storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+
+    expect(readStorySession(storage, value.seed)).toBeUndefined()
+    expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
+  })
+
   it('does not treat an untouched title screen as resumable progress and clears explicitly', () => {
     const storage = new MemoryStorage()
     const value = session()

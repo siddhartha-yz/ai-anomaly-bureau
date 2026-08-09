@@ -1,7 +1,7 @@
 import type { ExperimentRecord } from '../components/CaseAttempts'
 import type { ExperimentPrediction } from '../components/ExperimentPlan'
 import type { EntryPhase } from '../components/EntryExperience'
-import { LEVEL_META } from '../content/level1'
+import { LEVEL_META, TRANSFER_QUESTION } from '../content/level1'
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
 import { MAX_BEHAVIOR_LOG_EVENTS, type BehaviorEvent, type BehaviorLog } from './logging'
@@ -54,6 +54,9 @@ const OVERFIT_REFLECTIONS = new Set(['memorized', 'not-enough-score', 'new-data-
 const FINAL_REFLECTIONS = new Set(['unknown-stable', 'highest-train', 'complex-model'])
 const INITIAL_SENSOR_READS = new Set<FeatureKey>(['warmth', 'roundness'])
 const REPAIR_SENSOR_READS = new Set<FeatureKey>(['texture', 'aspect'])
+const TRANSFER_OPTIONS: ReadonlyMap<string, boolean> = new Map(
+  TRANSFER_QUESTION.options.map((option) => [option.id, option.correct]),
+)
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -186,6 +189,14 @@ function isStageStateConsistent(state: GameState): boolean {
 function isGameState(value: unknown, seed: number): value is GameState {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<GameState>
+  const transferStage = item.stage === 'transfer_question' || item.stage === 'complete'
+  const transferAnswerValid = item.transferAnswer === undefined && item.transferCorrect === undefined
+    ? true
+    : typeof item.transferAnswer === 'string'
+      && typeof item.transferCorrect === 'boolean'
+      && TRANSFER_OPTIONS.get(item.transferAnswer) === item.transferCorrect
+  const transferStateValid = transferAnswerValid
+    && (transferStage || (item.transferAnswer === undefined && item.transferCorrect === undefined))
   const completionStateValid = item.stage === 'complete'
     ? isFiniteNumber(item.completedAt)
       && isFiniteNumber(item.startedAt)
@@ -210,8 +221,7 @@ function isGameState(value: unknown, seed: number): value is GameState {
     && isNonNegativeInteger(item.hintLevel)
     && item.hintLevel <= 3
     && typeof item.hasSeenOverfit === 'boolean'
-    && (item.transferAnswer === undefined || typeof item.transferAnswer === 'string')
-    && (item.transferCorrect === undefined || typeof item.transferCorrect === 'boolean')
+    && transferStateValid
     && isFiniteNumber(item.startedAt)
     && completionStateValid
     && Array.isArray(item.diagnostics)
