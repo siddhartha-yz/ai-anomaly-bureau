@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { endlessSessionKey } from '../src/endless/session'
-import { storyAuditCredits, storySessionKey, type StorySessionData } from '../src/game/session'
+import { createInitialGameState } from '../src/game/reducer'
+import { STORY_SESSION_VERSION, storyAuditCredits, storySessionKey, type StorySessionData } from '../src/game/session'
 
 async function waitForStage(page: Page, stage: string) {
   await expect(page.locator('.app-shell')).toHaveAttribute('data-stage', stage)
@@ -70,6 +71,49 @@ test('debug mode keeps the fast engineering controls available', async ({ page }
   await waitForStage(page, 'overfit_reveal')
   await expect(page.locator('.pixel-command-dock .action-button.primary')).toBeVisible()
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))).toBeNull()
+})
+
+test('Story resume gateway preserves or explicitly discards a saved case', async ({ page }) => {
+  const seed = 20260819
+  const key = storySessionKey(seed)
+  const checkpoint: StorySessionData = {
+    version: STORY_SESSION_VERSION,
+    seed,
+    state: { ...createInitialGameState(seed, false, 1), stage: 'inspect_data' },
+    entryPhase: 'game',
+    sensorReads: [],
+    repairSensorReads: [],
+    modelConfirmed: false,
+    experimentLog: [],
+    emergencyAudits: 0,
+    reasoningMisses: 0,
+  }
+
+  await page.goto(`?seed=${seed}`)
+  await page.evaluate(([storageKey, payload]) => window.localStorage.setItem(storageKey, payload), [key, JSON.stringify(checkpoint)])
+  await page.reload()
+
+  const gateway = page.getByLabel('已保存剧情案件')
+  await expect(gateway).toContainText('UNFINISHED CASE SAVED')
+  await expect(gateway).toContainText('翻旧样本档案')
+  await expect(gateway).toContainText('LOCAL ONLY')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  await qaShot(page, '23-story-resume-gateway')
+
+  // Visiting another single-player mode does not silently delete Story progress.
+  await gateway.getByRole('button', { name: '暂不继续 · 进入无尽调查' }).click()
+  await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
+  await page.getByRole('button', { name: '返回剧情案件' }).click()
+  await expect(page.getByLabel('已保存剧情案件')).toBeVisible()
+
+  // Discard is intentionally two-step: the first click only arms the destructive action.
+  await page.getByRole('button', { name: '放弃旧进度并重新开始 CASE 001' }).click()
+  await expect(page.getByRole('button', { name: '再次点击：清除旧进度并重新开始' })).toBeVisible()
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
+  await page.getByRole('button', { name: '再次点击：清除旧进度并重新开始' }).click()
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).toBeNull()
 })
 
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
@@ -524,6 +568,10 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   expect(firstStorySession.behaviorLog?.events.length).toBeGreaterThan(8)
   const behaviorSessionId = firstStorySession.behaviorLog?.sessionId
   await page.reload()
+  const firstResumeGateway = page.getByLabel('已保存剧情案件')
+  await expect(firstResumeGateway).toContainText('UNFINISHED CASE SAVED')
+  await expect(firstResumeGateway.getByLabel('剧情案件存档摘要')).toContainText('建立错误证据链')
+  await firstResumeGateway.getByRole('button', { name: '继续上次调查' }).click()
   await waitForStage(page, 'inspect_errors')
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
   await expect(page.getByText(/已调查 2\/2/)).toBeVisible()
@@ -553,6 +601,11 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   const overfitCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
   expect(storyAuditCredits(JSON.parse(overfitCheckpoint!) as StorySessionData)).toBe(3)
   await page.reload()
+  const overfitResumeGateway = page.getByLabel('已保存剧情案件')
+  await expect(overfitResumeGateway).toContainText('UNFINISHED CASE SAVED')
+  await expect(overfitResumeGateway.getByLabel('剧情案件存档摘要')).toContainText('发现陷阱')
+  await expect(overfitResumeGateway.getByLabel('剧情案件存档摘要')).toContainText('3')
+  await overfitResumeGateway.getByRole('button', { name: '继续上次调查' }).click()
   await waitForStage(page, 'overfit_reveal')
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
   await expect(page.locator('.case-attempt')).toHaveCount(2)
@@ -636,6 +689,10 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   expect(completedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
 
   await page.reload()
+  const completedResumeGateway = page.getByLabel('已保存剧情案件')
+  await expect(completedResumeGateway).toContainText('RESOLVED CASE SAVED')
+  await expect(completedResumeGateway.getByRole('button', { name: '查看上次结案' })).toBeVisible()
+  await completedResumeGateway.getByRole('button', { name: '查看上次结案' }).click()
   await waitForStage(page, 'complete')
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
   await expect(page.getByText('CASE CLOSED', { exact: true })).toBeVisible()

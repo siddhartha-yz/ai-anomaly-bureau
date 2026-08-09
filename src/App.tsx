@@ -19,6 +19,7 @@ import { ScatterPlot } from './components/ScatterPlot'
 import { SampleHunt } from './components/SampleHunt'
 import { SensorIntro } from './components/SensorIntro'
 import { StageReward, type RewardNotice } from './components/StageReward'
+import { StoryResume } from './components/StoryResume'
 import { TaskBanner } from './components/TaskBanner'
 import { STAGE_CONTENT, TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { BootCase } from './endless/BootCase'
@@ -944,6 +945,14 @@ function App() {
     requestedMode === 'endless' ? 'endless' : requestedMode === 'boot' ? 'boot' : 'story',
   )
   const [bootCompleted, setBootCompleted] = useState(() => window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete')
+  const [storyResumeAccepted, setStoryResumeAccepted] = useState(false)
+  const savedStorySession = !debug ? readStorySession(window.localStorage, seed) : undefined
+  const storyResume = savedStorySession && storySessionHasProgress(savedStorySession) ? {
+    stageLabel: STAGE_CONTENT[savedStorySession.state.stage].step,
+    experimentCount: savedStorySession.experimentLog.length,
+    remainingCredits: storyAuditCredits(savedStorySession),
+    solved: savedStorySession.state.stage === 'complete',
+  } : undefined
   const savedEndlessSession = !debug ? readEndlessSession(window.localStorage, seed) : undefined
   const endlessResume = hasEndlessSessionProgress(savedEndlessSession) && savedEndlessSession ? {
     seed: savedEndlessSession.seed,
@@ -991,6 +1000,21 @@ function App() {
 
   if (!debug && mode === 'endless') {
     return <EndlessMode initialSeed={seed} onExit={() => setMode('story')} />
+  }
+
+  if (!debug && mode === 'story' && storyResume && !storyResumeAccepted) {
+    return (
+      <StoryResume
+        summary={storyResume}
+        onContinue={() => setStoryResumeAccepted(true)}
+        onDiscard={() => {
+          clearStorySession(window.localStorage, seed)
+          setSession((value) => value + 1)
+          setStoryResumeAccepted(true)
+        }}
+        onEndless={() => setMode('endless-intro')}
+      />
+    )
   }
 
   return (
