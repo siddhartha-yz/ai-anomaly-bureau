@@ -38,4 +38,27 @@ describe('BehaviorLogger continuation', () => {
     expect(a.snapshot().events).toEqual([])
     expect(b.snapshot().events).toEqual([])
   })
+
+  it('keeps extreme sessions checkpointable by bounding old telemetry explicitly', () => {
+    const logger = new BehaviorLogger(42)
+    for (let index = 0; index < 505; index += 1) {
+      logger.record({
+        stage: 'iterate', action: `ACTION_${index}`, retryCount: 0, completed: false,
+        features: ['warmth', 'roundness'], model: 'linear',
+      })
+    }
+
+    const snapshot = logger.snapshot()
+    expect(snapshot.events).toHaveLength(500)
+    expect(snapshot.droppedEvents).toBe(5)
+    expect(snapshot.events[0].action).toBe('ACTION_5')
+    expect(snapshot.events.at(-1)?.action).toBe('ACTION_504')
+
+    const resumed = new BehaviorLogger(42, snapshot)
+    resumed.record({ stage: 'iterate', action: 'AFTER_RESTORE', retryCount: 0, completed: false })
+    const after = resumed.snapshot()
+    expect(after.events).toHaveLength(500)
+    expect(after.droppedEvents).toBe(6)
+    expect(after.events.at(-1)?.action).toBe('AFTER_RESTORE')
+  })
 })

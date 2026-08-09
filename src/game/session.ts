@@ -4,12 +4,11 @@ import type { EntryPhase } from '../components/EntryExperience'
 import { LEVEL_META } from '../content/level1'
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
-import type { BehaviorEvent, BehaviorLog } from './logging'
+import { MAX_BEHAVIOR_LOG_EVENTS, type BehaviorEvent, type BehaviorLog } from './logging'
 import type { AuditResult, GameState, MistakeDetail, Stage, TrainingResult } from './types'
 
 export const STORY_SESSION_VERSION = 1
 const MAX_STORY_SESSION_BYTES = 200_000
-const MAX_BEHAVIOR_EVENTS = 500
 
 export type StorySessionData = {
   version: typeof STORY_SESSION_VERSION
@@ -259,7 +258,8 @@ function isBehaviorLog(value: unknown, seed: number): value is BehaviorLog {
   if (item.version !== 1 || item.seed !== seed || typeof item.sessionId !== 'string' || !/^s-[a-z0-9]+-[a-z0-9]{1,12}$/.test(item.sessionId)) return false
   if (typeof item.startedAt !== 'string' || !Number.isFinite(Date.parse(item.startedAt))) return false
   if (typeof item.exportedAt !== 'string' || !Number.isFinite(Date.parse(item.exportedAt))) return false
-  if (!Array.isArray(item.events) || item.events.length > MAX_BEHAVIOR_EVENTS || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
+  if (!Array.isArray(item.events) || item.events.length > MAX_BEHAVIOR_LOG_EVENTS || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
+  if (item.droppedEvents !== undefined && !isNonNegativeInteger(item.droppedEvents)) return false
   const events = item.events
   return events.every((event, index) => index === 0 || event.elapsedMs >= events[index - 1].elapsedMs)
 }

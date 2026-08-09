@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { BehaviorLogger } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
 import {
   STORY_SESSION_VERSION,
@@ -258,6 +259,25 @@ describe('Story Case local checkpoint', () => {
       expect(readStorySession(storage, value.seed)).toBeUndefined()
       expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
     }
+  })
+
+  it('round-trips a bounded long-session behavior log instead of poisoning autosave', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const logger = new BehaviorLogger(value.seed)
+    for (let index = 0; index < 505; index += 1) {
+      logger.record({
+        stage: 'inspect_data', action: `ACTION_${index}`, retryCount: 0, completed: false,
+        features: ['warmth', 'roundness'], model: 'linear',
+      })
+    }
+    value.behaviorLog = logger.snapshot()
+
+    expect(writeStorySession(storage, value)).toBe(true)
+    const restored = readStorySession(storage, value.seed)
+    expect(restored?.behaviorLog?.events).toHaveLength(500)
+    expect(restored?.behaviorLog?.droppedEvents).toBe(5)
+    expect(restored?.behaviorLog?.events.at(-1)?.action).toBe('ACTION_504')
   })
 
   it('refuses invalid or oversized writes without overwriting the last valid checkpoint', () => {

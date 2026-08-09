@@ -19,6 +19,8 @@ export type BehaviorEvent = {
   completed: boolean
 }
 
+export const MAX_BEHAVIOR_LOG_EVENTS = 500
+
 export type BehaviorLog = {
   version: 1
   sessionId: string
@@ -26,12 +28,14 @@ export type BehaviorLog = {
   startedAt: string
   exportedAt: string
   events: BehaviorEvent[]
+  droppedEvents?: number
 }
 
 export class BehaviorLogger {
   readonly sessionId: string
   private readonly started: number
   private readonly events: BehaviorEvent[]
+  private droppedEvents: number
 
   constructor(readonly seed: number, restored?: BehaviorLog) {
     if (restored && restored.version === 1 && restored.seed === seed) {
@@ -42,11 +46,13 @@ export class BehaviorLogger {
         ...event,
         features: event.features ? [...event.features] : undefined,
       }))
+      this.droppedEvents = restored.droppedEvents ?? 0
       return
     }
     this.started = Date.now()
     this.sessionId = `s-${seed.toString(36)}-${Math.random().toString(36).slice(2, 8)}`
     this.events = []
+    this.droppedEvents = 0
   }
 
   record(event: Omit<BehaviorEvent, 'sessionId' | 'seed' | 'timestamp' | 'elapsedMs'>): void {
@@ -58,6 +64,11 @@ export class BehaviorLogger {
       timestamp: new Date(now).toISOString(),
       elapsedMs: now - this.started,
     })
+    const overflow = this.events.length - MAX_BEHAVIOR_LOG_EVENTS
+    if (overflow > 0) {
+      this.events.splice(0, overflow)
+      this.droppedEvents += overflow
+    }
   }
 
   snapshot(): BehaviorLog {
@@ -68,6 +79,7 @@ export class BehaviorLogger {
       startedAt: new Date(this.started).toISOString(),
       exportedAt: new Date().toISOString(),
       events: this.events.map((event) => ({ ...event, features: event.features ? [...event.features] : undefined })),
+      droppedEvents: this.droppedEvents,
     }
   }
 }
