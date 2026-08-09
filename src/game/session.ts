@@ -3,6 +3,7 @@ import type { ExperimentPrediction } from '../components/ExperimentPlan'
 import type { EntryPhase } from '../components/EntryExperience'
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
+import type { BehaviorEvent, BehaviorLog } from './logging'
 import type { AuditResult, GameState, MistakeDetail, Stage, TrainingResult } from './types'
 
 export const STORY_SESSION_VERSION = 1
@@ -28,6 +29,7 @@ export type StorySessionData = {
   pendingPrediction?: ExperimentPrediction
   emergencyAudits: number
   reasoningMisses: number
+  behaviorLog?: BehaviorLog
 }
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -152,6 +154,38 @@ function optionalString(value: unknown) {
   return value === undefined || typeof value === 'string'
 }
 
+function isBehaviorEvent(value: unknown, seed: number, sessionId: string): value is BehaviorEvent {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<BehaviorEvent>
+  return item.sessionId === sessionId
+    && item.seed === seed
+    && typeof item.timestamp === 'string'
+    && Number.isFinite(Date.parse(item.timestamp))
+    && isNonNegativeInteger(item.elapsedMs)
+    && STAGES.has(item.stage as Stage)
+    && typeof item.action === 'string'
+    && item.action.length > 0
+    && (item.features === undefined || (Array.isArray(item.features) && item.features.every((feature) => FEATURES.has(feature as FeatureKey))))
+    && (item.model === undefined || MODELS.has(item.model as ModelId))
+    && (item.trainAccuracy === undefined || isRate(item.trainAccuracy))
+    && (item.testAccuracy === undefined || isRate(item.testAccuracy))
+    && (item.mistakeId === undefined || typeof item.mistakeId === 'string')
+    && (item.hintLevel === undefined || (isNonNegativeInteger(item.hintLevel) && item.hintLevel >= 1 && item.hintLevel <= 3))
+    && isNonNegativeInteger(item.retryCount)
+    && typeof item.completed === 'boolean'
+}
+
+function isBehaviorLog(value: unknown, seed: number): value is BehaviorLog {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<BehaviorLog>
+  if (item.version !== 1 || item.seed !== seed || typeof item.sessionId !== 'string' || !/^s-[a-z0-9]+-[a-z0-9]{1,12}$/.test(item.sessionId)) return false
+  if (typeof item.startedAt !== 'string' || !Number.isFinite(Date.parse(item.startedAt))) return false
+  if (typeof item.exportedAt !== 'string' || !Number.isFinite(Date.parse(item.exportedAt))) return false
+  if (!Array.isArray(item.events) || !item.events.every((event) => isBehaviorEvent(event, seed, item.sessionId!))) return false
+  const events = item.events
+  return events.every((event, index) => index === 0 || event.elapsedMs >= events[index - 1].elapsedMs)
+}
+
 function isStorySession(value: unknown, seed: number): value is StorySessionData {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<StorySessionData>
@@ -178,6 +212,7 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   }
   if (item.pendingPrediction !== undefined && !PREDICTIONS.has(item.pendingPrediction)) return false
   if (!isNonNegativeInteger(item.emergencyAudits) || !isNonNegativeInteger(item.reasoningMisses)) return false
+  if (item.behaviorLog !== undefined && !isBehaviorLog(item.behaviorLog, seed)) return false
   if (item.selectedMistake !== undefined && !state.audit?.mistakes.some((mistake) => mistake.id === item.selectedMistake)) return false
   if (item.suspiciousAttemptId !== undefined && !item.experimentLog.some((record) => record.id === item.suspiciousAttemptId)) return false
   return true

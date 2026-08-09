@@ -520,6 +520,9 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   const storyCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
   expect(storyCheckpoint).not.toMatch(/test-(cat|bread)/)
   expect(storyCheckpoint).not.toContain('"flags"')
+  const firstStorySession = JSON.parse(storyCheckpoint!) as StorySessionData
+  expect(firstStorySession.behaviorLog?.events.length).toBeGreaterThan(8)
+  const behaviorSessionId = firstStorySession.behaviorLog?.sessionId
   await page.reload()
   await waitForStage(page, 'inspect_errors')
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
@@ -554,7 +557,10 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
   await expect(page.locator('.case-attempt')).toHaveCount(2)
   const restoredOverfitCheckpoint = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
-  expect(storyAuditCredits(JSON.parse(restoredOverfitCheckpoint!) as StorySessionData)).toBe(3)
+  const overfitStorySession = JSON.parse(restoredOverfitCheckpoint!) as StorySessionData
+  expect(storyAuditCredits(overfitStorySession)).toBe(3)
+  expect(overfitStorySession.behaviorLog?.sessionId).toBe(behaviorSessionId)
+  expect(overfitStorySession.behaviorLog!.events.length).toBeGreaterThan(firstStorySession.behaviorLog!.events.length)
   await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
   const laterEvidence = page.locator('.evidence-console-head')
   await expect(laterEvidence).toContainText('本轮审计 · 9 个误判')

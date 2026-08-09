@@ -30,11 +30,23 @@ export type BehaviorLog = {
 
 export class BehaviorLogger {
   readonly sessionId: string
-  private readonly started = Date.now()
-  private readonly events: BehaviorEvent[] = []
+  private readonly started: number
+  private readonly events: BehaviorEvent[]
 
-  constructor(readonly seed: number) {
+  constructor(readonly seed: number, restored?: BehaviorLog) {
+    if (restored && restored.version === 1 && restored.seed === seed) {
+      const started = Date.parse(restored.startedAt)
+      this.started = Number.isFinite(started) ? started : Date.now()
+      this.sessionId = restored.sessionId
+      this.events = restored.events.map((event) => ({
+        ...event,
+        features: event.features ? [...event.features] : undefined,
+      }))
+      return
+    }
+    this.started = Date.now()
     this.sessionId = `s-${seed.toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    this.events = []
   }
 
   record(event: Omit<BehaviorEvent, 'sessionId' | 'seed' | 'timestamp' | 'elapsedMs'>): void {

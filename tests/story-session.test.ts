@@ -112,6 +112,16 @@ describe('Story Case local checkpoint', () => {
       (value) => {
         value.experimentLog = [{ id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: .67, errors: 8 }]
       },
+      (value) => {
+        value.behaviorLog = {
+          version: 1,
+          sessionId: 's-invalid-log',
+          seed: value.seed + 1,
+          startedAt: new Date(0).toISOString(),
+          exportedAt: new Date(1).toISOString(),
+          events: [],
+        }
+      },
     ]
 
     for (const mutate of mutations) {

@@ -161,8 +161,8 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const [auditCredits, setAuditCredits] = useState(restoredSession ? storyAuditCredits(restoredSession) : 4)
   const [emergencyAudits, setEmergencyAudits] = useState(restoredSession?.emergencyAudits ?? 0)
   const [reasoningMisses, setReasoningMisses] = useState(restoredSession?.reasoningMisses ?? 0)
-  const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
-  const completionLogged = useRef(false)
+  const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed, restoredSession?.behaviorLog))
+  const completionLogged = useRef(restoredSession?.state.stage === 'complete')
   const audio = useRef(new GameAudio(true))
   const previousStage = useRef<Stage>(restoredSession?.state.stage ?? 'briefing')
   const previousPhase = useRef<GameMusicPhase>(musicPhaseFor(restoredSession?.state.stage ?? 'briefing'))
@@ -271,6 +271,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
       pendingPrediction,
       emergencyAudits,
       reasoningMisses,
+      behaviorLog: logger.current.snapshot(),
     })
   }, [
     debug, seed, state, entryPhase, selectedMistake, observationAnswer, suspectSampleId,
