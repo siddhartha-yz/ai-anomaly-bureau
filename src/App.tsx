@@ -137,6 +137,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const restoredProgress = Boolean(restoredSession && storySessionHasProgress(restoredSession))
   const [state, dispatch] = useReducer(gameReducer, restoredSession?.state ?? createInitialGameState(seed, debug))
   const [sessionRestoredNotice, setSessionRestoredNotice] = useState(restoredProgress)
+  const [resetArmed, setResetArmed] = useState(false)
   const [selectedMistake, setSelectedMistake] = useState<string | undefined>(restoredSession?.selectedMistake)
   const [helpOpen, setHelpOpen] = useState(false)
   const [debugShowLabels, setDebugShowLabels] = useState(false)
@@ -591,8 +592,21 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
           <button type="button" className="pixel-icon-button" onClick={() => setHelpOpen((open) => !open)} aria-label="帮助">
             <span>?</span><small>HELP</small>
           </button>
-          <button type="button" className="pixel-icon-button" onClick={() => { audio.current.play('ui'); onRestart() }} aria-label="重新开始">
-            <span>↻</span><small>RESET</small>
+          <button
+            type="button"
+            className={`pixel-icon-button reset-case-button ${resetArmed ? 'armed' : ''}`}
+            onClick={() => {
+              audio.current.play(resetArmed ? 'warning' : 'ui')
+              if (!resetArmed) {
+                setResetArmed(true)
+                return
+              }
+              onRestart()
+            }}
+            onBlur={() => setResetArmed(false)}
+            aria-label={resetArmed ? '再次点击确认重新开始' : '重新开始'}
+          >
+            <span>{resetArmed ? '!' : '↻'}</span><small>{resetArmed ? 'SURE?' : 'RESET'}</small>
           </button>
           {debug && <span className="debug-badge">DEBUG</span>}
         </div>

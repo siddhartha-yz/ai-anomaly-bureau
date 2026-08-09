@@ -87,6 +87,13 @@
 .pixel-icon-button small { font: 700 .45rem/1 ui-monospace, Consolas, monospace; letter-spacing: .08em; }
 .pixel-icon-button:hover { border-color: var(--px-amber); color: #fff2ad; transform: translate(-1px,-1px); }
 .pixel-icon-button:hover span { color: var(--px-amber); }
+.reset-case-button.armed {
+  border-color: #b86d3e;
+  background: #251108;
+  color: #ffc08c;
+  box-shadow: inset 0 0 0 2px #60351e, 3px 3px 0 #160904;
+}
+.reset-case-button.armed span { color: #ff9d62; }
 
 .pixel-objective-strip {
   max-width: 1180px;

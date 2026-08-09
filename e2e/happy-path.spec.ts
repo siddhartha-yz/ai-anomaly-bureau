@@ -114,6 +114,18 @@ test('Story resume gateway preserves or explicitly discards a saved case', async
   await page.getByRole('button', { name: '再次点击：清除旧进度并重新开始' }).click()
   await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
   await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).toBeNull()
+
+  // The in-game compact RESET uses the same safety principle: first click arms, second click clears.
+  await page.evaluate(([storageKey, payload]) => window.localStorage.setItem(storageKey, payload), [key, JSON.stringify(checkpoint)])
+  await page.reload()
+  await page.getByRole('button', { name: '继续上次调查' }).click()
+  await waitForStage(page, 'inspect_data')
+  await page.getByRole('button', { name: '重新开始' }).click()
+  await expect(page.getByRole('button', { name: '再次点击确认重新开始' })).toBeVisible()
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
+  await page.getByRole('button', { name: '再次点击确认重新开始' }).click()
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).toBeNull()
 })
 
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
@@ -579,6 +591,14 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await expect(page.locator('.phase-transition')).toHaveCount(0)
   await qaShot(page, '22-story-session-restored')
   await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
+
+  // The small header reset is destructive, so the first click only arms it and keeps the checkpoint intact.
+  await page.getByRole('button', { name: '重新开始' }).click()
+  await expect(page.getByRole('button', { name: '再次点击确认重新开始' })).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storyKey)).not.toBeNull()
+  await page.getByRole('button', { name: '帮助' }).click()
+  await expect(page.getByRole('button', { name: '重新开始' })).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storyKey)).not.toBeNull()
   await clickGuidePrimary(page)
 
   await waitForStage(page, 'iterate')
