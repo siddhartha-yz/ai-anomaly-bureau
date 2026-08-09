@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
 import { BeginnerGuide } from './components/BeginnerGuide'
 import { DebugPanel } from './components/DebugPanel'
+import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
 import { FeaturePicker } from './components/FeaturePicker'
 import { Metrics } from './components/Metrics'
@@ -73,6 +74,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [debugShowLabels, setDebugShowLabels] = useState(false)
   const [animationSpeed, setAnimationSpeed] = useState(1)
   const [audioEnabled, setAudioEnabled] = useState(true)
+  const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : 'title')
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
@@ -206,6 +208,18 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     audio.current.setEnabled(next)
   }
 
+  const startEntry = () => {
+    void audio.current.ensureStarted()
+    audio.current.play('select')
+    record('ENTRY_START')
+    setEntryPhase('boot')
+  }
+
+  const completeEntry = () => {
+    send({ type: 'START' }, 'ENTER_WORKSPACE')
+    setEntryPhase('game')
+  }
+
   const exportLog = () => {
     record('EXPORT_LOG')
     const payload = JSON.stringify(logger.current.snapshot(), null, 2)
@@ -254,6 +268,17 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const currentAction = stageAction()
   const isBriefing = state.stage === 'briefing'
   const showMetrics = Boolean(state.training) || STAGE_INDEX[state.stage] >= STAGE_INDEX.first_success
+
+  if (!debug && entryPhase !== 'game') {
+    return (
+      <EntryExperience
+        phase={entryPhase}
+        onStart={startEntry}
+        onComplete={completeEntry}
+        audioEnabled={audioEnabled}
+      />
+    )
+  }
 
   return (
     <main className="app-shell" data-stage={state.stage} style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
