@@ -9,6 +9,7 @@ import './styles/entry-scene.css'
 import './styles/pixel-typography-focus.css'
 import './styles/pixel-font-onboarding.css'
 import './styles/pixel-terminal-polish.css'
+import './styles/phase-cinematics.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

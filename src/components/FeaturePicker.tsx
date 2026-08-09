@@ -36,9 +36,9 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
   return (
     <section className="control-block pixel-control" aria-labelledby="features-title">
       <div className="control-heading">
-        <span className="control-number">MODULE_01</span>
+        <span className="control-number">SENSOR_ARRAY / 01</span>
         <div>
-          <h2 id="features-title">安装观察模块</h2>
+          <h2 id="features-title">配置观察通道</h2>
         </div>
       </div>
 
@@ -82,7 +82,7 @@ export function FeaturePicker({ value, disabled, onChange }: Props) {
       </div>
 
       <div className="feature-readout">
-        <span>&gt; 当前编辑：{FEATURE_META[value[activeAxis]].label}</span>
+        <span>&gt; CHANNEL_{activeAxis + 1}: {FEATURE_META[value[activeAxis]].label} // READY</span>
       </div>
     </section>
   )

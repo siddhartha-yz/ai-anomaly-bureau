@@ -9,17 +9,17 @@ export function Metrics({ training, audit, model }: { training?: TrainingResult;
   return (
     <section className="metrics" aria-label="模型表现">
       <article>
-        <span>训练表现</span>
+        <span>TRAIN_CHECK</span>
         <strong>{training ? pct(training.accuracy) : '—'}</strong>
-        <small>{training ? `${training.errorCount} 个旧样本误判` : '训练后显示'}</small>
+        <small>{training ? `旧样本：${training.errorCount} 个误判` : '等待训练'}</small>
       </article>
       <article>
-        <span>未知数据表现</span>
+        <span>UNKNOWN_AUDIT</span>
         <strong>{audit ? pct(audit.accuracy) : '锁定'}</strong>
-        <small>{audit ? `${audit.errorCount} 个新样本误判` : '审计后揭示'}</small>
+        <small>{audit ? `新样本：${audit.errorCount} 个误判` : '等待现场审计'}</small>
       </article>
       <article>
-        <span>模型复杂度</span>
+        <span>MODEL_LOAD</span>
         <strong className="metric-word">{MODEL_META[model].complexityLabel}</strong>
         <small>{MODEL_META[model].nickname}</small>
       </article>

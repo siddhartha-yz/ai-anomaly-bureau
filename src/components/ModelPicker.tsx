@@ -59,7 +59,7 @@ export function ModelPicker({ selected, unlocked, disabled, onChange }: Props) {
       <div className="control-heading">
         <span className="control-number">MODEL_TOOLBOX / 02</span>
         <div>
-          <h2 id="models-title">选择判断工具</h2>
+          <h2 id="models-title">装载判断工具</h2>
         </div>
       </div>
       <div className="model-list pixel-model-list">
@@ -80,7 +80,7 @@ export function ModelPicker({ selected, unlocked, disabled, onChange }: Props) {
                   <strong>{meta.label}</strong>
                   <span className="complexity">复杂度 {meta.complexityLabel}</span>
                 </span>
-                <span className="model-card-foot">{selected === id ? '■ LOADED' : '□ LOAD TOOL'}</span>
+                <span className="model-card-foot">{selected === id ? '■ MODEL_LOADED' : '□ LOAD_MODEL'}</span>
               </span>
             </button>
           )

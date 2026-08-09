@@ -1,0 +1,208 @@
+/* Phase rhythm + key-moment stamps. Loaded last so it can shape the existing terminal without adding permanent panels. */
+
+.phase-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 3, 7, .94);
+  overflow: hidden;
+}
+.phase-transition::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(79,124,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,124,255,.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+  animation: phaseGridShift .7s steps(4) infinite;
+}
+.phase-transition-noise {
+  position: absolute;
+  inset: 0;
+  opacity: .16;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #000 3px 5px);
+  pointer-events: none;
+}
+.phase-transition-terminal {
+  position: relative;
+  width: min(720px, calc(100vw - 40px));
+  padding: 24px 28px 26px;
+  border: 4px solid #5f7be0;
+  background:
+    repeating-linear-gradient(0deg, rgba(94,126,224,.035) 0 2px, transparent 2px 5px),
+    #090e19;
+  box-shadow: 9px 9px 0 #010205, inset 0 0 0 3px #111b31;
+  animation: phaseTerminalIn .28s steps(4) both;
+}
+.phase-transition-yellow .phase-transition-terminal { border-color: #ffe05b; box-shadow: 9px 9px 0 #010205, inset 0 0 0 3px #2b240d; }
+.phase-transition-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+  background: repeating-linear-gradient(90deg, #3f5796 0 12px, transparent 12px 18px) left bottom/100% 3px no-repeat;
+  color: #7893e8;
+  font-size: 11px;
+}
+.phase-transition-yellow .phase-transition-head { background-image: repeating-linear-gradient(90deg, #8a7428 0 12px, transparent 12px 18px); }
+.phase-transition-head i { color: #ffe05b; font-style: normal; }
+.phase-transition-code { color: #5f7be0; font-size: 18px; }
+.phase-transition-yellow .phase-transition-code { color: #ffe05b; }
+.phase-transition-command { margin: 10px 0 0; color: #667dbd; font-size: 12px; }
+.phase-transition h2 {
+  margin: 14px 0 8px;
+  color: #f2f5ff;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1.1;
+  text-shadow: 4px 4px 0 #213468;
+}
+.phase-transition-yellow h2 { text-shadow: 4px 4px 0 #584a15; }
+.phase-transition-detail { margin: 0; color: #aeb9d5; font-size: 15px; }
+.phase-transition-loader {
+  height: 15px;
+  margin-top: 24px;
+  padding: 2px;
+  border: 2px solid #2f447c;
+  background: #04070d;
+}
+.phase-transition-yellow .phase-transition-loader { border-color: #6f5e21; }
+.phase-transition-loader i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, #5f7be0 0 26px, #8aa0ff 26px 34px, transparent 34px 38px);
+  animation: phaseLoad 1.45s steps(12) forwards;
+}
+.phase-transition-yellow .phase-transition-loader i { background: repeating-linear-gradient(90deg, #ffe05b 0 26px, #fff0a6 26px 34px, transparent 34px 38px); }
+.phase-transition-status { display: flex; justify-content: space-between; margin-top: 9px; color: #5f6f94; font-size: 11px; }
+.phase-transition-status strong { color: #ffe05b; font-weight: 400; }
+.phase-transition-skip {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  border: 2px solid #293c6c;
+  background: #080c14;
+  color: #7186bb;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.phase-transition-skip:hover { border-color: #ffe05b; color: #ffe05b; }
+@keyframes phaseTerminalIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes phaseLoad { to { width: 100%; } }
+@keyframes phaseGridShift { 50% { background-position: 12px 0, 0 12px; } }
+
+/* Key moments stamp the scanner itself so a success/failure feels attached to the experiment, not to a web toast. */
+.pixel-scanner-card::before {
+  position: absolute;
+  z-index: 12;
+  top: 70px;
+  right: 24px;
+  padding: 7px 10px;
+  border: 3px solid #ffe05b;
+  background: #151207;
+  color: #ffe05b;
+  box-shadow: 5px 5px 0 #4e4012;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+}
+[data-stage='first_success'] .pixel-scanner-card::before {
+  content: "TRAIN_CHECK // PASS";
+  opacity: 1;
+  animation: terminalStamp .8s steps(4) both;
+}
+[data-stage='inspect_errors'] .pixel-scanner-card::before {
+  content: "ANOMALY // FOUND";
+  opacity: 1;
+  animation: terminalStamp .8s steps(4) both, warningStamp 1.1s steps(2) .8s infinite;
+}
+[data-stage='overfit_reveal'] .pixel-scanner-card::before {
+  content: "PATTERN_FAILURE // OVERFIT";
+  opacity: 1;
+  animation: terminalStamp .8s steps(4) both, warningStamp 1.1s steps(2) .8s infinite;
+}
+[data-stage='final_audit'] .pixel-scanner-card::before {
+  content: "PATCH // VERIFIED";
+  opacity: 1;
+  animation: terminalStamp .8s steps(4) both;
+}
+@keyframes terminalStamp { 0% { transform: scale(1.7); opacity: 0; } 55% { transform: scale(.94); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes warningStamp { 50% { filter: brightness(1.5); transform: translateX(2px); } }
+
+/* A single short terminal readout replaces the old explanatory legend prose. */
+.plot-note.pixel-scanner-readout {
+  display: flex !important;
+  min-height: 25px;
+  align-items: center;
+  margin-top: 7px;
+  padding: 5px 9px 4px 13px;
+  background:
+    repeating-linear-gradient(0deg, #3f5791 0 7px, transparent 7px 11px) left center/3px 100% no-repeat,
+    #070c14;
+  color: #6f86c0 !important;
+  font-size: 10px !important;
+}
+.plot-note.pixel-scanner-readout span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Existing controls get more cartridge/terminal texture without adding new information. */
+.feature-slot,
+.feature-chip,
+.pixel-model-card,
+.metrics article,
+.action-button,
+.transfer-options button {
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px) !important;
+}
+.feature-slot::after,
+.feature-chip::after,
+.pixel-model-card::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid #283a65;
+  border-bottom: 2px solid #283a65;
+  pointer-events: none;
+}
+.feature-slot,
+.feature-chip,
+.pixel-model-card { position: relative; }
+.feature-slot.active::after,
+.pixel-model-card.selected::after { border-color: #ffe05b; }
+
+/* Progress rail reads like a four-position hardware switch. */
+.pixel-phase-track > span { position: relative; }
+.pixel-phase-track > span::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 5px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, #263758 0 6px, transparent 6px 10px);
+}
+.pixel-phase-track > span.active::after { background: repeating-linear-gradient(90deg, #ffe05b 0 6px, transparent 6px 10px); }
+.pixel-phase-track > span.done::after { background: repeating-linear-gradient(90deg, #5678d4 0 6px, transparent 6px 10px); }
+
+@media (max-width: 760px) {
+  .phase-transition-terminal { padding: 20px 18px 22px; }
+  .phase-transition-head { font-size: 9px; }
+  .phase-transition h2 { font-size: 28px; }
+  .pixel-scanner-card::before { top: 62px; right: 14px; font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-transition::before,
+  .phase-transition-terminal,
+  .phase-transition-loader i,
+  .pixel-scanner-card::before { animation: none !important; }
+  .phase-transition-loader i { width: 100%; }
+}

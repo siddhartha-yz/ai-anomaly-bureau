@@ -8,6 +8,7 @@ import { FeaturePicker } from './components/FeaturePicker'
 import { GuideConnector } from './components/GuideConnector'
 import { Metrics } from './components/Metrics'
 import { ModelPicker } from './components/ModelPicker'
+import { PhaseTransition, type PhaseTransitionCue } from './components/PhaseTransition'
 import { IncidentScene } from './components/PixelScene'
 import { ScatterPlot } from './components/ScatterPlot'
 import { StageReward, type RewardNotice } from './components/StageReward'
@@ -28,6 +29,30 @@ const STAGE_INDEX: Record<Stage, number> = {
   briefing: 0, inspect_data: 1, choose_features: 2, choose_model: 3, train: 4,
   first_success: 5, hidden_test: 6, inspect_errors: 7, iterate: 8,
   overfit_reveal: 9, final_audit: 10, transfer_question: 11, complete: 12,
+}
+
+const PHASE_TRANSITION: Partial<Record<Stage, PhaseTransitionCue>> = {
+  hidden_test: {
+    phase: 2,
+    code: 'UNKNOWN_AUDIT / LINK',
+    title: '未知审计已接入',
+    detail: '接下来进入一批从未参与训练的新样本。',
+    tone: 'yellow',
+  },
+  iterate: {
+    phase: 3,
+    code: 'REPAIR_CONSOLE / UNLOCK',
+    title: '系统修复权限开放',
+    detail: '现在可以重新组合观察方式与判断工具。',
+    tone: 'blue',
+  },
+  transfer_question: {
+    phase: 4,
+    code: 'CASE_REVIEW / FINAL',
+    title: '进入结案复盘',
+    detail: '最后验证你是否抓住了真正的问题。',
+    tone: 'yellow',
+  },
 }
 
 const STAGE_REWARD: Partial<Record<Stage, Omit<RewardNotice, 'stage'>>> = {
@@ -77,6 +102,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : 'title')
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
+  const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
@@ -126,6 +152,16 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     const timer = window.setTimeout(() => setRewardNotice(undefined), reward.important ? 7000 : 4800)
     return () => window.clearTimeout(timer)
   }, [state.stage])
+
+  useEffect(() => {
+    if (debug) return
+    const cue = PHASE_TRANSITION[state.stage]
+    if (!cue) return
+    setPhaseTransition(cue)
+    audio.current.play(state.stage === 'hidden_test' ? 'audit' : state.stage === 'transfer_question' ? 'success' : 'select')
+    const timer = window.setTimeout(() => setPhaseTransition(undefined), 1900)
+    return () => window.clearTimeout(timer)
+  }, [debug, state.stage])
 
   useEffect(() => () => audio.current.dispose(), [])
 
@@ -320,6 +356,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
 
       <TaskBanner stage={state.stage} />
       <StageReward notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
+      <PhaseTransition cue={phaseTransition} onDismiss={() => setPhaseTransition(undefined)} />
       {!debug && <GuideConnector stage={state.stage} />}
 
       {isBriefing ? (

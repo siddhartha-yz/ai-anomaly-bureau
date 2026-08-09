@@ -41,6 +41,13 @@ export function ScatterPlot({
   const cellH = resolution ? (H - PAD.t - PAD.b) / resolution : 0
   const mistakeById = new Map(audit?.mistakes.map((mistake) => [mistake.id, mistake]))
   const debugById = new Map(debugTest?.map((sample) => [sample.id, sample]))
+  const scannerStatus = audit
+    ? `AUDIT_COMPLETE // MISTAKES=${audit.mistakes.length}`
+    : revealUnknown
+      ? 'UNKNOWN_CHANNEL_READY // LABELS_LOCKED'
+      : grid.length
+        ? 'MODEL_FIELD_ONLINE // BOUNDARY_RENDERED'
+        : 'SCAN_READY // TRAIN_SAMPLES_LOADED'
 
   return (
     <section className="plot-card pixel-scanner-card" aria-labelledby="plot-title">
@@ -147,9 +154,7 @@ export function ScatterPlot({
       </div>
 
       <div className="plot-note pixel-scanner-readout">
-        <span>&gt; CAT_GLYPH / BREAD_GLYPH = 训练样本</span>
-        {revealUnknown && <span>? = 未参与训练的新样本</span>}
-        {grid.length > 0 && <span>像素区域 = 当前模型判断空间</span>}
+        <span>&gt; SYS: {scannerStatus}</span>
       </div>
     </section>
   )
