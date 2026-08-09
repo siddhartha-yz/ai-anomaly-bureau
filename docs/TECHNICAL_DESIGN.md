@@ -28,6 +28,10 @@ src/
     logging.ts               # 匿名行为日志
     routes.ts                # debug 自动路线
   components/
+    EntryExperience.tsx       # 标题页 + 交互式事故 Cold Open + boot
+    InvestigationPrompt.tsx  # 同一 stage 内的观察 / 证据 / 反思判断
+    SensorIntro.tsx          # 当前与备用观察通道的逐步读取
+    CaseAttempts.tsx         # CASE_NOTES 实验记录
     ScatterPlot.tsx
     TaskBanner.tsx
     FeaturePicker.tsx
@@ -163,7 +167,9 @@ type Stage =
   | 'complete'
 ```
 
-主要状态：seed、stage、selectedFeatures、selectedModel、knnK、fitResult、trainMetrics、testMetrics、viewedMistakes、attempts、failureStreak、hintLevel、history、startedAt、completedAt。
+核心 reducer 状态仍是：seed、stage、selectedFeatures、selectedModel、knnK、fitResult、trainMetrics、testMetrics、viewedMistakes、attempts、failureStreak、hintLevel、history、startedAt、completedAt。
+
+Cold Open、传感器读取、预测下注、证据推理、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主状态机语义。这些 micro-beat 用来延长真实调查过程，而不是增加第二套业务状态机。
 
 Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作包括 `START`、`SELECT_FEATURES`、`SELECT_MODEL`、`TRAIN`、`RUN_AUDIT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`、`RESET_STAGE`、`JUMP_STAGE`。
 
@@ -227,7 +233,7 @@ type BehaviorEvent = {
 - 标准路线能通关。
 - 未选特征/未训练无法越过守卫。
 - 隐藏测试前不暴露测试指标。
-- 首次测试失败后需查看错误样本。
+- 首次测试失败后需查看两个不同错误样本。
 - 连续失败触发 1→2→3 级提示。
 - reset/jump 仅 debug 模式生效。
 
@@ -235,17 +241,21 @@ type BehaviorEvent = {
 六种人格全部执行到预期终点或明确诊断，不出现无限循环与无可用操作状态。
 
 ### 浏览器验证
-- 桌面 1440×1000：首屏任务明确，图为视觉中心。
-- 手机约 390×844：可完成选择、训练、审计与通关。
-- `?debug=1` 面板可操作且普通模式不出现。
+- Playwright Chromium 正常玩家路线覆盖 Cold Open、观察判断、传感器读取、训练预测、未知审计、两条错误证据、过拟合实验、备用传感器修复、迁移问题与结案。
+- E2E 会使用真实 Playwright actionability 检查，防止 SVG、NPC、tooltip、overlay 抢走点击。
+- 另有 debug-mode E2E，确保普通玩家的新手门槛不会破坏 `?debug=1` 的快速工程测试能力。
+- 本地 `.tooling/` headless Chrome 可在 1440×900 / 1920×1080 做阶段截图 QA；这些运行库与截图不提交 Git。
 - 浏览器 console/page errors 为零。
 
 ## CI
 Node.js 24（与本地正式工具链一致）：
 1. `npm ci`
-2. `npm run check`
-3. `npm test -- --run`
-4. `npm run build`
+2. `npm run lint`
+3. `npm run typecheck`
+4. `npm test -- --run`
+5. `npm run build`
+6. 安装 Chromium
+7. `npm run test:e2e`
 
 监听 push main 与针对 main 的 pull request。
 

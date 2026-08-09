@@ -20,7 +20,7 @@ npm run test:e2e
 - TypeScript strict typecheck：通过。
 - Vitest：4 个测试文件、20 个测试全部通过。
 - Vite production build：通过。
-- Playwright：Chromium 完整玩家 happy path 通过。
+- Playwright：2 条 Chromium E2E 通过（零基础玩家完整案件 + debug 工程模式）。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -53,7 +53,7 @@ Vitest 当前覆盖：
 - 决策边界网格确定性。
 - 初始训练捷径在未知样本上真实失败。
 - k=1 过拟合陷阱真实存在。
-- 错误样本查看守卫。
+- 两个不同错误样本的证据守卫。
 - 三级提示上限。
 - 普通模式拒绝 debug 跳关。
 - 六类开发者测试人格均在有限步骤内完成关卡，并经历过拟合与多次未知审计。
@@ -61,35 +61,39 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 在真实 Chromium 中执行正常玩家完整流程：
+`e2e/happy-path.spec.ts` 当前包含两条真实 Chromium 路线。
 
-1. 打开标题页并进入调查现场。
-2. 完成 onboarding。
-3. 操作特征槽位并选择线性模型。
-4. 第一次训练成功。
-5. 进入此前未参与训练的未知样本审计。
-6. 确认出现真实误判。
-7. 点击至少一个黄色 `!`，进入 `EVIDENCE.LOG`。
-8. 进入重新设计阶段。
-9. 故意装载 KNN k=1，训练并审计，触发真实过拟合。
-10. 确认返回修复阶段时 PHASE 03 不重复播放。
-11. 切换到稳健特征 + 直线模型并重新训练 / 审计。
-12. 进入最终审计成功状态。
-13. 回答迁移问题。
-14. 进入 `CASE CLOSED`。
+零基础玩家完整案件：
+
+1. 标题页点击“查看事故录像”。
+2. Cold Open 中亲手确认“这明明是一只猫”，看到 `CAT ≠ BREAD`，再接入调查终端。
+3. 在旧样本上完成一次肉眼分布判断。
+4. 分别读取当前“颜色暖度 / 轮廓圆度”两个观察通道；此时完整特征工具箱仍隐藏。
+5. 亲手点击唯一开放的直线分类器并训练。
+6. 第一次成功后先留下“是否真的修好”的预测。
+7. 放入此前未参与训练的未知样本并看到真实失败。
+8. 调查两个不同黄色 `!`，读取 `EVIDENCE.LOG`，完成一次证据推理。
+9. 进入修复，故意装载 KNN k=1，训练并审计，触发真实训练 100% / 未知表现下降。
+10. 玩家先解释反常现象，之后才显示“过拟合 / Overfitting”。
+11. 返回修复时确认 PHASE 03 不重复播放，并读取新解锁的“表面纹理 / 长宽比例”两个备用观察通道。
+12. 重新开放完整特征 / 模型配置，切换到稳健特征 + 直线模型并重新训练 / 审计。
+13. 对照 `CASE_NOTES.LOG` 完成最终“为什么这次更可信”的判断。
+14. 回答迁移问题并进入 `CASE CLOSED`。
+
+工程模式路线会直接打开 `?debug=1`，验证 DebugPanel、阶段跳转和快速主操作仍可用，不受普通玩家 micro-beat 门槛影响。
 
 E2E 使用 Playwright 的真实可操作性检查；如果 overlay、NPC、tooltip 或 SVG 层拦截点击，测试会直接失败。
 
 本轮 Playwright 实际发现并修复了两个 CDP 脚本此前无法发现的问题：
 
-- SVG 决策背景可能抢走误判样本点击；现已让背景层不接收 pointer event，并给误判标记增加 36×36 点击热区。
+- SVG 决策背景可能抢走误判样本点击；现已让背景层不接收 pointer event，并给误判标记增加 26×26 点击热区。较大的 36×36 热区在密集区域会互相抢点击，因此真实 E2E 后进一步缩小。
 - 1440×900 下折叠小析仍可能轻微覆盖模型工具盒；现已进一步贴右侧安全区，E2E 明确断言二者不重叠。
 
 ## Headless Chromium 人工视觉路线
 
 服务器无 sudo，因此没有修改系统级 GUI 环境。用于视觉 QA 的 Chrome、共享库、CJK 测试字体、CDP 脚本和阶段截图都放在 Git 忽略的 `.tooling/` 中。
 
-1920×1080 的真实 Chromium 路线已经完整跑到结案，并用于检查：
+新版第一关还通过 `QA_SHOTS=1 npm run test:e2e` 在 1440×900 抓取关键阶段截图，并与既有 1920×1080 路线共同检查：
 
 - 小析悬浮避让。
 - sticky 新手任务卡。
@@ -98,6 +102,11 @@ E2E 使用 Playwright 的真实可操作性检查；如果 overlay、NPC、toolt
 - 阶段过场仅播放一次。
 - 过拟合 / 修复 / 结案剧情台词状态。
 - 像素 UI 的主要布局与滚动行为。
+- Cold Open 的单一 CTA 与目标建立。
+- progressive disclosure：初始阶段不提前显示完整特征 / 模型驾驶舱。
+- 两条证据阅读时右侧推理题保持 sticky 可见。
+- 过拟合后备用传感器先读取、后开放完整修复工具。
+- 非交互 mission cue 不再伪装成实心按钮。
 
 Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要负责流程、遮挡、点击命中和布局回归。
 
@@ -105,9 +114,9 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 已将真实 Chromium 素材放入 `docs/assets/`：
 
-- `hero.png`：主调查界面。
-- `misclassification.png`：未知审计与误判定位。
-- `demo.gif`：标题 → 第一次成功 → 误判 → 过拟合 → 修复 → 结案的短演示。
+- `hero.png`：Cold Open 中小析正式给出案件目标。
+- `misclassification.png`：两条未知误判证据与现场推理。
+- `demo.gif`：标题 → 事故录像 → 案件目标 → 旧样本观察 → 第一次成功 → 两条证据 → 过拟合 → 备用传感器 → 最终修复的短演示。
 
 素材不是设计稿或伪造界面，均来自当前 V1 的真实运行状态。
 
@@ -157,7 +166,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 现状：
 
-- UI 经多轮迭代后存在 9 个 CSS 文件，部分核心 selector 在多个层级覆盖。
+- UI 经多轮迭代后存在多个分层 CSS 文件；本轮新增 `narrative-expansion.css` 只承载 Cold Open、调查 prompt 和 progressive disclosure，不回头大规模合并历史视觉层。
 - `App.tsx` 仍承担较多页面编排。
 - 粗略静态扫描能找到若干可能的历史 class，但包含动态 class、媒体查询和层叠覆盖，无法仅凭文本搜索安全删除。
 
@@ -167,7 +176,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 ## 尚未覆盖的风险
 
-- 尚未完成真实零基础新生的多人可用性测试。
+- 已获得至少一轮真实零基础新生定性反馈，并据此重做第一分钟与交互可发现性；尚未完成 5～8 人规模的系统可用性测试。
 - Playwright 当前只覆盖 Chromium + 桌面 viewport，不做浏览器 matrix。
 - 没有建立大规模视觉 snapshot 回归；视觉仍以真实截图人工检查为主。
 - GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
