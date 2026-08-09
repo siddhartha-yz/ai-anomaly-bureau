@@ -97,6 +97,46 @@
 @keyframes phaseLoad { to { width: 100%; } }
 @keyframes phaseGridShift { 50% { background-position: 12px 0, 0 12px; } }
 
+/* Error inspection is performed on the scanner itself. Earlier passes highlighted the
+   evidence panel even though the mission asks the player to click a yellow ! on the graph. */
+[data-stage='inspect_errors'][data-mistake-viewed='false'] .pixel-scanner-card {
+  position: relative !important;
+  z-index: 64 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  box-shadow:
+    0 0 0 4px #ffe05b,
+    0 0 0 8px #171307,
+    7px 7px 0 #020307,
+    0 0 22px rgba(255,224,91,.24) !important;
+}
+[data-stage='inspect_errors'][data-mistake-viewed='false'] .evidence-console {
+  z-index: 1 !important;
+  opacity: .34 !important;
+  filter: saturate(.45) !important;
+  animation: none !important;
+  box-shadow: 4px 4px 0 #020307 !important;
+}
+[data-stage='inspect_errors'][data-mistake-viewed='true'] .pixel-scanner-card {
+  z-index: 1 !important;
+  opacity: .34 !important;
+  filter: saturate(.5) !important;
+  animation: none !important;
+  box-shadow: 4px 4px 0 #020307 !important;
+}
+[data-stage='inspect_errors'][data-mistake-viewed='true'] .evidence-console {
+  position: relative !important;
+  z-index: 64 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  animation: focusTargetBlink 1.1s steps(2) infinite !important;
+  box-shadow:
+    0 0 0 4px #ffe05b,
+    0 0 0 8px #171307,
+    7px 7px 0 #020307,
+    0 0 22px rgba(255,224,91,.24) !important;
+}
+
 /* Key moments stamp the scanner itself so a success/failure feels attached to the experiment, not to a web toast. */
 .pixel-scanner-card::before {
   position: absolute;
@@ -134,6 +174,30 @@
 }
 @keyframes terminalStamp { 0% { transform: scale(1.7); opacity: 0; } 55% { transform: scale(.94); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes warningStamp { 50% { filter: brightness(1.5); transform: translateX(2px); } }
+
+/* Keep the mission director alive while the much taller evidence/scanner column scrolls.
+   The old overflow:hidden on app-shell created a non-scrolling sticky ancestor. */
+.app-shell {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+.game-workspace {
+  align-items: stretch !important;
+}
+.game-console-column {
+  align-content: start;
+}
+
+/* Evidence choices wrap like cartridge slots instead of exposing a white browser scrollbar. */
+.evidence-strip {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  overflow-x: visible !important;
+  gap: 7px !important;
+}
+.evidence-tab {
+  min-width: 0 !important;
+}
 
 /* A single short terminal readout replaces the old explanatory legend prose. */
 .plot-note.pixel-scanner-readout {

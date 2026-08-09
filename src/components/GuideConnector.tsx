@@ -12,11 +12,13 @@ const TARGET: Partial<Record<Stage, { selector: string; label: string }>> = {
   inspect_data: { selector: '.pixel-scanner-card', label: '看这里' },
   choose_features: { selector: '.pixel-control', label: '点这里' },
   choose_model: { selector: '.model-toolbox', label: '点这里' },
-  inspect_errors: { selector: '.evidence-console', label: '看这里' },
+  inspect_errors: { selector: '.test-pixel-group.mistake', label: '点这个 !' }
 }
 
-export function GuideConnector({ stage }: { stage: Stage }) {
-  const target = TARGET[stage]
+export function GuideConnector({ stage, mistakeViewed = false }: { stage: Stage; mistakeViewed?: boolean }) {
+  const target = stage === 'inspect_errors' && mistakeViewed
+    ? { selector: '.evidence-console', label: '读这条证据' }
+    : TARGET[stage]
   const [connector, setConnector] = useState<ConnectorState>()
 
   const selectors = useMemo(() => target ? [target.selector, '.beginner-guide.compact'] : [], [target])
@@ -28,7 +30,7 @@ export function GuideConnector({ stage }: { stage: Stage }) {
     }
 
     const update = () => {
-      const targetNode = document.querySelector<HTMLElement>(target.selector)
+      const targetNode = document.querySelector<Element>(target.selector)
       const guideNode = document.querySelector<HTMLElement>('.beginner-guide.compact')
       if (!targetNode || !guideNode) {
         setConnector(undefined)
@@ -38,6 +40,16 @@ export function GuideConnector({ stage }: { stage: Stage }) {
       const targetRect = targetNode.getBoundingClientRect()
       const guideRect = guideNode.getBoundingClientRect()
       const targetIsLeft = targetRect.right < guideRect.left
+
+      if (target.selector === '.evidence-console') {
+        setConnector({
+          left: Math.max(90, Math.min(window.innerWidth - 90, targetRect.left + 130)),
+          top: Math.max(24, targetRect.top - 18),
+          direction: 'down',
+          label: target.label,
+        })
+        return
+      }
 
       if (targetIsLeft) {
         setConnector({
@@ -60,7 +72,7 @@ export function GuideConnector({ stage }: { stage: Stage }) {
     const frame = window.requestAnimationFrame(update)
     const observer = new ResizeObserver(update)
     selectors.forEach((selector) => {
-      const node = document.querySelector<HTMLElement>(selector)
+      const node = document.querySelector<Element>(selector)
       if (node) observer.observe(node)
     })
     window.addEventListener('resize', update)

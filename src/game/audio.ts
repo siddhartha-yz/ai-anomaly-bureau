@@ -1,4 +1,5 @@
 export type GameSound = 'ui' | 'select' | 'train' | 'audit' | 'evidence' | 'hint' | 'success' | 'warning'
+export type GameMusicPhase = 1 | 2 | 3 | 4
 
 type AudioContextCtor = typeof AudioContext
 
@@ -14,8 +15,24 @@ const NOTE = {
   G5: 783.99,
 } as const
 
-const BGM_PATTERN = [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.G5, NOTE.E5, NOTE.D5]
-const BASS_PATTERN = [NOTE.C4, NOTE.C4, NOTE.A4 / 2, NOTE.A4 / 2, NOTE.G4 / 2, NOTE.G4 / 2, NOTE.D4, NOTE.G4 / 2]
+const MUSIC: Record<GameMusicPhase, { melody: number[]; bass: number[] }> = {
+  1: {
+    melody: [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.G5, NOTE.E5, NOTE.D5],
+    bass: [NOTE.C4, NOTE.C4, NOTE.A4 / 2, NOTE.A4 / 2, NOTE.G4 / 2, NOTE.G4 / 2, NOTE.D4, NOTE.G4 / 2],
+  },
+  2: {
+    melody: [NOTE.A4, NOTE.C5, NOTE.E5, NOTE.D5, NOTE.A4, NOTE.D5, NOTE.C5, NOTE.E5],
+    bass: [NOTE.A4 / 2, NOTE.A4 / 2, NOTE.E4 / 2, NOTE.E4 / 2, NOTE.D4, NOTE.D4, NOTE.E4 / 2, NOTE.E4 / 2],
+  },
+  3: {
+    melody: [NOTE.C5, NOTE.G5, NOTE.E5, NOTE.G5, NOTE.D5, NOTE.G5, NOTE.E5, NOTE.C5],
+    bass: [NOTE.C4, NOTE.G4 / 2, NOTE.C4, NOTE.G4 / 2, NOTE.D4, NOTE.G4 / 2, NOTE.E4, NOTE.G4 / 2],
+  },
+  4: {
+    melody: [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C5 * 2, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5],
+    bass: [NOTE.C4, NOTE.C4, NOTE.G4 / 2, NOTE.C4, NOTE.G4 / 2, NOTE.E4 / 2, NOTE.D4, NOTE.C4],
+  },
+}
 
 export class GameAudio {
   private context?: AudioContext
@@ -23,9 +40,16 @@ export class GameAudio {
   private bgmTimer?: number
   private beat = 0
   private enabled = true
+  private musicPhase: GameMusicPhase = 1
 
   constructor(enabled = true) {
     this.enabled = enabled
+  }
+
+  setPhase(phase: GameMusicPhase) {
+    if (this.musicPhase === phase) return
+    this.musicPhase = phase
+    this.beat = 0
   }
 
   setEnabled(enabled: boolean) {
@@ -98,10 +122,11 @@ export class GameAudio {
 
   private scheduleBgmBeat() {
     if (!this.context || !this.master || !this.enabled) return
-    const index = this.beat % BGM_PATTERN.length
+    const pattern = MUSIC[this.musicPhase]
+    const index = this.beat % pattern.melody.length
     const now = this.context.currentTime
-    this.tone(BGM_PATTERN[index], now, .075, .012)
-    if (index % 2 === 0) this.tone(BASS_PATTERN[index], now, .12, .009, 'square')
+    this.tone(pattern.melody[index], now, .075, .012)
+    if (index % 2 === 0) this.tone(pattern.bass[index], now, .12, .009, 'square')
     if (index === 3 || index === 7) this.tone(NOTE.C5 * 2, now + .08, .025, .006)
     this.beat += 1
   }

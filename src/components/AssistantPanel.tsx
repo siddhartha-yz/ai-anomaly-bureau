@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { STAGE_CONTENT } from '../content/level1'
 import { hintFor } from '../game/hints'
 import type { GameState, Stage } from '../game/types'
@@ -59,9 +59,51 @@ function XiaoxiSprite({ mood }: { mood: AssistantMood }) {
   )
 }
 
-export function AssistantPanel({ state, onHint, floating = true }: { state: GameState; onHint: () => void; floating?: boolean }) {
-  const [collapsed, setCollapsed] = useState(false)
-  const message = state.hintLevel > 0 ? hintFor(state) : STAGE_CONTENT[state.stage].assistant
+export function AssistantPanel({
+  state,
+  onHint,
+  floating = true,
+  showHint = false,
+}: {
+  state: GameState
+  onHint: () => void
+  floating?: boolean
+  showHint?: boolean
+}) {
+  const [userCollapsed, setUserCollapsed] = useState(false)
+  const [autoCompact, setAutoCompact] = useState(false)
+  const [forcedOpen, setForcedOpen] = useState(false)
+  const collapsed = userCollapsed || (autoCompact && !forcedOpen)
+
+  useEffect(() => {
+    if (!floating) return
+
+    const updateSafeGutter = () => {
+      const workspace = document.querySelector<HTMLElement>('.game-workspace')
+        ?? document.querySelector<HTMLElement>('.briefing-game-layout')
+      if (!workspace) return
+      const gutter = window.innerWidth - workspace.getBoundingClientRect().right
+      setAutoCompact(gutter < 292)
+    }
+
+    const frame = window.requestAnimationFrame(updateSafeGutter)
+    const observer = new ResizeObserver(updateSafeGutter)
+    const workspace = document.querySelector<HTMLElement>('.game-workspace')
+      ?? document.querySelector<HTMLElement>('.briefing-game-layout')
+    if (workspace) observer.observe(workspace)
+    window.addEventListener('resize', updateSafeGutter)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      observer.disconnect()
+      window.removeEventListener('resize', updateSafeGutter)
+    }
+  }, [floating, state.stage])
+
+  useEffect(() => {
+    setForcedOpen(false)
+  }, [state.stage])
+  const message = showHint ? hintFor(state) : STAGE_CONTENT[state.stage].assistant
   const mood = MOOD_BY_STAGE[state.stage]
   const statusText = mood === 'warning' ? 'ALERT' : mood === 'thinking' ? 'ANALYZING' : mood === 'success' ? 'NICE!' : 'ONLINE'
 
@@ -70,7 +112,15 @@ export function AssistantPanel({ state, onHint, floating = true }: { state: Game
       <button
         type="button"
         className="xiaoxi-toggle"
-        onClick={() => setCollapsed((value) => !value)}
+        onClick={() => {
+          if (collapsed) {
+            setUserCollapsed(false)
+            setForcedOpen(true)
+          } else {
+            setUserCollapsed(true)
+            setForcedOpen(false)
+          }
+        }}
         aria-label={collapsed ? '展开小析' : '收起小析'}
         aria-expanded={!collapsed}
       >

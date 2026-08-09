@@ -14,7 +14,7 @@ import { ScatterPlot } from './components/ScatterPlot'
 import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
 import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
-import { GameAudio } from './game/audio'
+import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
@@ -29,6 +29,14 @@ const STAGE_INDEX: Record<Stage, number> = {
   briefing: 0, inspect_data: 1, choose_features: 2, choose_model: 3, train: 4,
   first_success: 5, hidden_test: 6, inspect_errors: 7, iterate: 8,
   overfit_reveal: 9, final_audit: 10, transfer_question: 11, complete: 12,
+}
+
+const musicPhaseFor = (stage: Stage): GameMusicPhase => {
+  const index = STAGE_INDEX[stage]
+  if (index < STAGE_INDEX.hidden_test) return 1
+  if (index < STAGE_INDEX.iterate) return 2
+  if (index < STAGE_INDEX.transfer_question) return 3
+  return 4
 }
 
 const PHASE_TRANSITION: Partial<Record<Stage, PhaseTransitionCue>> = {
@@ -67,7 +75,6 @@ const STAGE_REWARD: Partial<Record<Stage, Omit<RewardNotice, 'stage'>>> = {
   overfit_reveal: { title: '关键发现：过拟合', detail: '训练满分也可能是假象', tone: 'yellow', important: true },
   final_audit: { title: '修复验证通过', detail: '未知样本表现稳定', tone: 'yellow', important: true },
   transfer_question: { title: '结案权限解锁', detail: '只剩最后一个判断', tone: 'blue' },
-  complete: { title: 'CASE CLOSED', detail: '事故调查完成', tone: 'yellow', important: true },
 }
 
 function ActionButton({ children, onClick, disabled = false, kind = 'primary' }: {
@@ -103,10 +110,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : 'title')
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
+  const [hintStage, setHintStage] = useState<Stage>()
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed))
   const completionLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
   const previousStage = useRef<Stage>('briefing')
+  const previousPhase = useRef<GameMusicPhase>(1)
 
   const trainPoints = useMemo(
     () => projectSamples(service.train, state.selectedFeatures),
@@ -144,17 +153,29 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     previousStage.current = state.stage
     const reward = STAGE_REWARD[state.stage]
     if (!reward) return
+
+    // A phase gate already communicates the phase change. Do not immediately repeat
+    // the same information as a toast; reserve rewards for actual discoveries/results.
+    if (!debug && PHASE_TRANSITION[state.stage]) {
+      setRewardNotice(undefined)
+      return
+    }
+
     setRewardNotice({ stage: state.stage, ...reward })
     const rewardSound = state.stage === 'inspect_errors' || state.stage === 'overfit_reveal'
       ? 'warning'
       : reward.tone === 'yellow' ? 'success' : 'select'
     audio.current.play(rewardSound)
-    const timer = window.setTimeout(() => setRewardNotice(undefined), reward.important ? 7000 : 4800)
-    return () => window.clearTimeout(timer)
-  }, [state.stage])
+    const hideTimer = window.setTimeout(() => setRewardNotice(undefined), reward.important ? 7000 : 4800)
+    return () => window.clearTimeout(hideTimer)
+  }, [debug, state.stage])
 
   useEffect(() => {
     if (debug) return
+    const nextPhase = musicPhaseFor(state.stage)
+    if (nextPhase === previousPhase.current) return
+    previousPhase.current = nextPhase
+
     const cue = PHASE_TRANSITION[state.stage]
     if (!cue) return
     setPhaseTransition(cue)
@@ -162,6 +183,10 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     const timer = window.setTimeout(() => setPhaseTransition(undefined), 1900)
     return () => window.clearTimeout(timer)
   }, [debug, state.stage])
+
+  useEffect(() => {
+    audio.current.setPhase(musicPhaseFor(state.stage))
+  }, [state.stage])
 
   useEffect(() => () => audio.current.dispose(), [])
 
@@ -230,12 +255,22 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
     setSelectedMistake(id)
     record('VIEW_MISTAKE', { mistakeId: id })
     dispatch({ type: 'VIEW_MISTAKE', id })
+
+    // The evidence card sits below the scanner. Bring it into view after React has
+    // rendered the selected sample so "inspect one mistake" means actually seeing it.
+    window.setTimeout(() => {
+      const evidence = document.querySelector<HTMLElement>('.evidence-console')
+      if (!evidence) return
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      evidence.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+    }, 80)
   }
 
   const requestHint = () => {
     audio.current.play('hint')
     const next = Math.min(3, state.hintLevel + 1) as 1 | 2 | 3
     record('REQUEST_HINT', { hintLevel: next })
+    setHintStage(state.stage)
     dispatch({ type: 'REQUEST_HINT' })
   }
 
@@ -292,7 +327,9 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       case 'iterate': return (
         <div className="dual-actions">
           <ActionButton onClick={train}>训练当前方案</ActionButton>
-          <ActionButton kind="secondary" disabled={!state.training} onClick={audit}>用未知数据审计</ActionButton>
+          <ActionButton kind="secondary" disabled={!state.training} onClick={audit}>
+            {state.training ? '用未知数据审计' : '先训练，再审计'}
+          </ActionButton>
         </div>
       )
       case 'overfit_reveal': return <ActionButton onClick={() => send({ type: 'ADVANCE' })}>我看到了，重新设计</ActionButton>
@@ -318,7 +355,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
   }
 
   return (
-    <main className="app-shell" data-stage={state.stage} style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}>
+    <main
+      className="app-shell"
+      data-stage={state.stage}
+      data-mistake-viewed={state.viewedMistakes.length > 0 ? 'true' : 'false'}
+      style={{ '--motion-duration': `${motionDuration}ms` } as React.CSSProperties}
+    >
       <header className="pixel-game-header">
         <div className="game-logo-block" aria-label="AI异常调查局">
           <span className="game-logo-pixel">A<span>/</span>Δ</span>
@@ -355,16 +397,16 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
       )}
 
       <TaskBanner stage={state.stage} />
-      <StageReward notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
+      <StageReward key={rewardNotice?.stage ?? 'reward-empty'} notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
       <PhaseTransition cue={phaseTransition} onDismiss={() => setPhaseTransition(undefined)} />
-      {!debug && <GuideConnector stage={state.stage} />}
+      {!debug && <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length > 0} />}
 
       {isBriefing ? (
         <div className="briefing-game-layout">
           {!debug && <BeginnerGuide stage={state.stage} />}
           <IncidentScene />
           <div className="briefing-bottom-row">
-            <AssistantPanel state={state} onHint={requestHint} floating={!debug} />
+            <AssistantPanel state={state} onHint={requestHint} floating={!debug} showHint={hintStage === state.stage} />
             {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
           </div>
         </div>
@@ -394,7 +436,14 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
           </div>
 
           <div className="control-column game-console-column">
-            {!debug && <BeginnerGuide stage={state.stage} compact action={currentAction} />}
+            {!debug && (
+              <BeginnerGuide
+                stage={state.stage}
+                compact
+                action={currentAction}
+                mistakeViewed={state.viewedMistakes.length > 0}
+              />
+            )}
             {controlsVisible && (
               <>
                 <FeaturePicker value={state.selectedFeatures} disabled={featureDisabled && !debug} onChange={setFeatures} />
@@ -456,7 +505,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
             )}
 
             {debug && currentAction && <section className="pixel-command-dock">{currentAction}</section>}
-            <AssistantPanel state={state} onHint={requestHint} floating={!debug} />
+            <AssistantPanel state={state} onHint={requestHint} floating={!debug} showHint={hintStage === state.stage} />
           </div>
         </div>
       )}
