@@ -16,6 +16,26 @@ export type EndlessRunRecord = {
   reliable: boolean
 }
 
+export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
+
+function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]) {
+  return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
+}
+
+export function experimentConfigKey(model: ModelId, features: [FeatureKey, FeatureKey]) {
+  return `${model}:${[...features].sort().join('+')}`
+}
+
+export function experimentDelta(previous: EndlessRunRecord | undefined, current: EndlessRunRecord): ExperimentDelta {
+  if (!previous) return 'baseline'
+  const fieldsChanged = !sameFeatureSet(previous.features, current.features)
+  const modelChanged = previous.model !== current.model
+  if (!fieldsChanged && !modelChanged) return 'repeat'
+  if (fieldsChanged && !modelChanged) return 'fields-only'
+  if (!fieldsChanged && modelChanged) return 'model-only'
+  return 'mixed'
+}
+
 export function accuracyBand(value: number): BandPrediction {
   if (value >= .85) return 'high'
   if (value >= .60) return 'mid'

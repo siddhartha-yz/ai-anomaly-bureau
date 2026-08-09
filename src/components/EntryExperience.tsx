@@ -56,7 +56,7 @@ function TitleScene({ onStart, onEndless, audioEnabled }: { onStart: () => void;
         </button>
         {onEndless && (
           <button type="button" className="entry-endless-button" onClick={onEndless}>
-            <span>∞</span><strong>监督学习 · 无尽调查</strong><small>程序化案件 / 5 次审计预算 / 提交诊断</small>
+            <span>∞</span><strong>已熟悉流程？进入无尽调查</strong><small>程序化案件 / 有限实验 / 自主提交诊断</small>
           </button>
         )}
         <div className="entry-start-meta"><span>剧情案件 + 无尽调查</span><i>·</i><span>有限实验预算</span><i>·</i><span>{audioEnabled ? '♪ 8-BIT AUDIO ON' : 'AUDIO OFF'}</span></div>

@@ -21,6 +21,8 @@ import { SensorIntro } from './components/SensorIntro'
 import { StageReward, type RewardNotice } from './components/StageReward'
 import { TaskBanner } from './components/TaskBanner'
 import { TRANSFER_QUESTION, unlockedModels } from './content/level1'
+import { BootCase } from './endless/BootCase'
+import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
 import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
@@ -886,17 +888,35 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   )
 }
 
-export default function App() {
+const ENDLESS_BOOT_KEY = 'aia.boot-case-000.v2'
+
+function App() {
   const params = new URLSearchParams(window.location.search)
   const debug = params.get('debug') === '1'
   const initialSeed = Number(params.get('seed')) || 20260809
   const [seed, setSeed] = useState(initialSeed)
   const [session, setSession] = useState(0)
-  const [mode, setMode] = useState<'story' | 'endless'>(params.get('mode') === 'endless' ? 'endless' : 'story')
+  const requestedMode = params.get('mode')
+  const [mode, setMode] = useState<'story' | 'endless-intro' | 'boot' | 'endless'>(
+    requestedMode === 'endless' ? 'endless' : requestedMode === 'boot' ? 'boot' : 'story',
+  )
+  const [bootCompleted, setBootCompleted] = useState(() => window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete')
 
   const changeSeed = (nextSeed: number) => {
     setSeed(nextSeed)
     setSession((value) => value + 1)
+  }
+
+  if (!debug && mode === 'endless-intro') {
+    return <EndlessIntro bootCompleted={bootCompleted} onBoot={() => setMode('boot')} onSkip={() => setMode('endless')} onBack={() => setMode('story')} />
+  }
+
+  if (!debug && mode === 'boot') {
+    return <BootCase onComplete={() => {
+      window.localStorage.setItem(ENDLESS_BOOT_KEY, 'complete')
+      setBootCompleted(true)
+      setMode('endless')
+    }} onBack={() => setMode('endless-intro')} />
   }
 
   if (!debug && mode === 'endless') {
@@ -910,7 +930,9 @@ export default function App() {
       debug={debug}
       onSeedChange={changeSeed}
       onRestart={() => setSession((value) => value + 1)}
-      onEndless={!debug ? () => setMode('endless') : undefined}
+      onEndless={!debug ? () => setMode('endless-intro') : undefined}
     />
   )
 }
+
+export default App

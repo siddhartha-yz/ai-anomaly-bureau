@@ -1,0 +1,131 @@
+import type { FeatureKey } from '../ml/types'
+import type { EndlessCase, EndlessSyndrome } from './generator'
+import type { EndlessRunRecord } from './uiTypes'
+
+export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
+
+export function objectiveFor({
+  trained,
+  auditComplete,
+  history,
+  canSubmitDiagnosis,
+  diagnosisLocked,
+  credits,
+}: {
+  trained: boolean
+  auditComplete: boolean
+  history: EndlessRunRecord[]
+  canSubmitDiagnosis: boolean
+  diagnosisLocked: boolean
+  credits: number
+}): { focus: EndlessFocus; code: string; title: string; detail: string } {
+  if (diagnosisLocked && credits <= 0) {
+    return { focus: 'diagnose', code: 'RECOVER / NO CREDIT', title: '诊断要改口，但审计额度已经耗尽', detail: '在诊断报告里申请 1 次补充审计。它会扣评级，但不会让案件死锁。' }
+  }
+  if (diagnosisLocked && trained && !auditComplete) {
+    return { focus: 'predict', code: 'RECOVER / VERIFY', title: '新方案已经训练，先留下预测', detail: '上一份诊断需要新证据才能改口。先预测现场区间，再运行这次正式审计。' }
+  }
+  if (diagnosisLocked) {
+    return { focus: 'configure', code: 'RECOVER / NEW EVIDENCE', title: '取得一条新的独立证据', detail: '上一份诊断报告已锁定。改变一个因素，重新训练并完成一次正式审计。' }
+  }
+  if (canSubmitDiagnosis) {
+    return { focus: 'diagnose', code: 'DIAGNOSIS / READY', title: '比较记录，形成病因判断', detail: '你已经比较过至少两种不同配置。诊断应同时解释多条证据，而不是只解释最高分。' }
+  }
+  if (auditComplete) {
+    return { focus: 'configure', code: 'CONTROL / NEXT RUN', title: history.length < 2 ? '建立一条对照实验' : '继续获取能区分解释的证据', detail: '本轮已经封存。尽量只改变一个因素，再重新训练。' }
+  }
+  if (trained) {
+    return { focus: 'predict', code: 'HYPOTHESIS / BEFORE AUDIT', title: '先预测，再花审计额度验证', detail: '写下你认为现场会落在哪个区间，然后运行现场审计。' }
+  }
+  if (!history.length) {
+    return { focus: 'baseline', code: 'BASELINE / FIRST RUN', title: '先建立第一条基线记录', detail: '第一条实验不需要一次猜对。直接用当前配置训练，先拿到一个可以比较的起点。' }
+  }
+  return { focus: 'configure', code: 'CONTROL / NEXT RUN', title: '配置下一次实验', detail: '尽量只改变一个因素，再训练当前方案。这样结果变化才更容易解释。' }
+}
+
+export function EndlessObjective({ objective, credits, historyCount, configurationCount, onLocate }: {
+  objective: ReturnType<typeof objectiveFor>
+  credits: number
+  historyCount: number
+  configurationCount: number
+  onLocate: () => void
+}) {
+  const locateLabel = objective.code === 'RECOVER / NO CREDIT' ? '定位：补充审计'
+    : objective.focus === 'baseline' ? '定位：训练当前方案'
+      : objective.focus === 'predict' ? '定位：预测与审计'
+        : objective.focus === 'diagnose' ? '定位：实验记录'
+          : '定位：实验配置'
+  return (
+    <section className={`endless-next-objective focus-${objective.focus}`} aria-label="当前调查目标">
+      <div><small>NEXT OBJECTIVE // {objective.code}</small><h2>{objective.title}</h2><p>{objective.detail}</p></div>
+      <div className="endless-objective-side">
+        <div className="endless-objective-stats"><span>实验记录 <b>{historyCount}</b></span><span>不同配置 <b>{configurationCount}</b></span><span>审计额度 <b>{credits}</b></span></div>
+        <button type="button" className="endless-locate-next" aria-label="定位下一步操作" onClick={onLocate}>
+          ▶ {locateLabel}
+        </button>
+      </div>
+    </section>
+  )
+}
+
+export function EndlessLeadBoard({ caseData, history, inspectedArchiveIds = [] }: { caseData: EndlessCase; history: EndlessRunRecord[]; inspectedArchiveIds?: string[] }) {
+  const latest = history.at(-1)
+  const inspectedAlerts = caseData.archiveAlerts.filter((alert) => inspectedArchiveIds.includes(alert.id))
+  const evidenceCount = (inspectedAlerts.length > 0 ? 1 : 0) + history.length
+  return (
+    <section className="endless-lead-board" aria-label="案件线索板">
+      <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
+      <div className="endless-lead-list">
+        {inspectedAlerts.length > 0 && (
+          <article className="archive-alert">
+            <i>A!</i>
+            <span><b>已打开档案质量告警 {inspectedAlerts.length}/{caseData.archiveAlerts.length}</b>{inspectedAlerts[0].label}<small>{inspectedAlerts.map((alert) => alert.id.toUpperCase()).join(' / ')}</small></span>
+          </article>
+        )}
+        {history.slice(-3).map((record) => (
+          <article className={record.id === latest?.id ? 'latest' : ''} key={`run-${record.id}`}>
+            <i>E{record.id}</i>
+            <span>正式审计 #{record.id}：总体 {Math.round(record.test * 100)}%，最低类别召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%。</span>
+          </article>
+        ))}
+        {!evidenceCount && <article className="empty"><i>?</i><span>{caseData.archiveAlerts.length ? '可以先打开图中的橙色「!」，或直接建立第一条正式审计。你亲手查看过的事实会记录在这里。' : '先完成第一条正式审计。新获得的现场事实会记录在这里。'}</span></article>}
+      </div>
+    </section>
+  )
+}
+
+export function EndlessArchiveEvidence({
+  caseData,
+  sampleId,
+  features,
+  onClose,
+}: {
+  caseData: EndlessCase
+  sampleId?: string
+  features: [FeatureKey, FeatureKey]
+  onClose: () => void
+}) {
+  if (!sampleId) return null
+  const sample = caseData.train.find((item) => item.id === sampleId)
+  const alert = caseData.archiveAlerts.find((item) => item.id === sampleId)
+  if (!sample || !alert) return null
+  return (
+    <section className="endless-archive-evidence" aria-label="历史档案异常记录">
+      <div className="endless-panel-head"><span>ARCHIVE_RECORD / {sampleId.toUpperCase()}</span><button type="button" onClick={onClose}>×</button></div>
+      <div className="endless-archive-evidence-body">
+        <div><small>ARCHIVE LABEL</small><strong>{caseData.classNames[sample.label]}</strong></div>
+        <div><small>QUALITY FLAG</small><strong>{alert.label}</strong></div>
+        <div><small>{caseData.featureNames[features[0]]}</small><strong>{sample.features[features[0]].toFixed(2)}</strong></div>
+        <div><small>{caseData.featureNames[features[1]]}</small><strong>{sample.features[features[1]].toFixed(2)}</strong></div>
+      </div>
+      <p>这是档案系统留下的采集质量事实。它说明这条记录值得怀疑，但不会自动告诉你模型是否真的依赖了它；需要用实验验证。</p>
+    </section>
+  )
+}
+
+export function syndromeLabel(syndrome: EndlessSyndrome) {
+  return syndrome === 'feature-gap' ? '观察特征没有抓住真正差异'
+    : syndrome === 'overfit-noise' ? '模型把训练噪声和偶然点记得太死'
+      : syndrome === 'distribution-shift' ? '训练环境与现场环境发生了分布变化'
+        : '多数类把总体准确率撑高，少数类却一直漏掉'
+}

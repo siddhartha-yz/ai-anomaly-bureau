@@ -1,6 +1,7 @@
 import { MODEL_META, type ModelId } from '../ml/registry'
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase } from './generator'
+import type { EndlessFocus } from './EndlessNavigator'
 import { featureObservation } from './observables'
 import type { BandPrediction } from './uiTypes'
 
@@ -9,7 +10,7 @@ const MODELS: ModelId[] = ['linear', 'tree', 'knn-1', 'knn-5']
 
 export function EndlessControls({
   caseData, features, activeSlot, model, trained, trainAccuracy, prediction, credits, auditComplete,
-  onActiveSlot, onFeature, onModel, onTrain, onPrediction, onAudit, onEmergency,
+  focus, onActiveSlot, onFeature, onModel, onTrain, onPrediction, onAudit, onEmergency,
 }: {
   caseData: EndlessCase
   features: [FeatureKey, FeatureKey]
@@ -20,6 +21,7 @@ export function EndlessControls({
   prediction?: BandPrediction
   credits: number
   auditComplete: boolean
+  focus?: EndlessFocus
   onActiveSlot: (slot: 0 | 1) => void
   onFeature: (feature: FeatureKey) => void
   onModel: (model: ModelId) => void
@@ -29,8 +31,8 @@ export function EndlessControls({
   onEmergency: () => void
 }) {
   return (
-    <>
-      <section className="endless-control-panel">
+    <div className={`endless-controls-stack ${focus === 'configure' ? 'configure-focus' : ''}`}>
+      <section className="endless-control-panel sensor-deck">
         <div className="endless-panel-head"><span>01 / SENSOR DECK</span><strong>只装两个观察字段</strong></div>
         <div className="endless-feature-slots">
           {([0, 1] as const).map((slot) => (
@@ -45,7 +47,6 @@ export function EndlessControls({
             return (
               <button key={feature} type="button" className={features.includes(feature) ? 'installed' : ''} onClick={() => onFeature(feature)}>
                 <strong>{caseData.featureNames[feature]}</strong>
-                <small>{caseData.featureHints[feature]}</small>
                 <span className="sensor-evidence"><i>旧差异 {observed.separationLevel}/5</i><i>现场变化 {observed.driftLevel}/5</i></span>
               </button>
             )
@@ -54,7 +55,7 @@ export function EndlessControls({
         <div className="sensor-evidence-help">读数说明：<b>旧差异</b>只看历史标签分得多开；<b>现场变化</b>不看现场答案，只比较无标签分布有没有变。</div>
       </section>
 
-      <section className="endless-control-panel">
+      <section className="endless-control-panel model-deck">
         <div className="endless-panel-head"><span>02 / MODEL DECK</span><strong>选择判断规则</strong></div>
         <div className="endless-model-list">
           {MODELS.map((id) => (
@@ -63,11 +64,11 @@ export function EndlessControls({
             </button>
           ))}
         </div>
-        <button type="button" className="endless-primary" onClick={onTrain}>训练当前方案</button>
+        <button type="button" className={`endless-primary ${focus === 'baseline' ? 'objective-action' : ''}`} onClick={onTrain}>训练当前方案</button>
       </section>
 
       {trained && !auditComplete && (
-        <section className="endless-control-panel experiment-console">
+        <section className={`endless-control-panel experiment-console ${focus === 'predict' ? 'objective-focus' : ''}`}>
           <div className="endless-panel-head"><span>03 / PREDICT FIRST</span><strong>训练 {Math.round((trainAccuracy ?? 0) * 100)}%</strong></div>
           <p>在花掉一次未知审计前，先预测现场表现。</p>
           <div className="endless-band-picks">
@@ -85,6 +86,6 @@ export function EndlessControls({
           <p>先读左侧结果与错误证据。下一次实验请修改观察字段或模型，再重新训练；也可以重训同一方案做复现。</p>
         </section>
       )}
-    </>
+    </div>
   )
 }

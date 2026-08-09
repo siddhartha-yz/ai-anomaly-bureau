@@ -1,7 +1,7 @@
 import { MODEL_META } from '../ml/registry'
 import type { EndlessAudit } from './EndlessPlot'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import type { EndlessRunRecord } from './uiTypes'
+import { experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
 
 export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, lastRun }: {
   caseData: EndlessCase
@@ -18,7 +18,12 @@ export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, la
         <div><small>ERRORS</small><strong>{audit.errorCount}</strong></div>
         <div className={audit.recall.cat < .75 ? 'metric-danger' : ''}><small>{caseData.classNames.cat} 召回</small><strong>{Math.round(audit.recall.cat * 100)}%</strong></div>
         <div className={audit.recall.bread < .75 ? 'metric-danger' : ''}><small>{caseData.classNames.bread} 召回</small><strong>{Math.round(audit.recall.bread * 100)}%</strong></div>
-        <p>预测：{lastRun?.predictionHit ? '✓ 命中' : '× 偏差'}。{caseData.isReliable(audit) ? '总体与两类召回都达到可靠线。' : audit.accuracy >= .85 ? '注意：总体分过线了，但至少一类召回仍低于 75%，不能结案。' : '先解释结果，再决定下一次实验。'}</p>
+        <p className="endless-reliability-check">
+          <span>预测 {lastRun?.predictionHit ? '✓ HIT' : '× MISS'}</span>
+          <span>总体 {audit.accuracy >= .85 ? 'PASS' : 'FAIL'}</span>
+          <span>{caseData.classNames.cat}召回 {audit.recall.cat >= .75 ? 'PASS' : 'FAIL'}</span>
+          <span>{caseData.classNames.bread}召回 {audit.recall.bread >= .75 ? 'PASS' : 'FAIL'}</span>
+        </p>
       </section>
       {audit.mistakes.length > 0 && (
         <section className="endless-evidence">
@@ -38,19 +43,30 @@ export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, la
   )
 }
 
-export function EndlessRunLog({ caseData, history }: { caseData: EndlessCase; history: EndlessRunRecord[] }) {
+export function EndlessRunLog({ caseData, history, attention = false }: { caseData: EndlessCase; history: EndlessRunRecord[]; attention?: boolean }) {
   if (!history.length) return null
+  const configurationCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   return (
-    <section className="endless-run-log">
-      <div className="endless-panel-head"><span>EXPERIMENTS.LOG</span><strong>{history.length} 次正式审计</strong></div>
-      {history.map((record) => (
-        <article key={record.id}>
+    <section className={`endless-run-log ${attention ? 'objective-focus' : ''}`}>
+      <div className="endless-panel-head"><span>EXPERIMENTS.LOG</span><strong>{history.length} 次审计 · {configurationCount} 种配置</strong></div>
+      {history.map((record, index) => {
+        const seenBefore = history.slice(0, index).some((previous) =>
+          experimentConfigKey(previous.model, previous.features) === experimentConfigKey(record.model, record.features),
+        )
+        const delta = seenBefore ? 'repeat' : experimentDelta(history[index - 1], record)
+        const deltaLabel = delta === 'baseline' ? 'BASELINE'
+          : delta === 'repeat' ? '复现实验'
+            : delta === 'fields-only' ? '只换字段'
+              : delta === 'model-only' ? '只换模型'
+                : '字段 + 模型都换'
+        return (
+        <article key={record.id} data-delta={delta}>
           <i>{String(record.id).padStart(2, '0')}</i>
-          <span>{caseData.featureNames[record.features[0]]} + {caseData.featureNames[record.features[1]]}<small>{MODEL_META[record.model].label} · 最低召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%</small></span>
+          <span>{caseData.featureNames[record.features[0]]} + {caseData.featureNames[record.features[1]]}<small>{MODEL_META[record.model].label} · 最低召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%</small><small className={`experiment-delta ${delta}`}>Δ {deltaLabel}</small></span>
           <b>{Math.round(record.train * 100)} → {Math.round(record.test * 100)}%</b>
           <em>{record.predictionHit ? '预测✓' : '预测×'} · {record.reliable ? '可靠✓' : '可靠×'}</em>
         </article>
-      ))}
+      )})}
     </section>
   )
 }
@@ -64,6 +80,7 @@ export function EndlessDiagnosis({
   credits,
   submittedDiagnosis,
   lastOutcome,
+  attention = false,
   onChange,
   onSubmit,
   onEmergency,
@@ -76,14 +93,15 @@ export function EndlessDiagnosis({
   credits: number
   submittedDiagnosis?: EndlessSyndrome
   lastOutcome?: 'wrong' | 'needs-reliable'
+  attention?: boolean
   onChange: (value: EndlessSyndrome) => void
   onSubmit: () => void
   onEmergency: () => void
 }) {
   return (
-    <section className="endless-diagnosis">
+    <section className={`endless-diagnosis ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>04 / DIAGNOSIS</span><strong>提交病因</strong></div>
-      <p>至少比较两次实验后，给出你认为最核心的故障原因。</p>
+      <p>至少比较两种不同实验配置后，给出你认为最核心的故障原因。原样复现可以验证稳定性，但不算新的区分证据。</p>
       {caseData.diagnosis.options.map((option) => (
         <button
           type="button"
@@ -100,7 +118,7 @@ export function EndlessDiagnosis({
         <div className="diagnosis-retry diagnosis-locked">
           <strong>刚提交：{caseData.diagnosis.options.find((option) => option.id === submittedDiagnosis)?.label}</strong>
           {lastOutcome === 'wrong' ? (
-            <span>当前证据不支持这项病因判断。报告已暂时锁定；先获得一次新的正式审计，再重新判断。</span>
+            <span>当前证据不支持这项病因判断。报告已暂时锁定；请至少改变一个观察字段或模型，再完成一次正式审计。原样复现不会提供新的区分证据。</span>
           ) : (
             <span>病因方向已经抓到，但目前还没有任何方案同时达到总体与两类召回的可靠线。先找到可靠方案，再回来结案。</span>
           )}

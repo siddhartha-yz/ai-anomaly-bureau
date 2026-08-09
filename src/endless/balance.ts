@@ -23,6 +23,16 @@ export function simulateEvidencePolicy(caseData: EndlessCase): PolicyResult {
   const model = contradiction > .07 ? 'knn-5' : 'linear'
   const audit = caseData.audit(model, features)
 
+  // Formal endless requires at least two distinct configurations before a
+  // diagnosis can be submitted. The policy therefore collects a cheap baseline
+  // first; if its preferred evidence configuration happens to equal the default,
+  // it uses the same fields with a different simple model as the baseline.
+  const preferredKey = `${model}:${[...features].sort().join('+')}`
+  const baselineChoice = ENDLESS_FEATURE_PAIRS
+    .flatMap((baselineFeatures) => ENDLESS_MODELS.map((baselineModel) => ({ features: baselineFeatures, model: baselineModel })))
+    .find((choice) => `${choice.model}:${[...choice.features].sort().join('+')}` !== preferredKey)!
+  const baselineAudit = caseData.audit(baselineChoice.model, baselineChoice.features)
+
   // Diagnosis is inferred only from things a player can inspect: unlabeled field
   // distribution movement and contradictory labeled old samples.
   const maxShift = Math.max(...(['warmth', 'roundness', 'texture', 'aspect'] as FeatureKey[])
@@ -37,9 +47,9 @@ export function simulateEvidencePolicy(caseData: EndlessCase): PolicyResult {
   else diagnosis = 'feature-gap'
 
   return {
-    solved: caseData.isReliable(audit) && diagnosis === caseData.diagnosis.correct,
-    audits: 1,
-    bestAccuracy: audit.accuracy,
+    solved: (caseData.isReliable(audit) || caseData.isReliable(baselineAudit)) && diagnosis === caseData.diagnosis.correct,
+    audits: 2,
+    bestAccuracy: Math.max(audit.accuracy, baselineAudit.accuracy),
     diagnosis,
   }
 }
