@@ -260,6 +260,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart }: {
               revealUnknown={revealUnknown}
               debugShowLabels={debugShowLabels}
               selectedMistake={selectedMistake}
+              onSelectMistake={viewMistake}
             />
             {showMetrics && <Metrics training={state.training} audit={state.audit} model={state.selectedModel} />}
             <ErrorSamples
