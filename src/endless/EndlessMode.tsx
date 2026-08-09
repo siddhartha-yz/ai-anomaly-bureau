@@ -315,7 +315,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
           >
             {resetArmed ? '再次点击确认重置' : '重置本案'}
           </button>
-          <button type="button" onClick={onExit}>返回剧情案件</button>
+          {!solved && <button type="button" onClick={onExit}>返回剧情案件</button>}
         </div>
       </header>
 

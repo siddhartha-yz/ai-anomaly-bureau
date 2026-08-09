@@ -678,7 +678,17 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('1 条误判复核')
   await expect(page.getByText(/实验设计：2 次单变量对照/)).toBeVisible()
 
-  // Endless means the next case is generated without a reload or backend.
+  // A solved local session is explicit at the gateway and can reopen the same closure dossier.
+  await page.getByRole('button', { name: '返回剧情案件' }).click()
+  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  const resolvedSavedCase = page.getByLabel('已保存无尽案件')
+  await expect(resolvedSavedCase).toContainText('RESOLVED CASE SAVED')
+  await expect(resolvedSavedCase).toContainText('CASE 6000')
+  await page.getByRole('button', { name: /查看 CASE 6000 结案报告/ }).click()
+  await expect(page.getByText('CASE RESOLVED')).toBeVisible()
+  await expect(page.getByLabel('无尽案件结案报告')).toContainText('E02 + E04')
+
+  // Endless still means the next case is generated without a backend.
   await page.getByRole('button', { name: '生成下一起案件' }).click()
   await expect(page.getByText(/CASE 6001/)).toBeVisible()
 })
