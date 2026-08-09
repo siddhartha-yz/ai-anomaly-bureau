@@ -38,6 +38,7 @@ describe('Story Case local checkpoint', () => {
   it('round-trips player progress and derives paid audit credits instead of storing a refundable counter', () => {
     const storage = new MemoryStorage()
     const value = session()
+    value.state = { ...value.state, stage: 'iterate' }
     value.experimentLog = [
       { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
       { id: 2, model: 'knn-1', features: ['texture', 'aspect'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: true },
@@ -109,6 +110,9 @@ describe('Story Case local checkpoint', () => {
       (value) => { value.state.seed += 1 },
       (value) => { value.selectedMistake = 'field-999' },
       (value) => { value.suspiciousAttemptId = 4 },
+      (value) => { value.state = { ...value.state, stage: 'inspect_errors' } },
+      (value) => { value.state = { ...value.state, stage: 'overfit_reveal', hasSeenOverfit: true } },
+      (value) => { value.state = { ...value.state, stage: 'final_audit', hasSeenOverfit: true } },
       (value) => { value.state = { ...value.state, stage: 'complete' } },
       (value) => { value.state = { ...value.state, completedAt: 999 } },
       (value) => {
@@ -204,12 +208,17 @@ describe('Story Case local checkpoint', () => {
     }
   })
 
-  it('refuses an oversized write without overwriting the last valid checkpoint', () => {
+  it('refuses invalid or oversized writes without overwriting the last valid checkpoint', () => {
     const storage = new MemoryStorage()
     const value = session()
     expect(writeStorySession(storage, value)).toBe(true)
     const previous = storage.getItem(storySessionKey(value.seed))
 
+    value.state = { ...value.state, stage: 'inspect_errors' }
+    expect(writeStorySession(storage, value)).toBe(false)
+    expect(storage.getItem(storySessionKey(value.seed))).toBe(previous)
+
+    value.state = { ...value.state, stage: 'inspect_data' }
     value.observationAnswer = 'x'.repeat(210_000)
     expect(writeStorySession(storage, value)).toBe(false)
     expect(storage.getItem(storySessionKey(value.seed))).toBe(previous)

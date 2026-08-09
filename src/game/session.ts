@@ -1,6 +1,7 @@
 import type { ExperimentRecord } from '../components/CaseAttempts'
 import type { ExperimentPrediction } from '../components/ExperimentPlan'
 import type { EntryPhase } from '../components/EntryExperience'
+import { LEVEL_META } from '../content/level1'
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
 import type { BehaviorEvent, BehaviorLog } from './logging'
@@ -110,13 +111,64 @@ function isAuditResult(value: unknown): value is AuditResult {
     && item.orangeCatErrors <= item.errorCount
 }
 
+function isStageStateConsistent(state: GameState): boolean {
+  const hasTraining = state.training !== undefined
+  const hasAudit = state.audit !== undefined
+  const finalAuditPassed = Boolean(
+    state.audit
+      && state.audit.accuracy >= LEVEL_META.successTestAccuracy
+      && state.audit.orangeCatErrors <= LEVEL_META.maxOrangeCatErrors,
+  )
+
+  if (state.viewedMistakes.length > 0) {
+    if (state.stage !== 'inspect_errors' || !state.audit) return false
+    const mistakeIds = new Set(state.audit.mistakes.map((mistake) => mistake.id))
+    if (new Set(state.viewedMistakes).size !== state.viewedMistakes.length) return false
+    if (!state.viewedMistakes.every((id) => mistakeIds.has(id))) return false
+  }
+
+  switch (state.stage) {
+    case 'briefing':
+    case 'inspect_data':
+    case 'choose_features':
+    case 'choose_model':
+      return !hasTraining && !hasAudit && state.auditHistory.length === 0 && !state.hasSeenOverfit
+    case 'train':
+      return !hasAudit && state.auditHistory.length === 0 && !state.hasSeenOverfit
+    case 'first_success':
+    case 'hidden_test':
+      return hasTraining && state.training!.accuracy >= 0.8 && !hasAudit && state.auditHistory.length === 0 && !state.hasSeenOverfit
+    case 'inspect_errors':
+      return hasTraining && hasAudit && state.audit!.errorCount > 0 && state.auditHistory.length > 0 && !state.hasSeenOverfit
+    case 'iterate':
+      return state.auditHistory.length > 0
+    case 'overfit_reveal':
+      return hasTraining
+        && hasAudit
+        && state.hasSeenOverfit
+        && state.selectedModel === 'knn-1'
+        && state.training!.accuracy >= 0.98
+        && state.audit!.accuracy < state.training!.accuracy - 0.08
+    case 'final_audit':
+    case 'transfer_question':
+    case 'complete':
+      return hasTraining && hasAudit && state.hasSeenOverfit && finalAuditPassed
+    default:
+      return true
+  }
+}
+
 function isGameState(value: unknown, seed: number): value is GameState {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<GameState>
   const completionStateValid = item.stage === 'complete'
-    ? isFiniteNumber(item.completedAt) && typeof item.transferAnswer === 'string' && item.transferCorrect === true
+    ? isFiniteNumber(item.completedAt)
+      && isFiniteNumber(item.startedAt)
+      && item.completedAt >= item.startedAt
+      && typeof item.transferAnswer === 'string'
+      && item.transferCorrect === true
     : item.completedAt === undefined
-  return item.seed === seed
+  const structurallyValid = item.seed === seed
     && item.debug === false
     && STAGES.has(item.stage as Stage)
     && isFeaturePair(item.selectedFeatures)
@@ -139,6 +191,8 @@ function isGameState(value: unknown, seed: number): value is GameState {
     && completionStateValid
     && Array.isArray(item.diagnostics)
     && item.diagnostics.every((message) => typeof message === 'string')
+
+  return structurallyValid && isStageStateConsistent(item as GameState)
 }
 
 function isExperimentRecord(value: unknown): value is ExperimentRecord {
@@ -198,6 +252,7 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   if (item.version !== STORY_SESSION_VERSION || item.seed !== seed || !isGameState(item.state, seed)) return false
   const state = item.state
   if (!ENTRY_PHASES.has(item.entryPhase as EntryPhase)) return false
+  if (item.entryPhase === 'game' ? state.stage === 'briefing' : state.stage !== 'briefing') return false
   if (!optionalString(item.selectedMistake) || !optionalString(item.observationAnswer) || !optionalString(item.suspectSampleId)) return false
   if (!optionalString(item.boundaryProbeAnswer) || !optionalString(item.successPrediction) || !optionalString(item.evidenceInference)) return false
   if (!optionalString(item.overfitReflection) || !optionalString(item.finalReflection)) return false
@@ -279,6 +334,7 @@ export function readStorySession(storage: StorageLike, seed: number): StorySessi
 export function writeStorySession(storage: StorageLike, session: StorySessionData) {
   try {
     const sanitized: StorySessionData = { ...session, state: sanitizeState(session.state) }
+    if (!isStorySession(sanitized, session.seed)) return false
     const serialized = JSON.stringify(sanitized)
     if (serialized.length > MAX_STORY_SESSION_BYTES) return false
     storage.setItem(storySessionKey(session.seed), serialized)
