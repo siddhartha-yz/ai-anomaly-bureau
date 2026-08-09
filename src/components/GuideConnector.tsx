@@ -16,9 +16,12 @@ const TARGET: Partial<Record<Stage, { selector: string; label: string }>> = {
 }
 
 export function GuideConnector({ stage, mistakeViewed = false }: { stage: Stage; mistakeViewed?: boolean }) {
-  const target = stage === 'inspect_errors' && mistakeViewed
-    ? { selector: '.evidence-console', label: '读这条证据' }
-    : TARGET[stage]
+  const target = useMemo(
+    () => stage === 'inspect_errors' && mistakeViewed
+      ? { selector: '.evidence-console', label: '读这条证据' }
+      : TARGET[stage],
+    [mistakeViewed, stage],
+  )
   const [connector, setConnector] = useState<ConnectorState>()
 
   const selectors = useMemo(() => target ? [target.selector, '.beginner-guide.compact'] : [], [target])
