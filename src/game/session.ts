@@ -54,6 +54,12 @@ const OVERFIT_REFLECTIONS = new Set(['memorized', 'not-enough-score', 'new-data-
 const FINAL_REFLECTIONS = new Set(['unknown-stable', 'highest-train', 'complex-model'])
 const INITIAL_SENSOR_READS = new Set<FeatureKey>(['warmth', 'roundness'])
 const REPAIR_SENSOR_READS = new Set<FeatureKey>(['texture', 'aspect'])
+const TRAINING_OUTLIER_IDS = new Set(['train-cat-16', 'train-cat-17', 'train-bread-16', 'train-bread-17'])
+const STORY_STAGE_ORDER: Stage[] = [
+  'briefing', 'inspect_data', 'choose_features', 'choose_model', 'train', 'first_success',
+  'hidden_test', 'inspect_errors', 'iterate', 'overfit_reveal', 'final_audit', 'transfer_question', 'complete',
+]
+const STORY_STAGE_INDEX = new Map(STORY_STAGE_ORDER.map((stage, index) => [stage, index]))
 const TRANSFER_OPTIONS: ReadonlyMap<string, boolean> = new Map(
   TRANSFER_QUESTION.options.map((option) => [option.id, option.correct]),
 )
@@ -255,6 +261,64 @@ function isSensorReadList(value: unknown, allowed: ReadonlySet<FeatureKey>) {
     && value.every((feature) => allowed.has(feature as FeatureKey))
 }
 
+function isStoryMicroStateConsistent(session: StorySessionData): boolean {
+  const { state } = session
+  const stageIndex = STORY_STAGE_INDEX.get(state.stage)
+  if (stageIndex === undefined) return false
+  const atLeast = (stage: Stage) => stageIndex >= STORY_STAGE_INDEX.get(stage)!
+
+  if (!atLeast('inspect_data')) {
+    if (session.observationAnswer !== undefined || session.suspectSampleId !== undefined) return false
+  } else if (atLeast('choose_features')) {
+    if (session.observationAnswer !== 'clusters' || !session.suspectSampleId || !TRAINING_OUTLIER_IDS.has(session.suspectSampleId)) return false
+  }
+
+  if (!atLeast('choose_features')) {
+    if (session.sensorReads.length !== 0) return false
+  } else if (atLeast('choose_model') && session.sensorReads.length !== 2) return false
+
+  if (!atLeast('choose_model')) {
+    if (session.modelConfirmed) return false
+  } else if (atLeast('train') && !session.modelConfirmed) return false
+
+  if (!atLeast('first_success')) {
+    if (session.boundaryProbeAnswer !== undefined || session.successPrediction !== undefined) return false
+  } else if (atLeast('hidden_test')) {
+    if (session.boundaryProbeAnswer === undefined || session.successPrediction === undefined) return false
+  }
+
+  const initialAuditHadErrors = (state.auditHistory[0]?.errorCount ?? 0) > 0
+  if (!atLeast('inspect_errors')) {
+    if (session.evidenceInference !== undefined) return false
+  } else if (state.stage !== 'inspect_errors' && initialAuditHadErrors && session.evidenceInference !== 'feature-gap') return false
+
+  if (session.pendingPrediction !== undefined) {
+    if (state.stage !== 'iterate') return false
+    if (!state.hasSeenOverfit && state.selectedModel !== 'knn-1') return false
+    if (state.hasSeenOverfit && session.repairSensorReads.length !== 2) return false
+  }
+
+  if (!atLeast('overfit_reveal')) {
+    if (session.suspiciousAttemptId !== undefined || session.overfitReflection !== undefined || session.repairSensorReads.length !== 0) return false
+  } else if (state.stage === 'overfit_reveal') {
+    if (session.repairSensorReads.length !== 0) return false
+  } else if (state.hasSeenOverfit) {
+    const suspiciousRecord = session.experimentLog.find((record) => record.id === session.suspiciousAttemptId)
+    if (!suspiciousRecord
+      || suspiciousRecord.model !== 'knn-1'
+      || suspiciousRecord.trainAccuracy < 0.98
+      || suspiciousRecord.auditAccuracy >= suspiciousRecord.trainAccuracy - 0.08
+      || session.overfitReflection !== 'memorized') return false
+  }
+
+  if (atLeast('final_audit') && session.repairSensorReads.length !== 2) return false
+  if (!atLeast('final_audit')) {
+    if (session.finalReflection !== undefined) return false
+  } else if (atLeast('transfer_question') && session.finalReflection !== 'unknown-stable') return false
+
+  return true
+}
+
 function isBehaviorEvent(value: unknown, seed: number, sessionId: string): value is BehaviorEvent {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<BehaviorEvent>
@@ -324,7 +388,7 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   if (item.behaviorLog !== undefined && !isBehaviorLog(item.behaviorLog, seed)) return false
   if (item.selectedMistake !== undefined && !state.audit?.mistakes.some((mistake) => mistake.id === item.selectedMistake)) return false
   if (item.suspiciousAttemptId !== undefined && !item.experimentLog.some((record) => record.id === item.suspiciousAttemptId)) return false
-  return true
+  return isStoryMicroStateConsistent(item as StorySessionData)
 }
 
 function stripMistakeFlags(result: AuditResult): AuditResult {

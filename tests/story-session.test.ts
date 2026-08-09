@@ -35,10 +35,20 @@ function session(seed = 20260809): StorySessionData {
   }
 }
 
+function addFirstRunPrerequisites(value: StorySessionData) {
+  value.observationAnswer = 'clusters'
+  value.suspectSampleId = 'train-cat-16'
+  value.sensorReads = ['warmth', 'roundness']
+  value.modelConfirmed = true
+  value.boundaryProbeAnswer = 'bread'
+  value.successPrediction = 'need-new'
+}
+
 describe('Story Case local checkpoint', () => {
   it('round-trips player progress and derives paid audit credits instead of storing a refundable counter', () => {
     const storage = new MemoryStorage()
     const value = session()
+    addFirstRunPrerequisites(value)
     value.state = { ...value.state, stage: 'iterate' }
     value.experimentLog = [
       { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
@@ -64,6 +74,7 @@ describe('Story Case local checkpoint', () => {
   it('strips debug model params and private mistake flags before localStorage serialization', () => {
     const storage = new MemoryStorage()
     const value = session()
+    addFirstRunPrerequisites(value)
     const audit = {
       accuracy: 15 / 16,
       errorCount: 1,
@@ -112,6 +123,14 @@ describe('Story Case local checkpoint', () => {
       (value) => { value.selectedMistake = 'field-999' },
       (value) => { value.successPrediction = 'definitely-fixed' },
       (value) => { value.sensorReads = ['warmth', 'warmth'] },
+      (value) => { value.modelConfirmed = true },
+      (value) => { value.pendingPrediction = 'no-idea' },
+      (value) => {
+        value.state = { ...value.state, stage: 'choose_model' }
+        value.observationAnswer = 'clusters'
+        value.suspectSampleId = 'train-cat-16'
+        value.sensorReads = ['warmth']
+      },
       (value) => { value.suspiciousAttemptId = 4 },
       (value) => { value.state = { ...value.state, stage: 'inspect_errors' } },
       (value) => { value.state = { ...value.state, stage: 'overfit_reveal', hasSeenOverfit: true } },
