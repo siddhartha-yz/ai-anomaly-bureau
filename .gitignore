@@ -12,3 +12,5 @@ coverage/
 .DS_Store
 .tooling/
 *.behavior-log.json
+
+.npm-cache/
