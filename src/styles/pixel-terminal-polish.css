@@ -85,10 +85,11 @@
 }
 .floating-xiaoxi .hint-command { font-size: 12px !important; color: #ffe05b !important; }
 .floating-xiaoxi.collapsed {
-  width: 92px !important;
-  min-height: 92px;
+  right: 4px !important;
+  width: 82px !important;
+  min-height: 82px;
   grid-template-columns: 1fr !important;
-  padding: 7px !important;
+  padding: 5px !important;
 }
 .floating-xiaoxi.collapsed::after { display: none; }
 .xiaoxi-collapsed-label { color: #ffe05b; font-size: 12px; margin-top: -4px; }

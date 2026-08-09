@@ -122,6 +122,16 @@ export function ScatterPlot({
                       if (event.key === 'Enter' || event.key === ' ') onSelectMistake?.(sample.id)
                     } : undefined}
                   >
+                    {mistake && (
+                      <rect
+                        x={X(point.x) - 18}
+                        y={Y(point.y) - 18}
+                        width="36"
+                        height="36"
+                        fill="transparent"
+                        className="mistake-hitbox"
+                      />
+                    )}
                     {revealedLabel ? (
                       <PixelSampleGlyph label={revealedLabel} x={X(point.x)} y={Y(point.y)} scale={1.18} className="test-revealed-glyph" />
                     ) : (
