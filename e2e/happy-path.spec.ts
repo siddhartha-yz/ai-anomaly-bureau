@@ -388,6 +388,31 @@ test('endless onboarding stays operable on a 1280x720 laptop viewport', async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
 })
 
+test('endless cited-evidence workspace stays usable on a 1280x720 laptop viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('?mode=endless&seed=6000')
+
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.getByRole('button', { name: /<60% 翻车/ }).click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.getByRole('button', { name: /≥85% 稳定/ }).click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await citeEndlessRuns(page, 1, 2)
+
+  const comparison = page.getByLabel('已引用实验对照')
+  await expect(comparison).toBeVisible()
+  await expect(comparison).toContainText('只换字段')
+  await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+
+  await page.getByRole('button', { name: '定位下一步操作' }).click()
+  await expect(page.locator('.endless-diagnosis')).toBeInViewport()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  await qaShot(page, '36-endless-cited-evidence-1280')
+})
+
 test('distribution-shift cases expose batch metadata as facts without naming the diagnosis', async ({ page }) => {
   await page.goto('?mode=endless&seed=6002')
   const metadata = page.getByLabel('历史与现场批次元数据')
