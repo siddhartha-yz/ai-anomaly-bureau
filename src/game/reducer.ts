@@ -33,8 +33,16 @@ function resetResultState(state: GameState): GameState {
 }
 
 function resetStageForDebug(state: GameState): GameState {
-  const base = resetResultState(state)
-  return { ...base, retryCount: 0, failureStreak: 0, hintLevel: 0, diagnostics: [] }
+  const common = { ...state, retryCount: 0, failureStreak: 0, hintLevel: 0 as const, diagnostics: [] as string[] }
+  if (state.stage === 'inspect_errors') return { ...common, viewedMistakes: [] }
+  if (state.stage === 'first_success' || state.stage === 'hidden_test') {
+    return { ...common, audit: undefined, viewedMistakes: [] }
+  }
+  if (state.stage === 'transfer_question') {
+    return { ...common, transferAnswer: undefined, transferCorrect: undefined }
+  }
+  if (state.stage === 'overfit_reveal' || state.stage === 'final_audit') return common
+  return resetResultState(common)
 }
 
 export function isFinalAuditPass(state: GameState): boolean {
@@ -97,6 +105,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRAIN_RESULT': {
       const attempts = state.attempts + 1
+      if (state.debug && state.stage !== 'train' && state.stage !== 'iterate') {
+        return { ...state, training: action.result, attempts }
+      }
       if (state.stage === 'train') {
         const success = action.result.accuracy >= 0.8
         return {
@@ -189,10 +200,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'DEBUG_JUMP':
       if (!state.debug) return diagnostic(state, 'debug jump rejected outside debug mode')
-      return resetStageForDebug({ ...state, stage: action.stage })
+      return { ...state, stage: action.stage, diagnostics: [] }
 
     case 'DEBUG_RESET_STAGE':
       if (!state.debug) return diagnostic(state, 'debug reset rejected outside debug mode')
       return resetStageForDebug(state)
+
+    case 'DEBUG_LOAD_STATE':
+      if (!state.debug) return diagnostic(state, 'debug state load rejected outside debug mode')
+      return { ...action.state, debug: true }
   }
 }

@@ -75,3 +75,4 @@ export type GameAction =
   | { type: 'ANSWER_TRANSFER'; id: string; correct: boolean }
   | { type: 'DEBUG_JUMP'; stage: Stage }
   | { type: 'DEBUG_RESET_STAGE' }
+  | { type: 'DEBUG_LOAD_STATE'; state: GameState }
