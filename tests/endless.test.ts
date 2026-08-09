@@ -30,6 +30,34 @@ describe('supervised endless case generator', () => {
     expect(a.publicTest.every((sample) => !sample.id.includes('cat') && !sample.id.includes('bread'))).toBe(true)
     // Same syndrome does not imply fixed sensor positions across cases.
     expect(Object.entries(a.featureNames)).not.toEqual(Object.entries(c.featureNames))
+    expect(a.diagnosis.options).toEqual(b.diagnosis.options)
+    expect(a.diagnosis.options.map((option) => option.id)).not.toEqual(c.diagnosis.options.map((option) => option.id))
+  })
+
+  it('presents observable symptoms and archive facts without putting the diagnosis in the case brief', () => {
+    const overfit = createEndlessCase(6001)
+    expect(overfit.incident).not.toMatch(/过拟合|把.*噪声.*记|当成了规律/)
+    expect(overfit.reportedFacts.length).toBeGreaterThanOrEqual(2)
+    expect(overfit.archiveAlerts).toHaveLength(4)
+    expect(overfit.train.filter((sample) => sample.flags?.noise)).toHaveLength(4)
+    expect(overfit.archiveAlerts.every((alert) => /采集|测量|传感器|镜头|质量|校准/.test(alert.label))).toBe(true)
+
+    for (const seed of [6000, 6001, 6002, 6003]) {
+      const caseData = createEndlessCase(seed)
+      expect(caseData.reportedFacts.length).toBeGreaterThanOrEqual(2)
+      expect(caseData.reportedFacts.every((fact) => fact.length > 8)).toBe(true)
+      expect(caseData.title).not.toMatch(/过拟合|漂移|特征不足|类别不平衡/)
+      expect(caseData.incident).not.toMatch(/过拟合|漂移|特征不足|类别不平衡/)
+      expect(`${caseData.title}${caseData.incident}${caseData.reportedFacts.join('')}`).not.toContain(
+        caseData.diagnosis.options.find((option) => option.id === caseData.diagnosis.correct)?.label,
+      )
+    }
+
+    const shifted = createEndlessCase(6002)
+    expect(shifted.diagnosis.correct).toBe('distribution-shift')
+    expect(shifted.batchContext?.history).toBeTruthy()
+    expect(shifted.batchContext?.field).toBeTruthy()
+    expect(shifted.batchContext?.history).not.toBe(shifted.batchContext?.field)
   })
 
   it('generates solvable cases without making random configurations a reliable strategy', () => {

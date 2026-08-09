@@ -9,7 +9,7 @@ describe('endless gameplay balance baselines', () => {
       const result = simulateEvidencePolicy(caseData)
       expect(result.diagnosis).toBe(caseData.diagnosis.correct)
       expect(result.bestAccuracy).toBeGreaterThanOrEqual(.85)
-      expect(result.audits).toBe(1)
+      expect(result.audits).toBe(2)
     }
   })
 
