@@ -35,7 +35,7 @@ test('zero-background player can reach CASE CLOSED through the real ML flow', as
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
 
-  await page.goto('/?seed=20260809')
+  await page.goto('?seed=20260809')
   await expect(page.getByRole('button', { name: /进入调查现场/ })).toBeVisible()
   await page.getByRole('button', { name: /进入调查现场/ }).click()
 
