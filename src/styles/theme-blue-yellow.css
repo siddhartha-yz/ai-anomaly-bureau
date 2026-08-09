@@ -107,13 +107,12 @@
   box-shadow: 5px 5px 0 #020307;
 }
 .story-session-restored {
-  position: fixed;
+  position: sticky;
   z-index: 125;
-  top: 78px;
-  left: 50%;
-  width: min(620px, calc(100vw - 28px));
+  top: 8px;
+  width: min(560px, calc(100vw - 28px));
   min-height: 38px;
-  transform: translateX(-50%);
+  margin: -5px 0 14px max(14px, calc((100vw - 1180px) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;

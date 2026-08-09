@@ -76,6 +76,7 @@ test('debug mode keeps the fast engineering controls available', async ({ page }
 })
 
 test('Story resume gateway preserves or explicitly discards a saved case', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
   const seed = 20260819
   const key = storySessionKey(seed)
   const checkpoint: StorySessionData = {
@@ -591,6 +592,8 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   await expect(page.getByText(/已调查 2\/2/)).toBeVisible()
   await expect(page.getByText(/线索 02/)).toBeVisible()
   await expect(page.locator('.phase-transition')).toHaveCount(0)
+  await assertNoOverlap(page, '.story-session-restored', '.pixel-objective-strip')
+  await assertNoOverlap(page, '.story-session-restored', '.beginner-guide.compact')
   await qaShot(page, '22-story-session-restored')
   await page.getByLabel('已恢复剧情案件进度').getByRole('button', { name: '知道了' }).click()
 
