@@ -10,7 +10,7 @@ import { FieldManual } from './FieldManual'
 import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
-import { accuracyBand, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
+import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
 
 export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onExit: () => void }) {
   const [seed, setSeed] = useState(initialSeed)
@@ -47,6 +47,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const [diagnosis, setDiagnosis] = useState<EndlessSyndrome>()
   const [diagnosisAttempts, setDiagnosisAttempts] = useState(0)
   const [lastDiagnosisConfigCount, setLastDiagnosisConfigCount] = useState(0)
+  const [lastDiagnosisRunCount, setLastDiagnosisRunCount] = useState(0)
+  const [selectedEvidenceRunIds, setSelectedEvidenceRunIds] = useState<number[]>([])
   const [submittedDiagnosis, setSubmittedDiagnosis] = useState<EndlessSyndrome>()
   const [lastDiagnosisOutcome, setLastDiagnosisOutcome] = useState<'wrong' | 'needs-reliable'>()
   const [solved, setSolved] = useState(false)
@@ -116,9 +118,26 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const best = Math.max(0, ...history.map((record) => record.test))
   const bestReliable = history.filter((record) => record.reliable).sort((a, b) => b.test - a.test)[0]
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
-  const canSubmitDiagnosis = distinctConfigCount >= 2 && (diagnosisAttempts === 0 || distinctConfigCount > lastDiagnosisConfigCount)
-  const diagnosisLocked = diagnosisAttempts > 0 && !canSubmitDiagnosis
-  const objective = objectiveFor({ trained, auditComplete: Boolean(auditResult), history, canSubmitDiagnosis, diagnosisLocked, credits })
+  const diagnosisAvailable = distinctConfigCount >= 2 && (diagnosisAttempts === 0 || distinctConfigCount > lastDiagnosisConfigCount)
+  const citedEvidence = diagnosisEvidenceStatus(history, selectedEvidenceRunIds, lastDiagnosisRunCount)
+  const canSubmitDiagnosis = diagnosisAvailable && citedEvidence.ready
+  const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
+  const objective = objectiveFor({
+    trained,
+    auditComplete: Boolean(auditResult),
+    history,
+    diagnosisAvailable,
+    evidenceReady: citedEvidence.ready,
+    diagnosisLocked,
+    credits,
+  })
+  const toggleEvidenceRun = (runId: number) => {
+    setSelectedEvidenceRunIds((ids) => {
+      if (ids.includes(runId)) return ids.filter((id) => id !== runId)
+      if (ids.length >= 2) return ids
+      return [...ids, runId]
+    })
+  }
   const submitDiagnosis = () => {
     if (!diagnosis || !canSubmitDiagnosis) return
     setDiagnosisAttempts((value) => value + 1)
@@ -132,6 +151,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     audio.play('warning')
     setLastDiagnosisOutcome(diagnosis === caseData.diagnosis.correct ? 'needs-reliable' : 'wrong')
     setLastDiagnosisConfigCount(distinctConfigCount)
+    setLastDiagnosisRunCount(history.length)
+    setSelectedEvidenceRunIds([])
   }
 
   const requestEmergencyAudit = () => {
@@ -156,6 +177,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setDiagnosis(undefined)
     setDiagnosisAttempts(0)
     setLastDiagnosisConfigCount(0)
+    setLastDiagnosisRunCount(0)
+    setSelectedEvidenceRunIds([])
     setSubmittedDiagnosis(undefined)
     setLastDiagnosisOutcome(undefined)
     setSelectedArchiveId(undefined)
@@ -225,15 +248,17 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
         historyCount={history.length}
         configurationCount={distinctConfigCount}
         onLocate={() => {
-          const selector = objective.code === 'RECOVER / NO CREDIT'
+          const selector = objective.target === 'recovery'
             ? '.diagnosis-emergency'
-            : objective.focus === 'baseline'
+            : objective.target === 'train'
               ? '.objective-action'
-              : objective.focus === 'predict'
+              : objective.target === 'audit'
                 ? '.experiment-console'
-                : objective.focus === 'diagnose'
+                : objective.target === 'run-log'
                   ? '.endless-run-log'
-                  : '.sensor-deck'
+                  : objective.target === 'diagnosis'
+                    ? '.endless-diagnosis'
+                    : '.sensor-deck'
           document.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }}
       />
@@ -280,7 +305,15 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               onAudit={audit}
               onEmergency={requestEmergencyAudit}
             />
-            <EndlessRunLog caseData={caseData} history={history} attention={objective.focus === 'diagnose' && !diagnosisLocked} />
+            <EndlessRunLog
+              caseData={caseData}
+              history={history}
+              selectedEvidenceIds={selectedEvidenceRunIds}
+              evidenceSelectable={diagnosisAvailable}
+              lastDiagnosisRunCount={lastDiagnosisRunCount}
+              attention={objective.target === 'run-log'}
+              onToggleEvidence={(runId) => { audio.play('evidence'); toggleEvidenceRun(runId) }}
+            />
             {(distinctConfigCount >= 2 || diagnosisAttempts > 0) && (
               <EndlessDiagnosis
                 caseData={caseData}
@@ -291,7 +324,10 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
                 credits={credits}
                 submittedDiagnosis={submittedDiagnosis}
                 lastOutcome={lastDiagnosisOutcome}
-                attention={objective.focus === 'diagnose' && diagnosisLocked}
+                evidenceRecords={citedEvidence.records}
+                evidenceReady={citedEvidence.ready}
+                diagnosisAvailable={diagnosisAvailable}
+                attention={objective.target === 'diagnosis' || objective.target === 'recovery'}
                 onChange={(value) => { audio.play('select'); setDiagnosis(value) }}
                 onSubmit={submitDiagnosis}
                 onEmergency={requestEmergencyAudit}

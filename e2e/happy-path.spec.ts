@@ -37,6 +37,13 @@ async function chooseEndlessFeatures(page: Page, first: string, second: string) 
   await inventory.getByRole('button', { name: new RegExp(second) }).click()
 }
 
+async function citeEndlessRuns(page: Page, ...runNumbers: number[]) {
+  for (const runNumber of runNumbers) {
+    const label = `引用 E${String(runNumber).padStart(2, '0')}`
+    await page.locator('.endless-run-log').getByRole('button', { name: label }).click()
+  }
+}
+
 async function assertNoOverlap(page: Page, first: string, second: string) {
   const a = await page.locator(first).boundingBox()
   const b = await page.locator(second).boundingBox()
@@ -451,6 +458,15 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await qaShot(page, '32-endless-repair')
   await expect(page.getByText(/FIELD AUDIT/)).toBeVisible()
 
+  // Diagnosis is not available merely because two configurations exist: the player must cite both records.
+  await expect(page.getByLabel('当前调查目标')).toContainText('从实验记录引用两条证据')
+  await expect(page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' })).toBeDisabled()
+  await citeEndlessRuns(page, 1, 2)
+  await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
+  await expect(page.getByLabel('当前调查目标')).toContainText('证据包已就绪')
+  await expect(page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' })).toBeEnabled()
+  await qaShot(page, '32b-endless-cited-evidence')
+
   // A wrong diagnosis cannot be brute-forced into the next option without new evidence.
   await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
@@ -475,7 +491,10 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-run-log article')).toHaveCount(4)
   await expect(page.locator('.endless-run-log article').nth(3)).toHaveAttribute('data-delta', 'model-only')
-  await expect(page.getByText(/诊断报告已重新开放/)).toBeVisible()
+  await expect(page.getByText(/已获得新的实验配置/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
+  await citeEndlessRuns(page, 2, 4)
+  await expect(page.getByText(/新证据已经写入报告/)).toBeVisible()
   await page.getByRole('button', { name: '观察特征没有抓住真正差异' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()
@@ -504,6 +523,7 @@ test('endless audit budget has a costly recovery path instead of a dead end', as
     await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   }
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 0')
+  await citeEndlessRuns(page, 1, 2)
   await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText(/刚提交：模型把训练噪声和偶然点记得太死/)).toBeVisible()
@@ -549,6 +569,7 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await expect(page.locator('.endless-reliability-check')).toContainText('正常日志召回 PASS')
   await expect(page.locator('.endless-reliability-check')).toContainText('故障日志召回 PASS')
 
+  await citeEndlessRuns(page, 1, 2)
   await page.getByRole('button', { name: /多数类把总体准确率撑高/ }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()

@@ -18,6 +18,13 @@ export type EndlessRunRecord = {
 
 export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
 
+export type DiagnosisEvidenceStatus = {
+  records: EndlessRunRecord[]
+  distinctConfigurations: number
+  includesFreshEvidence: boolean
+  ready: boolean
+}
+
 function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]) {
   return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
 }
@@ -34,6 +41,23 @@ export function experimentDelta(previous: EndlessRunRecord | undefined, current:
   if (fieldsChanged && !modelChanged) return 'fields-only'
   if (!fieldsChanged && modelChanged) return 'model-only'
   return 'mixed'
+}
+
+export function diagnosisEvidenceStatus(
+  history: EndlessRunRecord[],
+  selectedRunIds: number[],
+  lastDiagnosisRunCount = 0,
+): DiagnosisEvidenceStatus {
+  const selected = new Set(selectedRunIds)
+  const records = history.filter((record) => selected.has(record.id))
+  const distinctConfigurations = new Set(records.map((record) => experimentConfigKey(record.model, record.features))).size
+  const includesFreshEvidence = lastDiagnosisRunCount === 0 || records.some((record) => record.id > lastDiagnosisRunCount)
+  return {
+    records,
+    distinctConfigurations,
+    includesFreshEvidence,
+    ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence,
+  }
 }
 
 export function accuracyBand(value: number): BandPrediction {
