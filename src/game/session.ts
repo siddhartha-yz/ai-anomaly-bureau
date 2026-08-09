@@ -145,6 +145,26 @@ function isAuditResult(value: unknown): value is AuditResult {
   return catBreadMistakes === catBread && breadCatMistakes === breadCat
 }
 
+function sameRawFeatures(a: RawFeatures, b: RawFeatures) {
+  return [...FEATURES].every((feature) => a[feature] === b[feature])
+}
+
+function sameAuditResult(a: AuditResult, b: AuditResult) {
+  if (a.accuracy !== b.accuracy || a.errorCount !== b.errorCount || a.orangeCatErrors !== b.orangeCatErrors) return false
+  const confusionKeys = ['cat->cat', 'cat->bread', 'bread->cat', 'bread->bread'] as const
+  if (!confusionKeys.every((key) => a.confusion[key] === b.confusion[key])) return false
+  if (a.mistakes.length !== b.mistakes.length) return false
+  const byId = new Map(b.mistakes.map((mistake) => [mistake.id, mistake]))
+  return a.mistakes.every((mistake) => {
+    const other = byId.get(mistake.id)
+    return Boolean(other
+      && mistake.actual === other.actual
+      && mistake.predicted === other.predicted
+      && mistake.correct === other.correct
+      && sameRawFeatures(mistake.features, other.features))
+  })
+}
+
 function isStageStateConsistent(state: GameState): boolean {
   const hasTraining = state.training !== undefined
   const hasAudit = state.audit !== undefined
@@ -392,7 +412,7 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   })) return false
   if (state.audit) {
     const latest = state.auditHistory.at(-1)
-    if (!latest || latest.accuracy !== state.audit.accuracy || latest.errorCount !== state.audit.errorCount) return false
+    if (!latest || !sameAuditResult(latest, state.audit)) return false
   }
   if (item.pendingPrediction !== undefined && !PREDICTIONS.has(item.pendingPrediction)) return false
   if (!isNonNegativeInteger(item.emergencyAudits) || !isNonNegativeInteger(item.reasoningMisses)) return false
