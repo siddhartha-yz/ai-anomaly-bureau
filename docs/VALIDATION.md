@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：12 个测试文件、53 个测试全部通过。
+- Vitest：12 个测试文件、55 个测试全部通过。
 - Vite production build：通过。
-- Playwright：18 条 Chromium E2E 通过，覆盖剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 结案匿名日志导出、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
+- Playwright：19 条 Chromium E2E 通过，覆盖剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -61,6 +61,7 @@ Vitest 当前覆盖：
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID、mistake flags 与 debug model params 不进入序列化结果。
 - Story session 关系校验：experimentLog / auditHistory 数量与 accuracy/error 必须对应，current audit 必须匹配最新 history，selected mistake / suspicious attempt 必须引用真实已存在记录；损坏、错 seed、旧版本、非法匿名日志都会删除。
+- Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组，事件数限制 500；reader / writer 同时限制 200KB。超限 writer 返回 false 且不覆盖最后有效 checkpoint。
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；显式新局会生成新的随机 session。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
 - 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
@@ -74,7 +75,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 18 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 19 条真实 Chromium 路线。
 
 零基础玩家完整案件：
 
@@ -102,6 +103,7 @@ Vitest 当前覆盖：
 - CASE CLOSED 后刷新：进入 `RESOLVED CASE SAVED`，重新打开仍保持评级 A，不重播阶段过场，匿名日志的 `COMPLETE` 始终只有 1 条。
 - 普通结案页真实下载行为日志 JSON：同一 sessionId 贯穿四次恢复，最终有 4 条 `SESSION_RESTORED`，并包含早期 `VIEW_MISTAKE`、后期 `RUN_AUDIT` 与最终 `EXPORT_LOG`；文件不含内部 `test-cat/test-bread` 或 mistake flags。
 - `StoryResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
+- localStorage 故障路线会故意让 Story key 的 `setItem` 抛 `QuotaExceededError`：游戏保持可操作并显示 `LOCAL SAVE FAILED`；恢复 Storage 后点击“重试本地保存”，真实写入成功且警告消失。
 
 工程模式路线会直接打开 `?debug=1`，验证 DebugPanel、阶段跳转和快速主操作仍可用，不受普通玩家 micro-beat 门槛影响。
 

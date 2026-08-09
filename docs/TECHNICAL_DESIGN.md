@@ -190,9 +190,11 @@ type Stage =
 
 Cold Open、图上异常样本调查、边界 `PROBE ?`、传感器读取、预测下注、正式审计额度、证据推理、实验记录比较、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主 reducer 阶段语义。它们把同一 stage 拆成需要观察 / 判断 / 验证的 micro-beat，而不是增加第二套业务状态机。
 
-Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。运行时 guard 还会校验 experimentLog 与 auditHistory 数量、accuracy / error 对应关系、当前 audit 与最新 history 的一致性、selected mistake / suspicious attempt 的引用有效性。损坏或旧版本 payload 会直接删除。
+Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。运行时 guard 还会校验 experimentLog 与 auditHistory 数量、accuracy / error 对应关系、当前 audit 与最新 history 的一致性、selected mistake / suspicious attempt 的引用有效性。Behavior telemetry 同样只接受合法 feature pair / public mistake ID，并限制事件数。reader / writer 共享 200KB 上限：损坏、旧版本或超限 payload 会删除 / 拒绝，超限写入不会覆盖最后一份有效检查点。
 
 Story 正式审计额度也不直接持久化：第一份未知审计不计修复预算，之后由 `4 + emergencyAudits - (experimentLog.length - 1)` 重建，因此刷新不能把花掉的额度“退回”。实验前 `pendingPrediction` 属于教学证据，会随检查点恢复；这保证“先预注册假设，再训练 / 审计”的顺序不会被 F5 绕过。
+
+`writeStorySession()` 的失败不是静默状态：GameSession 会显示 `LOCAL SAVE FAILED`，并由一个 retry nonce 显式重跑同一保存 effect。localStorage 恢复可写后，玩家点击“重试本地保存”即可清除警告；保存失败不会阻断当前页面内的游戏流程。
 
 Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作包括 `START`、`SELECT_FEATURES`、`SELECT_MODEL`、`TRAIN`、`RUN_AUDIT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`、`RESET_STAGE`、`JUMP_STAGE`。
 
