@@ -11,7 +11,7 @@ import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFo
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -275,6 +275,14 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   })
   const controlledComparisons = experimentDeltas.filter((delta) => delta === 'fields-only' || delta === 'model-only').length
   const mixedComparisons = experimentDeltas.filter((delta) => delta === 'mixed').length
+  const closureEvidenceComparison = citedEvidence.records.length === 2
+    ? compareExperimentRecords(citedEvidence.records[0], citedEvidence.records[1])
+    : undefined
+  const closureEvidenceLabel = closureEvidenceComparison?.delta === 'fields-only' ? '只换字段'
+    : closureEvidenceComparison?.delta === 'model-only' ? '只换模型'
+      : closureEvidenceComparison?.delta === 'repeat' ? '同配置复现'
+        : closureEvidenceComparison?.delta === 'mixed' ? '字段 + 模型都换'
+          : '未形成有效对照'
   const score = Math.max(40, Math.min(100,
     100 - Math.max(0, auditsUsed - 3) * 4 - emergencyCredits * 12 - Math.max(0, diagnosisAttempts - 1) * 8
       + history.filter((record) => record.predictionHit).length * 2
@@ -335,27 +343,29 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
         <div className="endless-objective"><strong>结案目标</strong><span>① 找到一个面对现场数据也站得住的方案。② 用多条证据解释系统为什么会坏。</span><small>可靠线：总体 ≥85% · 两类召回都 ≥75%</small><b>审计额度 {credits}</b></div>
       </section>
 
-      <EndlessObjective
-        objective={objective}
-        credits={credits}
-        historyCount={history.length}
-        configurationCount={distinctConfigCount}
-        resumed={sessionRestoredNotice}
-        onLocate={() => {
-          const selector = objective.target === 'recovery'
-            ? '.diagnosis-emergency'
-            : objective.target === 'train'
-              ? '.objective-action'
-              : objective.target === 'audit'
-                ? '.experiment-console'
-                : objective.target === 'run-log'
-                  ? '.endless-run-log'
-                  : objective.target === 'diagnosis'
-                    ? '.endless-diagnosis'
-                    : '.sensor-deck'
-          document.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }}
-      />
+      {!solved && (
+        <EndlessObjective
+          objective={objective}
+          credits={credits}
+          historyCount={history.length}
+          configurationCount={distinctConfigCount}
+          resumed={sessionRestoredNotice}
+          onLocate={() => {
+            const selector = objective.target === 'recovery'
+              ? '.diagnosis-emergency'
+              : objective.target === 'train'
+                ? '.objective-action'
+                : objective.target === 'audit'
+                  ? '.experiment-console'
+                  : objective.target === 'run-log'
+                    ? '.endless-run-log'
+                    : objective.target === 'diagnosis'
+                      ? '.endless-diagnosis'
+                      : '.sensor-deck'
+            document.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }}
+        />
+      )}
 
       {!solved ? (
         <div className={`endless-workspace focus-${objective.focus}`}>
@@ -448,6 +458,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               <article><small>FINAL CONFIG</small><strong>{caseData.featureNames[bestReliable.features[0]]} + {caseData.featureNames[bestReliable.features[1]]}</strong><span>{MODEL_META[bestReliable.model].label}</span></article>
               <article><small>FIELD EVIDENCE</small><strong>{Math.round(bestReliable.test * 100)}%</strong><span>最低类别召回 {Math.round(Math.min(bestReliable.recall.cat, bestReliable.recall.bread) * 100)}%</span></article>
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 预测命中 {history.filter((record) => record.predictionHit).length} 次</span></article>
+              <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
+              <article><small>FIELD INSPECTION</small><strong>{inspectedFieldErrors.length} 条误判复核</strong><span>{inspectedFieldErrors.length ? `来自 ${new Set(inspectedFieldErrors.map((item) => item.runId)).size} 次正式审计` : '本次结案没有额外打开现场误判记录'}</span></article>
               <article><small>ARCHIVE</small><strong>{inspectedArchiveIds.length} 条档案复核</strong><span>{caseData.archiveAlerts.length ? `本案共有 ${caseData.archiveAlerts.length} 条质量告警` : '本案无额外质量告警'}</span></article>
             </div>
           )}
