@@ -92,6 +92,7 @@ function isMistake(value: unknown): value is MistakeDetail {
     && LABELS.has(item.predicted as Label)
     && typeof item.correct === 'boolean'
     && item.correct === false
+    && item.actual !== item.predicted
     && isRawFeatures(item.features)
     && item.flags === undefined
 }
@@ -100,15 +101,32 @@ function isAuditResult(value: unknown): value is AuditResult {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<AuditResult>
   const confusion = item.confusion as Record<string, unknown> | undefined
-  return isRate(item.accuracy)
-    && isNonNegativeInteger(item.errorCount)
-    && item.errorCount === item.mistakes?.length
-    && Boolean(confusion)
-    && ['cat->cat', 'cat->bread', 'bread->cat', 'bread->bread'].every((key) => isNonNegativeInteger(confusion?.[key]))
-    && Array.isArray(item.mistakes)
-    && item.mistakes.every(isMistake)
-    && isNonNegativeInteger(item.orangeCatErrors)
-    && item.orangeCatErrors <= item.errorCount
+  const confusionKeys = ['cat->cat', 'cat->bread', 'bread->cat', 'bread->bread'] as const
+  if (!isRate(item.accuracy)
+    || !isNonNegativeInteger(item.errorCount)
+    || !confusion
+    || Object.keys(confusion).length !== confusionKeys.length
+    || !confusionKeys.every((key) => isNonNegativeInteger(confusion[key]))
+    || !Array.isArray(item.mistakes)
+    || item.errorCount !== item.mistakes.length
+    || !item.mistakes.every(isMistake)
+    || !isNonNegativeInteger(item.orangeCatErrors)
+    || item.orangeCatErrors > item.errorCount) return false
+
+  const catCat = confusion['cat->cat'] as number
+  const catBread = confusion['cat->bread'] as number
+  const breadCat = confusion['bread->cat'] as number
+  const breadBread = confusion['bread->bread'] as number
+  const total = catCat + catBread + breadCat + breadBread
+  const errors = catBread + breadCat
+  if (total <= 0 || item.errorCount !== errors) return false
+  if (Math.abs(item.accuracy - (total - errors) / total) > 1e-9) return false
+
+  const mistakes = item.mistakes as MistakeDetail[]
+  if (new Set(mistakes.map((mistake) => mistake.id)).size !== mistakes.length) return false
+  const catBreadMistakes = mistakes.filter((mistake) => mistake.actual === 'cat' && mistake.predicted === 'bread').length
+  const breadCatMistakes = mistakes.filter((mistake) => mistake.actual === 'bread' && mistake.predicted === 'cat').length
+  return catBreadMistakes === catBread && breadCatMistakes === breadCat
 }
 
 function isStageStateConsistent(state: GameState): boolean {

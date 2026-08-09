@@ -64,7 +64,7 @@ describe('Story Case local checkpoint', () => {
     const storage = new MemoryStorage()
     const value = session()
     const audit = {
-      accuracy: .67,
+      accuracy: 15 / 16,
       errorCount: 1,
       confusion: { 'cat->cat': 7, 'cat->bread': 1, 'bread->cat': 0, 'bread->bread': 8 },
       mistakes: [{
@@ -86,7 +86,7 @@ describe('Story Case local checkpoint', () => {
       model: 'linear',
       features: ['warmth', 'roundness'],
       trainAccuracy: .89,
-      auditAccuracy: .67,
+      auditAccuracy: 15 / 16,
       errors: 1,
     }]
     value.selectedMistake = 'field-002'
@@ -138,6 +138,58 @@ describe('Story Case local checkpoint', () => {
       expect(readStorySession(storage, value.seed)).toBeUndefined()
       expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
     }
+  })
+
+  it('rejects audit metrics that contradict their confusion matrix and mistake details', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const audit = {
+      accuracy: .5,
+      errorCount: 1,
+      confusion: { 'cat->cat': 7, 'cat->bread': 1, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [{
+        id: 'field-002', actual: 'cat' as const, predicted: 'bread' as const, correct: false as const,
+        features: { warmth: .9, roundness: .5, texture: .7, aspect: .4 },
+      }],
+      orangeCatErrors: 0,
+    }
+    value.state = { ...value.state, stage: 'iterate', auditHistory: [audit] }
+    value.experimentLog = [{
+      id: 1,
+      model: 'linear',
+      features: ['warmth', 'roundness'],
+      trainAccuracy: .89,
+      auditAccuracy: .5,
+      errors: 1,
+    }]
+    storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+
+    expect(readStorySession(storage, value.seed)).toBeUndefined()
+    expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
+
+    const wrongDirection = session()
+    const directionAudit = {
+      ...audit,
+      accuracy: 15 / 16,
+      confusion: { 'cat->cat': 7, 'cat->bread': 0, 'bread->cat': 1, 'bread->bread': 8 },
+    }
+    wrongDirection.state = { ...wrongDirection.state, stage: 'iterate', auditHistory: [directionAudit] }
+    wrongDirection.experimentLog = [{ ...value.experimentLog[0], auditAccuracy: 15 / 16 }]
+    storage.setItem(storySessionKey(wrongDirection.seed), JSON.stringify(wrongDirection))
+    expect(readStorySession(storage, wrongDirection.seed)).toBeUndefined()
+
+    const duplicateMistakes = session()
+    const duplicateAudit = {
+      accuracy: 14 / 16,
+      errorCount: 2,
+      confusion: { 'cat->cat': 6, 'cat->bread': 2, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [audit.mistakes[0], { ...audit.mistakes[0] }],
+      orangeCatErrors: 0,
+    }
+    duplicateMistakes.state = { ...duplicateMistakes.state, stage: 'iterate', auditHistory: [duplicateAudit] }
+    duplicateMistakes.experimentLog = [{ ...value.experimentLog[0], auditAccuracy: 14 / 16, errors: 2 }]
+    storage.setItem(storySessionKey(duplicateMistakes.seed), JSON.stringify(duplicateMistakes))
+    expect(readStorySession(storage, duplicateMistakes.seed)).toBeUndefined()
   })
 
   it('does not treat an untouched title screen as resumable progress and clears explicitly', () => {
