@@ -9,6 +9,9 @@ describe('game state and hidden audit boundary', () => {
     const service = createAuditService(20260809)
     expect(service.publicTest).toHaveLength(24)
     expect(service.publicTest.every((sample) => sample.label === undefined)).toBe(true)
+    expect(service.publicTest.every((sample) => /^field-\d{3}$/.test(sample.id))).toBe(true)
+    expect(service.publicTest.every((sample) => !('flags' in sample))).toBe(true)
+    expect(service.publicTest.every((sample) => !sample.id.includes('cat') && !sample.id.includes('bread'))).toBe(true)
     expect(service.train.every((sample) => sample.label === 'cat' || sample.label === 'bread')).toBe(true)
   })
 
