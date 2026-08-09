@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -66,5 +66,28 @@ describe('endless experiment comparison metadata', () => {
       includesFreshEvidence: true,
       ready: true,
     })
+  })
+
+  it('compares two cited records without inferring a diagnosis', () => {
+    const first = record({
+      id: 1,
+      train: .56,
+      test: .46,
+      errors: 15,
+      recall: { cat: .50, bread: .42 },
+    })
+    const second = record({
+      id: 2,
+      features: ['texture', 'aspect'],
+      train: 1,
+      test: 1,
+      errors: 0,
+      recall: { cat: 1, bread: 1 },
+    })
+    const comparison = compareExperimentRecords(first, second)
+    expect(comparison).toMatchObject({ delta: 'fields-only', errorDelta: -15 })
+    expect(comparison.trainDelta).toBeCloseTo(.44)
+    expect(comparison.fieldDelta).toBeCloseTo(.54)
+    expect(comparison.minRecallDelta).toBeCloseTo(.58)
   })
 })

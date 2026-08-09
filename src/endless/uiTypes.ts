@@ -25,6 +25,14 @@ export type DiagnosisEvidenceStatus = {
   ready: boolean
 }
 
+export type ExperimentComparison = {
+  delta: ExperimentDelta
+  trainDelta: number
+  fieldDelta: number
+  minRecallDelta: number
+  errorDelta: number
+}
+
 function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]) {
   return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
 }
@@ -57,6 +65,17 @@ export function diagnosisEvidenceStatus(
     distinctConfigurations,
     includesFreshEvidence,
     ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence,
+  }
+}
+
+export function compareExperimentRecords(first: EndlessRunRecord, second: EndlessRunRecord): ExperimentComparison {
+  const minRecall = (record: EndlessRunRecord) => Math.min(record.recall.cat, record.recall.bread)
+  return {
+    delta: experimentDelta(first, second),
+    trainDelta: second.train - first.train,
+    fieldDelta: second.test - first.test,
+    minRecallDelta: minRecall(second) - minRecall(first),
+    errorDelta: second.errors - first.errors,
   }
 }
 

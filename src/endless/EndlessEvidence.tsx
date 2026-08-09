@@ -1,7 +1,12 @@
 import { MODEL_META } from '../ml/registry'
 import type { EndlessAudit } from './EndlessPlot'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import { diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
+
+function signedPoints(value: number) {
+  const points = Math.round(value * 100)
+  return `${points > 0 ? '+' : ''}${points}pt`
+}
 
 export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, lastRun }: {
   caseData: EndlessCase
@@ -63,6 +68,12 @@ export function EndlessRunLog({
   if (!history.length) return null
   const configurationCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const cited = diagnosisEvidenceStatus(history, selectedEvidenceIds, lastDiagnosisRunCount)
+  const comparison = cited.records.length === 2 ? compareExperimentRecords(cited.records[0], cited.records[1]) : undefined
+  const comparisonLabel = comparison?.delta === 'repeat' ? '同配置复现'
+    : comparison?.delta === 'fields-only' ? '只换字段'
+      : comparison?.delta === 'model-only' ? '只换模型'
+        : comparison?.delta === 'mixed' ? '字段 + 模型都换'
+          : '基线'
   const citationMessage = cited.ready
     ? `证据包就绪：E${String(cited.records[0].id).padStart(2, '0')} + E${String(cited.records[1].id).padStart(2, '0')}`
     : cited.records.length < 2
@@ -77,6 +88,24 @@ export function EndlessRunLog({
         <div className={`endless-citation-status ${cited.ready ? 'ready' : ''}`} aria-label="诊断证据引用状态">
           <b>DIAGNOSIS EVIDENCE</b><span>{citationMessage}</span>
         </div>
+      )}
+      {evidenceSelectable && comparison && (
+        <section className="endless-evidence-compare" aria-label="已引用实验对照">
+          <div className="endless-compare-head">
+            <span>E{String(cited.records[0].id).padStart(2, '0')} → E{String(cited.records[1].id).padStart(2, '0')}</span>
+            <strong>{comparisonLabel}</strong>
+          </div>
+          <div className="endless-compare-config">
+            <span><small>FIELDS</small>{caseData.featureNames[cited.records[0].features[0]]} + {caseData.featureNames[cited.records[0].features[1]]}<i>→</i>{caseData.featureNames[cited.records[1].features[0]]} + {caseData.featureNames[cited.records[1].features[1]]}</span>
+            <span><small>MODEL</small>{MODEL_META[cited.records[0].model].label}<i>→</i>{MODEL_META[cited.records[1].model].label}</span>
+          </div>
+          <div className="endless-compare-metrics">
+            <span><small>TRAIN</small><b>{Math.round(cited.records[0].train * 100)} → {Math.round(cited.records[1].train * 100)}%</b><em>{signedPoints(comparison.trainDelta)}</em></span>
+            <span><small>FIELD</small><b>{Math.round(cited.records[0].test * 100)} → {Math.round(cited.records[1].test * 100)}%</b><em>{signedPoints(comparison.fieldDelta)}</em></span>
+            <span><small>MIN RECALL</small><b>{Math.round(Math.min(cited.records[0].recall.cat, cited.records[0].recall.bread) * 100)} → {Math.round(Math.min(cited.records[1].recall.cat, cited.records[1].recall.bread) * 100)}%</b><em>{signedPoints(comparison.minRecallDelta)}</em></span>
+            <span><small>ERRORS</small><b>{cited.records[0].errors} → {cited.records[1].errors}</b><em>{comparison.errorDelta > 0 ? '+' : ''}{comparison.errorDelta}</em></span>
+          </div>
+        </section>
       )}
       {history.map((record, index) => {
         const seenBefore = history.slice(0, index).some((previous) =>
