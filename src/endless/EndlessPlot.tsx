@@ -49,7 +49,10 @@ export function EndlessPlot({ caseData, features, model, trained, audit, selecte
             aria-label={point.source.flags?.noise ? `查看档案异常 ${point.id}` : undefined}
             onClick={point.source.flags?.noise ? () => onArchiveSelect?.(point.id) : undefined}
             onKeyDown={point.source.flags?.noise ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') onArchiveSelect?.(point.id)
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onArchiveSelect?.(point.id)
+              }
             } : undefined}
           >
             {point.source.flags?.noise && <title>历史档案采集质量告警：{point.id}</title>}

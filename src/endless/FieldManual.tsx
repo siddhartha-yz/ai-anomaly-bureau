@@ -1,9 +1,49 @@
+import { useEffect, useRef } from 'react'
+
 export function FieldManual({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    closeRef.current?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? [])
+        .filter((element) => !element.hasAttribute('disabled'))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      restoreFocusRef.current?.focus()
+      restoreFocusRef.current = null
+    }
+  }, [open, onClose])
+
   if (!open) return null
   return (
     <div className="field-manual-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <section className="field-manual" role="dialog" aria-modal="true" aria-labelledby="field-manual-title">
-        <header><span>FIELD MANUAL // PLAYER-OPENED</span><button type="button" onClick={onClose}>×</button></header>
+      <section ref={dialogRef} className="field-manual" role="dialog" aria-modal="true" aria-labelledby="field-manual-title">
+        <header><span>FIELD MANUAL // PLAYER-OPENED</span><button ref={closeRef} type="button" aria-label="关闭调查手册" onClick={onClose}>×</button></header>
         <h2 id="field-manual-title">调查手册</h2>
         <p>这不是答案表，只记录调查方法。正式案件不会自动替你套用这些规则。</p>
         <div className="field-manual-grid">
