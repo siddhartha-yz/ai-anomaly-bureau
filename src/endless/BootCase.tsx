@@ -73,7 +73,7 @@ function buildDrills(): Record<DrillId, DrillDefinition> {
       { id: 'minority', label: '总体分掩盖了少数类一直漏掉', correct: true },
       { id: 'overall', label: `${percent(imbalanceRecord.testAccuracy)} 已经足够高，可以忽略分类别表现` },
     ],
-    takeaway: '总体准确率只是一个摘要。真正稀少但重要的类别可能被它藏起来。',
+    takeaway: '召回指“某一类真实样本里有多少被正确找出”。总体准确率只是摘要，稀少但重要的类别可能被它藏起来。',
   },
   shift: {
     code: 'TRAINING FILE C',

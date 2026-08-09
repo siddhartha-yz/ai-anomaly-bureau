@@ -14,6 +14,12 @@ export function FieldManual({ open, onClose }: { open: boolean; onClose: () => v
           <article><b>05</b><strong>总体分只是摘要</strong><span>需要时检查分类别表现、错误样本与现场分布。</span></article>
           <article><b>06</b><strong>诊断要能解释证据</strong><span>如果新证据与诊断冲突，就重新设计实验，而不是轮流猜答案。</span></article>
         </div>
+        <section className="field-manual-metrics" aria-label="指标词典">
+          <strong>读数词典</strong>
+          <span><b>TRAIN</b> 当前方案在历史训练档案上的表现。</span>
+          <span><b>FIELD</b> 当前方案在正式现场审计里的表现。</span>
+          <span><b>召回</b> 对某一个类别单独问：真实属于这一类的样本里，有多少被模型正确找出来。</span>
+        </section>
         <button type="button" className="field-manual-close" onClick={onClose}>返回案件</button>
       </section>
     </div>

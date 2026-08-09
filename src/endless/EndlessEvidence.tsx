@@ -32,6 +32,11 @@ export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, la
           <span>{caseData.classNames.cat}召回 {audit.recall.cat >= .75 ? 'PASS' : 'FAIL'}</span>
           <span>{caseData.classNames.bread}召回 {audit.recall.bread >= .75 ? 'PASS' : 'FAIL'}</span>
         </p>
+        <div className="endless-metric-glossary" aria-label="指标读法">
+          <span><b>TRAIN</b> 历史训练档案上的表现</span>
+          <span><b>FIELD</b> 正式现场审计中的表现</span>
+          <span><b>召回</b> 某一类真实样本中，被模型正确识别出来的比例</span>
+        </div>
       </section>
       {audit.mistakes.length > 0 && (
         <section className="endless-evidence">
