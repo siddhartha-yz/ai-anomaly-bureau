@@ -55,25 +55,63 @@ export function EndlessRunLog({ caseData, history }: { caseData: EndlessCase; hi
   )
 }
 
-export function EndlessDiagnosis({ caseData, value, attempts, best, canSubmit, onChange, onSubmit }: {
+export function EndlessDiagnosis({
+  caseData,
+  value,
+  attempts,
+  best,
+  canSubmit,
+  credits,
+  submittedDiagnosis,
+  lastOutcome,
+  onChange,
+  onSubmit,
+  onEmergency,
+}: {
   caseData: EndlessCase
   value?: EndlessSyndrome
   attempts: number
   best: number
   canSubmit: boolean
+  credits: number
+  submittedDiagnosis?: EndlessSyndrome
+  lastOutcome?: 'wrong' | 'needs-reliable'
   onChange: (value: EndlessSyndrome) => void
   onSubmit: () => void
+  onEmergency: () => void
 }) {
   return (
     <section className="endless-diagnosis">
       <div className="endless-panel-head"><span>04 / DIAGNOSIS</span><strong>提交病因</strong></div>
       <p>至少比较两次实验后，给出你认为最核心的故障原因。</p>
       {caseData.diagnosis.options.map((option) => (
-        <button type="button" key={option.id} className={value === option.id ? 'selected' : ''} onClick={() => onChange(option.id)}>{option.label}</button>
+        <button
+          type="button"
+          key={option.id}
+          className={value === option.id ? 'selected' : ''}
+          disabled={attempts > 0 && !canSubmit}
+          onClick={() => onChange(option.id)}
+        >
+          {option.label}
+        </button>
       ))}
       <button type="button" className="endless-primary" disabled={!value || !canSubmit} onClick={onSubmit}>提交诊断</button>
-      {attempts > 0 && !canSubmit && <div className="diagnosis-retry">上一次诊断没有结案。不能立刻把四个答案轮流试一遍：请先再做一次正式审计，用新证据后再改口。</div>}
-      {attempts > 0 && canSubmit && <div className="diagnosis-retry">已获得新证据，可以重新提交。当前最佳未知表现 {Math.round(best * 100)}%。</div>}
+      {attempts > 0 && !canSubmit && submittedDiagnosis && (
+        <div className="diagnosis-retry diagnosis-locked">
+          <strong>刚提交：{caseData.diagnosis.options.find((option) => option.id === submittedDiagnosis)?.label}</strong>
+          {lastOutcome === 'wrong' ? (
+            <span>当前证据不支持这项病因判断。报告已暂时锁定；先获得一次新的正式审计，再重新判断。</span>
+          ) : (
+            <span>病因方向已经抓到，但目前还没有任何方案同时达到总体与两类召回的可靠线。先找到可靠方案，再回来结案。</span>
+          )}
+          {credits <= 0 && (
+            <button type="button" className="endless-emergency diagnosis-emergency" onClick={onEmergency}>
+              申请 1 次补充审计（评级扣分）
+            </button>
+          )}
+        </div>
+      )}
+      {attempts > 0 && canSubmit && <div className="diagnosis-retry">已获得新证据，诊断报告已重新开放。当前最佳未知表现 {Math.round(best * 100)}%。</div>}
     </section>
   )
 }

@@ -42,6 +42,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const [diagnosis, setDiagnosis] = useState<EndlessSyndrome>()
   const [diagnosisAttempts, setDiagnosisAttempts] = useState(0)
   const [lastDiagnosisAtRun, setLastDiagnosisAtRun] = useState(-1)
+  const [submittedDiagnosis, setSubmittedDiagnosis] = useState<EndlessSyndrome>()
+  const [lastDiagnosisOutcome, setLastDiagnosisOutcome] = useState<'wrong' | 'needs-reliable'>()
   const [solved, setSolved] = useState(false)
 
   const resetExperiment = () => {
@@ -112,13 +114,22 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const submitDiagnosis = () => {
     if (!diagnosis || !canSubmitDiagnosis) return
     setDiagnosisAttempts((value) => value + 1)
+    setSubmittedDiagnosis(diagnosis)
     if (diagnosis === caseData.diagnosis.correct && bestReliable) {
       audio.play('success')
+      setLastDiagnosisOutcome(undefined)
       setSolved(true)
       return
     }
     audio.play('warning')
+    setLastDiagnosisOutcome(diagnosis === caseData.diagnosis.correct ? 'needs-reliable' : 'wrong')
     setLastDiagnosisAtRun(history.length)
+  }
+
+  const requestEmergencyAudit = () => {
+    audio.play('warning')
+    setCredits((value) => value + 1)
+    setEmergencyCredits((value) => value + 1)
   }
 
   const nextCase = () => {
@@ -137,6 +148,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setDiagnosis(undefined)
     setDiagnosisAttempts(0)
     setLastDiagnosisAtRun(-1)
+    setSubmittedDiagnosis(undefined)
+    setLastDiagnosisOutcome(undefined)
     setSolved(false)
   }
 
@@ -195,11 +208,23 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               onTrain={train}
               onPrediction={(value) => { audio.play('select'); setPrediction(value) }}
               onAudit={audit}
-              onEmergency={() => { audio.play('warning'); setCredits((value) => value + 1); setEmergencyCredits((value) => value + 1) }}
+              onEmergency={requestEmergencyAudit}
             />
             <EndlessRunLog caseData={caseData} history={history} />
             {history.length >= 2 && (
-              <EndlessDiagnosis caseData={caseData} value={diagnosis} attempts={diagnosisAttempts} best={best} canSubmit={canSubmitDiagnosis} onChange={(value) => { audio.play('select'); setDiagnosis(value) }} onSubmit={submitDiagnosis} />
+              <EndlessDiagnosis
+                caseData={caseData}
+                value={diagnosis}
+                attempts={diagnosisAttempts}
+                best={best}
+                canSubmit={canSubmitDiagnosis}
+                credits={credits}
+                submittedDiagnosis={submittedDiagnosis}
+                lastOutcome={lastDiagnosisOutcome}
+                onChange={(value) => { audio.play('select'); setDiagnosis(value) }}
+                onSubmit={submitDiagnosis}
+                onEmergency={requestEmergencyAudit}
+              />
             )}
           </aside>
         </div>
