@@ -455,9 +455,25 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await qaShot(page, '31-endless-first-audit')
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
 
+  // Returned audit mistakes are investigation objects, not passive cards.
+  const firstFieldError = page.getByRole('button', { name: /调查现场误判 field-/ }).first()
+  await expect(firstFieldError).toBeVisible()
+  const firstFieldErrorName = await firstFieldError.getAttribute('aria-label')
+  await firstFieldError.click()
+  await expect(page.locator('.endless-field-sample.selected')).toHaveCount(1)
+  await expect(page.locator('.endless-field-error-selected')).toBeInViewport()
+  await expect(page.getByLabel('现场误判调查记录')).toBeVisible()
+  await expect(page.getByLabel('现场误判调查记录')).toContainText(/ACTUAL/)
+  await expect(page.getByLabel('现场误判调查记录')).toContainText(/PREDICTED/)
+  await expect(page.locator('.endless-lead-board')).toContainText('已检查现场误判')
+  if (firstFieldErrorName) await expect(page.locator('.endless-lead-board')).toContainText(firstFieldErrorName.split(' ').at(-1)!.toUpperCase())
+  await qaShot(page, '31b-endless-field-error')
+
   // Evidence-led repair: install the stable pair and keep the simple linear model.
   const features = page.locator('.endless-feature-list')
   await features.getByRole('button', { name: /发件人可信度/ }).click()
+  await expect(page.getByLabel('现场误判调查记录')).toHaveCount(0)
+  await expect(page.locator('.endless-lead-board')).toContainText('已检查现场误判')
   await features.getByRole('button', { name: /正文重复度/ }).click()
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()

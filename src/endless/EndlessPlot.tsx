@@ -6,13 +6,14 @@ import type { EndlessCase } from './generator'
 
 export type EndlessAudit = ReturnType<EndlessCase['audit']>
 
-export function EndlessPlot({ caseData, features, model, trained, audit, selectedArchiveId, onArchiveSelect }: {
+export function EndlessPlot({ caseData, features, model, trained, audit, selectedArchiveId, selectedFieldErrorId, onArchiveSelect }: {
   caseData: EndlessCase
   features: [FeatureKey, FeatureKey]
   model: ModelId
   trained: boolean
   audit?: EndlessAudit
   selectedArchiveId?: string
+  selectedFieldErrorId?: string
   onArchiveSelect?: (id: string) => void
 }) {
   const W = 660
@@ -24,6 +25,7 @@ export function EndlessPlot({ caseData, features, model, trained, audit, selecte
   const fitted = trained ? MODEL_REGISTRY[model].fit(trainPoints) : undefined
   const grid = fitted ? createDecisionGrid(fitted, 20) : []
   const predictionById = new Map(audit?.predictions.map((item) => [item.id, item.predicted]))
+  const mistakeIds = new Set(audit?.mistakes.map((item) => item.id) ?? [])
   const resolution = grid.length ? Math.round(Math.sqrt(grid.length)) : 0
   const cw = resolution ? (W - pad * 2) / resolution : 0
   const ch = resolution ? (H - pad * 2) / resolution : 0
@@ -67,7 +69,15 @@ export function EndlessPlot({ caseData, features, model, trained, audit, selecte
           const px = x(sample.features[features[0]])
           const py = y(sample.features[features[1]])
           const predicted = predictionById.get(sample.id)
-          return <rect key={sample.id} x={px - 5} y={py - 5} width="10" height="10" transform={`rotate(45 ${px} ${py})`} className={`endless-field-point ${predicted ?? ''}`} />
+          const isMistake = mistakeIds.has(sample.id)
+          const selected = selectedFieldErrorId === sample.id
+          return (
+            <g key={sample.id} className={`endless-field-sample ${isMistake ? 'mistake' : ''} ${selected ? 'selected' : ''}`}>
+              <rect x={px - 5} y={py - 5} width="10" height="10" transform={`rotate(45 ${px} ${py})`} className={`endless-field-point ${predicted ?? ''}`} />
+              {isMistake && <rect x={px - 10} y={py - 10} width="20" height="20" className="endless-field-error-frame" />}
+              {selected && <circle cx={px} cy={py} r="15" className="endless-field-error-selected" />}
+            </g>
+          )
         })}
         <line x1={pad} y1={H-pad} x2={W-pad} y2={H-pad} className="endless-axis" />
         <line x1={pad} y1={pad} x2={pad} y2={H-pad} className="endless-axis" />

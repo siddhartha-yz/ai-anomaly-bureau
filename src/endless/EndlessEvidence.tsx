@@ -8,13 +8,16 @@ function signedPoints(value: number) {
   return `${points > 0 ? '+' : ''}${points}pt`
 }
 
-export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, lastRun }: {
+export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, lastRun, selectedMistakeId, onMistakeSelect }: {
   caseData: EndlessCase
   audit: EndlessAudit
   trainAccuracy: number
   features: EndlessRunRecord['features']
   lastRun?: EndlessRunRecord
+  selectedMistakeId?: string
+  onMistakeSelect?: (mistake: EndlessAudit['mistakes'][number]) => void
 }) {
+  const selectedMistake = audit.mistakes.find((mistake) => mistake.id === selectedMistakeId)
   return (
     <>
       <section className="endless-audit-result">
@@ -32,16 +35,34 @@ export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, la
       </section>
       {audit.mistakes.length > 0 && (
         <section className="endless-evidence">
-          <div className="endless-panel-head"><span>FIELD_ERRORS.LOG</span><strong>抽取前 {Math.min(4, audit.mistakes.length)} 条错误</strong></div>
+          <div className="endless-panel-head"><span>FIELD_ERRORS.LOG</span><strong>点击检查 · 前 {Math.min(4, audit.mistakes.length)} 条错误</strong></div>
           <div className="endless-error-grid">
             {audit.mistakes.slice(0, 4).map((mistake) => (
-              <article key={mistake.id}>
+              <button
+                type="button"
+                key={mistake.id}
+                className={selectedMistakeId === mistake.id ? 'selected' : ''}
+                aria-pressed={selectedMistakeId === mistake.id}
+                aria-label={`调查现场误判 ${mistake.id}`}
+                onClick={() => onMistakeSelect?.(mistake)}
+              >
                 <b>{caseData.classNames[mistake.actual]}</b>
                 <span>→ 被判为 {caseData.classNames[mistake.predicted]}</span>
                 <small>{caseData.featureNames[features[0]]} {mistake.features[features[0]].toFixed(2)} · {caseData.featureNames[features[1]]} {mistake.features[features[1]].toFixed(2)}</small>
-              </article>
+                <em>{selectedMistakeId === mistake.id ? '✓ 已定位到 FIELD_MATRIX' : '▶ 定位这条误判'}</em>
+              </button>
             ))}
           </div>
+          {selectedMistake && (
+            <div className="endless-field-error-detail" aria-label="现场误判调查记录">
+              <div><small>FIELD SAMPLE</small><strong>{selectedMistake.id.toUpperCase()}</strong></div>
+              <div><small>ACTUAL</small><strong>{caseData.classNames[selectedMistake.actual]}</strong></div>
+              <div><small>PREDICTED</small><strong>{caseData.classNames[selectedMistake.predicted]}</strong></div>
+              <div><small>{caseData.featureNames[features[0]]}</small><strong>{selectedMistake.features[features[0]].toFixed(2)}</strong></div>
+              <div><small>{caseData.featureNames[features[1]]}</small><strong>{selectedMistake.features[features[1]].toFixed(2)}</strong></div>
+              <p>这是真实现场审计已经揭示的错误记录。图中只高亮它的位置；病因仍需要通过不同实验配置来判断。</p>
+            </div>
+          )}
         </section>
       )}
     </>

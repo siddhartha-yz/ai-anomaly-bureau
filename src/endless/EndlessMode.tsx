@@ -7,7 +7,7 @@ import type { FeatureKey } from '../ml/types'
 import { EndlessControls } from './EndlessControls'
 import { EndlessAuditPanel, EndlessDiagnosis, EndlessRunLog } from './EndlessEvidence'
 import { FieldManual } from './FieldManual'
-import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
+import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor, type InspectedFieldError } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
 import { accuracyBand, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
@@ -22,6 +22,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const [manualOpen, setManualOpen] = useState(false)
   const [selectedArchiveId, setSelectedArchiveId] = useState<string>()
   const [inspectedArchiveIds, setInspectedArchiveIds] = useState<string[]>([])
+  const [selectedFieldErrorId, setSelectedFieldErrorId] = useState<string>()
+  const [inspectedFieldErrors, setInspectedFieldErrors] = useState<InspectedFieldError[]>([])
 
   useEffect(() => {
     audio.setPhase(2)
@@ -58,6 +60,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setTrainAccuracy(undefined)
     setAuditResult(undefined)
     setPrediction(undefined)
+    setSelectedFieldErrorId(undefined)
   }
 
   const installFeature = (feature: FeatureKey) => {
@@ -91,6 +94,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setTrained(true)
     setAuditResult(undefined)
     setPrediction(undefined)
+    setSelectedFieldErrorId(undefined)
   }
 
   const audit = () => {
@@ -161,6 +165,20 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setEmergencyCredits((value) => value + 1)
   }
 
+  const inspectFieldError = (mistake: EndlessAudit['mistakes'][number]) => {
+    const runId = history.at(-1)?.id
+    if (!runId) return
+    audio.play('evidence')
+    setSelectedFieldErrorId(mistake.id)
+    setInspectedFieldErrors((items) => {
+      if (items.some((item) => item.runId === runId && item.sampleId === mistake.id)) return items
+      return [...items, { runId, sampleId: mistake.id, actual: mistake.actual, predicted: mistake.predicted }]
+    })
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('.endless-plot-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }
+
   const nextCase = () => {
     audio.play('ui')
     setSeed((value) => value + 1)
@@ -183,6 +201,8 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     setLastDiagnosisOutcome(undefined)
     setSelectedArchiveId(undefined)
     setInspectedArchiveIds([])
+    setSelectedFieldErrorId(undefined)
+    setInspectedFieldErrors([])
     setSolved(false)
   }
 
@@ -273,6 +293,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               trained={trained}
               audit={auditResult}
               selectedArchiveId={selectedArchiveId}
+              selectedFieldErrorId={selectedFieldErrorId}
               onArchiveSelect={(id) => {
                 audio.play('evidence')
                 setSelectedArchiveId(id)
@@ -280,11 +301,19 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
               }}
             />
             {auditResult && trainAccuracy !== undefined && (
-              <EndlessAuditPanel caseData={caseData} audit={auditResult} trainAccuracy={trainAccuracy} features={features} lastRun={history.at(-1)} />
+              <EndlessAuditPanel
+                caseData={caseData}
+                audit={auditResult}
+                trainAccuracy={trainAccuracy}
+                features={features}
+                lastRun={history.at(-1)}
+                selectedMistakeId={selectedFieldErrorId}
+                onMistakeSelect={inspectFieldError}
+              />
             )}
           </div>
           <aside className="endless-console">
-            <EndlessLeadBoard caseData={caseData} history={history} inspectedArchiveIds={inspectedArchiveIds} />
+            <EndlessLeadBoard caseData={caseData} history={history} inspectedArchiveIds={inspectedArchiveIds} inspectedFieldErrors={inspectedFieldErrors} />
             <EndlessArchiveEvidence caseData={caseData} sampleId={selectedArchiveId} features={features} onClose={() => setSelectedArchiveId(undefined)} />
             <EndlessControls
               caseData={caseData}

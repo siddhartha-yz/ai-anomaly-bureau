@@ -1,10 +1,11 @@
-import type { FeatureKey } from '../ml/types'
+import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCase, EndlessSyndrome } from './generator'
 import type { EndlessRunRecord } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
+export type InspectedFieldError = { runId: number; sampleId: string; actual: Label; predicted: Label }
 
 export function objectiveFor({
   trained,
@@ -76,10 +77,20 @@ export function EndlessObjective({ objective, credits, historyCount, configurati
   )
 }
 
-export function EndlessLeadBoard({ caseData, history, inspectedArchiveIds = [] }: { caseData: EndlessCase; history: EndlessRunRecord[]; inspectedArchiveIds?: string[] }) {
+export function EndlessLeadBoard({
+  caseData,
+  history,
+  inspectedArchiveIds = [],
+  inspectedFieldErrors = [],
+}: {
+  caseData: EndlessCase
+  history: EndlessRunRecord[]
+  inspectedArchiveIds?: string[]
+  inspectedFieldErrors?: InspectedFieldError[]
+}) {
   const latest = history.at(-1)
   const inspectedAlerts = caseData.archiveAlerts.filter((alert) => inspectedArchiveIds.includes(alert.id))
-  const evidenceCount = (inspectedAlerts.length > 0 ? 1 : 0) + history.length
+  const evidenceCount = (inspectedAlerts.length > 0 ? 1 : 0) + history.length + inspectedFieldErrors.length
   return (
     <section className="endless-lead-board" aria-label="案件线索板">
       <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
@@ -94,6 +105,12 @@ export function EndlessLeadBoard({ caseData, history, inspectedArchiveIds = [] }
           <article className={record.id === latest?.id ? 'latest' : ''} key={`run-${record.id}`}>
             <i>E{record.id}</i>
             <span>正式审计 #{record.id}：总体 {Math.round(record.test * 100)}%，最低类别召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%。</span>
+          </article>
+        ))}
+        {inspectedFieldErrors.slice(-3).map((error, index) => (
+          <article className="field-error-lead" key={`${error.runId}-${error.sampleId}`}>
+            <i>F{Math.max(1, inspectedFieldErrors.length - 2 + index)}</i>
+            <span>已检查现场误判 {error.sampleId.toUpperCase()}（审计 #{error.runId}）：{caseData.classNames[error.actual]} → {caseData.classNames[error.predicted]}。</span>
           </article>
         ))}
         {!evidenceCount && <article className="empty"><i>?</i><span>{caseData.archiveAlerts.length ? '可以先打开图中的橙色「!」，或直接建立第一条正式审计。你亲手查看过的事实会记录在这里。' : '先完成第一条正式审计。新获得的现场事实会记录在这里。'}</span></article>}
