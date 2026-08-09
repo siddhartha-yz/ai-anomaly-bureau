@@ -132,7 +132,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-2026-08-09 对提交 `42998dd` 的 GitHub Actions 运行结果为 `success`，上述步骤全部通过。
+2026-08-09 对沉浸式第一关提交 `88153b3` 的 GitHub Actions 运行结果为 `success`，上述步骤全部通过；同一提交的 `Deploy Pages` 也为 `success`。
 
 ## GitHub Pages 部署状态
 
@@ -155,8 +155,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 - 页面 HTML：HTTP 200。
 - production JS asset：HTTP 200。
-- 同一条 Playwright happy path 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行通过。
-- 生产 E2E 从标题页完整跑到 `CASE CLOSED`。
+- 同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行通过。
+- 沉浸式新版生产 E2E 已实际覆盖 Cold Open、两条误判证据、k=1 过拟合、备用传感器修复与 `CASE CLOSED`；debug 工程模式也同时通过。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
