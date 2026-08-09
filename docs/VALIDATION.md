@@ -184,7 +184,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 6. 安装 Chromium
 7. `npm run test:e2e`
 
-上一轮 onboarding / 正式无尽调查基线已经完成公网发布验证；本轮新增证据引用、可调查现场误判、session 恢复等改动已完成本地完整验证并 push。下面保留上一轮生产基线，待当前 `main` 的 Pages 部署传播后再以同一套生产 URL E2E 更新结果，不用本地结果冒充远端结果。
+本轮新增证据引用、可调查现场误判、session 恢复、键盘可访问性等改动已经完成本地完整验证并 push；随后等待 Pages HTML 实际引用本轮 production asset，再以同一套生产 URL E2E 做发布验收，没有用本地结果冒充远端结果。
 
 ## GitHub Pages 部署状态
 
@@ -207,8 +207,9 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 - 页面 HTML：HTTP 200。
 - production JS asset：HTTP 200。
-- 上一轮生产基线：2026-08-10 01:06 +08:00，同一组当时的 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**13 / 13 全部通过**。
-- 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、正式症状 / 档案证据、复现实验诊断守卫、sticky NEXT OBJECTIVE、1280×720、distribution-shift 批次元数据、额度恢复、类别不平衡与下一案生成。
+- 2026-08-10 04:27 +08:00，公网 HTML 已实际引用本轮构建产物 `assets/index-CT6RjPEj.js`。
+- 2026-08-10 04:28 +08:00，同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**16 / 16 全部通过**。
+- 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、症状 / 档案证据、显式实验引用与客观对照、同配置引用拒绝、现场误判定位、刷新不退款、错误诊断锁跨刷新、未结 / 已结案 session 入口、键盘手册、sticky NEXT OBJECTIVE、1280×720、distribution-shift、额度恢复、类别不平衡与下一案生成。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
