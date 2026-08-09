@@ -741,6 +741,7 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   const exportedLog = JSON.parse(exportedLogText) as BehaviorLog
   expect(exportedLog.sessionId).toBe(completedCheckpoint.behaviorLog?.sessionId)
   expect(exportedLog.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
+  expect(exportedLog.events.filter((event) => event.action === 'SESSION_RESTORED')).toHaveLength(3)
   expect(exportedLog.events.some((event) => event.action === 'VIEW_MISTAKE')).toBe(true)
   expect(exportedLog.events.some((event) => event.action === 'RUN_AUDIT')).toBe(true)
   expect(exportedLog.events.at(-1)?.action).toBe('EXPORT_LOG')

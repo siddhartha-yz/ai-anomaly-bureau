@@ -165,6 +165,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const [reasoningMisses, setReasoningMisses] = useState(restoredSession?.reasoningMisses ?? 0)
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed, restoredSession?.behaviorLog))
   const completionLogged = useRef(restoredSession?.state.stage === 'complete')
+  const restoreLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
   const previousStage = useRef<Stage>(restoredSession?.state.stage ?? 'briefing')
   const previousPhase = useRef<GameMusicPhase>(musicPhaseFor(restoredSession?.state.stage ?? 'briefing'))
@@ -249,6 +250,21 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   }, [state.stage])
 
   useEffect(() => () => audio.current.dispose(), [])
+
+  useEffect(() => {
+    if (debug || !restoredProgress || restoreLogged.current) return
+    restoreLogged.current = true
+    logger.current.record({
+      stage: state.stage,
+      action: 'SESSION_RESTORED',
+      features: [...state.selectedFeatures],
+      model: state.selectedModel,
+      trainAccuracy: state.training?.accuracy,
+      testAccuracy: state.audit?.accuracy,
+      retryCount: state.retryCount,
+      completed: state.stage === 'complete',
+    })
+  }, [debug, restoredProgress, state])
 
   useEffect(() => {
     if (debug || entryPhase !== 'game') return
