@@ -113,6 +113,9 @@ function isAuditResult(value: unknown): value is AuditResult {
 function isGameState(value: unknown, seed: number): value is GameState {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<GameState>
+  const completionStateValid = item.stage === 'complete'
+    ? isFiniteNumber(item.completedAt) && typeof item.transferAnswer === 'string' && item.transferCorrect === true
+    : item.completedAt === undefined
   return item.seed === seed
     && item.debug === false
     && STAGES.has(item.stage as Stage)
@@ -133,7 +136,7 @@ function isGameState(value: unknown, seed: number): value is GameState {
     && (item.transferAnswer === undefined || typeof item.transferAnswer === 'string')
     && (item.transferCorrect === undefined || typeof item.transferCorrect === 'boolean')
     && isFiniteNumber(item.startedAt)
-    && (item.completedAt === undefined || isFiniteNumber(item.completedAt))
+    && completionStateValid
     && Array.isArray(item.diagnostics)
     && item.diagnostics.every((message) => typeof message === 'string')
 }

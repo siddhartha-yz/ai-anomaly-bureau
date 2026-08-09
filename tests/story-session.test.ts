@@ -109,6 +109,8 @@ describe('Story Case local checkpoint', () => {
       (value) => { value.state.seed += 1 },
       (value) => { value.selectedMistake = 'field-999' },
       (value) => { value.suspiciousAttemptId = 4 },
+      (value) => { value.state = { ...value.state, stage: 'complete' } },
+      (value) => { value.state = { ...value.state, completedAt: 999 } },
       (value) => {
         value.experimentLog = [{ id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: .67, errors: 8 }]
       },
