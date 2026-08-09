@@ -20,7 +20,7 @@ npm run test:e2e
 - TypeScript strict typecheck：通过。
 - Vitest：10 个测试文件、47 个测试全部通过。
 - Vite production build：通过。
-- Playwright：16 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、桌面 viewport、分布变化、额度恢复与类别不平衡。
+- Playwright：17 条 Chromium E2E 通过，覆盖剧情完整案件、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 证据阶段压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -71,7 +71,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 16 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 17 条真实 Chromium 路线。
 
 零基础玩家完整案件：
 
@@ -112,6 +112,7 @@ Vitest 当前覆盖：
 - `FieldManual` 的键盘路线验证焦点进入、Tab 环、Escape 关闭与焦点恢复；SVG 档案异常的 Space 激活会阻止默认 button 滚动语义。
 - CASE RESOLVED 后不再显示 stale `NEXT OBJECTIVE`；结案案卷封存最终配置、引用 E 记录、实验设计、已检查现场误判与档案复核。
 - 1280×720 以及常规桌面 viewport 验证 intro / Boot / 正式模式没有横向爆版，`定位下一步操作` 可将关键 CTA 带入视野。
+- 额外 1280×720 压力路线会真正完成两次正式审计、引用 E01/E02 并展开 `EVIDENCE_COMPARE`，再次检查无横向溢出且诊断区仍可由 sticky 任务条定位。
 - distribution-shift 路线验证 `HISTORY BATCH / FIELD BATCH` 元数据可见，但首屏不出现“分布漂移”答案词。
 
 额度恢复路线会连续耗尽 5 次正式未知审计，确认额外审计入口出现、恢复 1 次可执行额度，并且这类补救会进入结案评级扣分；有限预算因此制造决策成本，但不会造成不可恢复死局。
@@ -208,8 +209,10 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 页面 HTML：HTTP 200。
 - production JS asset：HTTP 200。
 - 2026-08-10 04:27 +08:00，公网 HTML 已实际引用本轮构建产物 `assets/index-CT6RjPEj.js`。
-- 2026-08-10 04:28 +08:00，同一组 Playwright E2E 使用 `PLAYWRIGHT_BASE_URL=https://siddhartha-yz.github.io/ai-anomaly-bureau/` 对真实部署站点运行，**16 / 16 全部通过**。
-- 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、症状 / 档案证据、显式实验引用与客观对照、同配置引用拒绝、现场误判定位、刷新不退款、错误诊断锁跨刷新、未结 / 已结案 session 入口、键盘手册、sticky NEXT OBJECTIVE、1280×720、distribution-shift、额度恢复、类别不平衡与下一案生成。
+- 2026-08-10 04:34 +08:00，第一次 17-route 生产验收中 15 条通过、2 条在 `page.goto` 前置导航阶段遇到 GitHub Pages `net::ERR_CONNECTION_CLOSED`；两条定向立即重跑均通过，没有出现产品断言失败。
+- 因此 Playwright 只对 `CI` 或显式外部 `PLAYWRIGHT_BASE_URL` 验收开放 1 次 test retry；localhost 开发 / 本地回归仍保持 0 retry，避免用重试掩盖稳定业务缺陷。
+- 2026-08-10 04:39 +08:00，完整 17-route 生产 E2E 再次运行，**17 / 17 全部通过**。
+- 生产 E2E 同时覆盖 Story Case 001、debug、无尽模式说明、Boot Case 000、症状 / 档案证据、显式实验引用与客观对照、同配置引用拒绝、现场误判定位、刷新不退款、错误诊断锁跨刷新、未结 / 已结案 session 入口、键盘手册、sticky NEXT OBJECTIVE、1280×720 基线与证据阶段、distribution-shift、额度恢复、类别不平衡与下一案生成。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
