@@ -28,10 +28,14 @@ src/
     logging.ts               # 匿名行为日志
     routes.ts                # debug 自动路线
   components/
-    EntryExperience.tsx       # 标题页 + 交互式事故 Cold Open + boot
-    InvestigationPrompt.tsx  # 同一 stage 内的观察 / 证据 / 反思判断
+    EntryExperience.tsx       # 标题页 + 剧情 / 无尽双入口 + Cold Open
+    InvestigationPrompt.tsx  # 草稿 → 锁定 → 反馈的调查判断
+    SampleHunt.tsx           # 直接在散点图中抓异常旧样本
+    ExperimentPlan.tsx       # 正式实验前预测与审计额度
+    PredictionOutcome.tsx    # 错误上线判断的现场后果
+    CaseAttempts.tsx         # CASE_NOTES 可比较 / 可选择实验记录
+    CaseRating.tsx           # 证据驱动的结案评级
     SensorIntro.tsx          # 当前与备用观察通道的逐步读取
-    CaseAttempts.tsx         # CASE_NOTES 实验记录
     ScatterPlot.tsx
     TaskBanner.tsx
     FeaturePicker.tsx
@@ -40,6 +44,14 @@ src/
     ErrorSamples.tsx
     AssistantPanel.tsx
     DebugPanel.tsx
+  endless/
+    generator.ts             # 四类程序化监督学习故障与传感器通道重排
+    observables.ts           # 训练标签 + 无标签现场分布的公开证据
+    balance.ts               # evidence-policy / random-clicker 自动玩法基线
+    EndlessMode.tsx          # 无尽模式状态与结案逻辑
+    EndlessPlot.tsx          # 程序化案件二维实验台
+    EndlessControls.tsx      # 特征 / 模型 / 预测 / 审计预算
+    EndlessEvidence.tsx      # 错误、类别召回、实验记录与诊断
   App.tsx
   main.tsx
   styles/app.css
@@ -79,7 +91,7 @@ type Point2D = {
 }
 ```
 
-测试数据由 `createDataset(seed)` 一次生成，但普通游戏状态仅保存训练样本与一个不含标签的测试视图。真实测试标签留在评估服务闭包/模块中；仅执行审计或 debug 模式时返回允许的信息。
+测试数据由 `createDataset(seed)` 一次生成，但普通游戏状态仅保存训练样本与一个不含标签、flags 和语义 ID 的测试视图。`createAuditService` 会把内部 `test-cat-* / test-bread-*` 映射成中性的 `field-001...`；真实测试标签与困难子群 flags 留在评估服务闭包中。仅执行审计时返回该次错误案例需要的信息，`debug=1` 才能查看完整真实标签。
 
 ## 模型接口
 ```ts
@@ -169,7 +181,7 @@ type Stage =
 
 核心 reducer 状态仍是：seed、stage、selectedFeatures、selectedModel、knnK、fitResult、trainMetrics、testMetrics、viewedMistakes、attempts、failureStreak、hintLevel、history、startedAt、completedAt。
 
-Cold Open、传感器读取、预测下注、证据推理、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主状态机语义。这些 micro-beat 用来延长真实调查过程，而不是增加第二套业务状态机。
+Cold Open、图上异常样本调查、边界 `PROBE ?`、传感器读取、预测下注、正式审计额度、证据推理、实验记录比较、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主 reducer 阶段语义。它们把同一 stage 拆成需要观察 / 判断 / 验证的 micro-beat，而不是增加第二套业务状态机。
 
 Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作包括 `START`、`SELECT_FEATURES`、`SELECT_MODEL`、`TRAIN`、`RUN_AUDIT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`、`RESET_STAGE`、`JUMP_STAGE`。
 
@@ -183,6 +195,28 @@ Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作�
 - 迁移问题与解释。
 
 状态机不硬编码具体剧情文本，以便未来新增关卡。
+
+## 监督学习无尽模式
+`src/endless/` 复用现有四个模型与二维特征接口，但数据由独立 seed 生成器产生。当前 syndrome：
+
+- `feature-gap`：弱字段几乎不含类别信息，稳定字段组合才可解。
+- `overfit-noise`：训练集中加入矛盾局部记录，k=1 会记忆噪声，平滑规则更稳。
+- `distribution-shift`：历史捷径字段在现场发生可见分布变化，稳定字段保持关系。
+- `class-imbalance`：训练档案被多数类淹没；部分方案总 Accuracy >90% 但少数类 recall <75%。
+
+每个 seed 还会确定性重排四个传感器通道，并从多个案件语境中选择皮肤；因此“稳定信息”不会固定在同一 UI 按钮。
+
+普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。自动 evidence-policy 与玩家 UI 读取同一类信息，不允许读取隐藏 syndrome/test label 再假装推理。
+
+正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。诊断失败后必须新增一次审计才允许再次提交，防止把答案逐个试完。
+
+## 自动玩法平衡
+`balance.ts` 同时执行：
+
+- evidence-policy：按训练类别分离、无标签现场 drift 和旧样本矛盾选择特征 / 模型 / 病因；
+- random-clicker：最多随机尝试 5 个模型×特征组合，并随机提交病因。
+
+Vitest 会在大量 seed 上要求 evidence-policy 的结案率与平均未知表现显著优于 random-clicker。这个测试不证明游戏一定“好玩”，但能防止程序化案件退化成“随便点几次也和推理一样有效”。
 
 ## 行为日志
 内存记录后可导出 JSON：
@@ -222,6 +256,11 @@ type BehaviorEvent = {
 ## 测试策略
 ### 单元测试
 - PRNG 同 seed 同输出，不同 seed 有变化。
+- 普通测试视图不含 label、flags 或 `cat/bread` 语义 ID。
+- 无尽生成器确定性、传感器通道重排、四类 syndrome 均存在可解方案。
+- 类别不平衡案件能真实产生“总分高但少数类召回不足”的假好成绩。
+- evidence-policy 在批量 seed 上显著优于 5 次 random-clicker。
+- 调查评级区分干净证据路线与盲目试错 / 额外额度路线。
 - 三模型 fit/predict 的基本正确性。
 - 决策树深度不超过 2。
 - KNN k=1 / k=5 行为不同且确定性。
@@ -241,8 +280,11 @@ type BehaviorEvent = {
 六种人格全部执行到预期终点或明确诊断，不出现无限循环与无可用操作状态。
 
 ### 浏览器验证
-- Playwright Chromium 正常玩家路线覆盖 Cold Open、观察判断、传感器读取、训练预测、未知审计、两条错误证据、过拟合实验、备用传感器修复、迁移问题与结案。
-- E2E 会使用真实 Playwright actionability 检查，防止 SVG、NPC、tooltip、overlay 抢走点击。
+- Playwright Chromium 剧情路线覆盖 Cold Open、图上抓异常旧样本、决策边界探针、锁定预测、错误上线后果、两条错误证据、可点击实验记录、过拟合、备用传感器修复、迁移问题与结案评级。
+- 无尽 E2E 覆盖有限审计预算、错误诊断后强制新增证据、正确诊断与下一案生成。
+- 额度恢复 E2E 故意耗尽 5 次正式审计，验证额外审计可恢复路线但会产生评级代价，避免“有限预算 = 死局”。
+- 类别不平衡 E2E 明确验证“总体高分但少数类 recall 50%”不能结案。
+- E2E 使用真实 Playwright actionability 检查，防止 SVG、NPC、tooltip、overlay 抢走点击。
 - 另有 debug-mode E2E，确保普通玩家的新手门槛不会破坏 `?debug=1` 的快速工程测试能力。
 - 本地 `.tooling/` headless Chrome 可在 1440×900 / 1920×1080 做阶段截图 QA；这些运行库与截图不提交 Git。
 - 浏览器 console/page errors 为零。
