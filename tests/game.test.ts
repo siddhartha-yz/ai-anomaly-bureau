@@ -19,14 +19,18 @@ describe('game state and hidden audit boundary', () => {
     expect(next.diagnostics.at(-1)).toContain('debug jump rejected')
   })
 
-  it('requires viewing a mistake before leaving error inspection', () => {
+  it('requires viewing two different mistakes before leaving error inspection', () => {
     let state = createInitialGameState(1, false, 0)
-    state = { ...state, stage: 'inspect_errors', audit: { accuracy: 0.5, errorCount: 1, orangeCatErrors: 1, mistakes: [{ id: 'x', actual: 'cat', predicted: 'bread', correct: false, features: { warmth: 1, roundness: 1, texture: 1, aspect: 1 } }], confusion: { 'cat->cat': 0, 'cat->bread': 1, 'bread->cat': 0, 'bread->bread': 0 } } }
+    state = { ...state, stage: 'inspect_errors', audit: { accuracy: 0.5, errorCount: 2, orangeCatErrors: 1, mistakes: [
+      { id: 'x', actual: 'cat', predicted: 'bread', correct: false, features: { warmth: 1, roundness: 1, texture: 1, aspect: 1 } },
+      { id: 'y', actual: 'bread', predicted: 'cat', correct: false, features: { warmth: 0, roundness: 0, texture: 0, aspect: 0 } },
+    ], confusion: { 'cat->cat': 0, 'cat->bread': 1, 'bread->cat': 1, 'bread->bread': 0 } } }
     const blocked = gameReducer(state, { type: 'ADVANCE' })
     expect(blocked.stage).toBe('inspect_errors')
-    const viewed = gameReducer(blocked, { type: 'VIEW_MISTAKE', id: 'x' })
-    const advanced = gameReducer(viewed, { type: 'ADVANCE' })
-    expect(advanced.stage).toBe('iterate')
+    const oneViewed = gameReducer(blocked, { type: 'VIEW_MISTAKE', id: 'x' })
+    expect(gameReducer(oneViewed, { type: 'ADVANCE' }).stage).toBe('inspect_errors')
+    const twoViewed = gameReducer(oneViewed, { type: 'VIEW_MISTAKE', id: 'y' })
+    expect(gameReducer(twoViewed, { type: 'ADVANCE' }).stage).toBe('iterate')
   })
 
   it('escalates hints without exceeding level three', () => {
