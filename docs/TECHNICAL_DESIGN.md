@@ -12,6 +12,7 @@
 src/
   bureau/
     catalog.ts               # 手工正式案件 / 训练案件唯一目录
+    dispatch.ts              # Hub 工作优先级；只定位部门，不解释案件
     progress.ts              # 调查局长期结案与知识事实
   content/level1.ts          # 第一关阶段文案、特征与模型解锁
   ml/
@@ -201,6 +202,8 @@ App 路由的正常产品语义是：
 - explicit query (`?mode=endless`, `?mode=boot`, `?mode=hub`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度；历史 `?debug=1` 参数不再改变应用权限。
 
 `BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
+
+`bureauDispatch()` 只读取长期进度、Boot 完成状态与“是否存在未结 Duty”摘要，输出 `target / code / title / detail / action`。它不会读取 Endless syndrome、字段、模型或审计结果，因此顶部 `SHIFT PRIORITY` 可以承担宏观导航，却不能演变成正式案件的动态解题助手。
 
 ## 游戏状态机
 ```ts

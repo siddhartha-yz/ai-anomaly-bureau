@@ -28,8 +28,12 @@
 .bureau-shift-strip > div { padding: 10px 13px; border-right: 1px solid #1b3565; }
 .bureau-shift-strip small, .bureau-side-desk small { display: block; color: #637dc3; font-size: .56rem; letter-spacing: .11em; }
 .bureau-shift-strip strong { display: block; margin-top: 4px; color: #f1f3fa; font-size: .85rem; }
-.bureau-shift-strip p { margin: 0; padding: 10px 15px; align-self: center; color: #a8b2cc; font-size: .72rem; line-height: 1.5; }
-.bureau-shift-strip p span { color: var(--bureau-yellow); margin-right: 10px; font-weight: 900; }
+.bureau-shift-priority { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto auto; column-gap: 14px; align-content: center; border-right: 0 !important; }
+.bureau-shift-priority small { color: var(--bureau-yellow); }
+.bureau-shift-priority strong { margin-top: 3px; color: #f4e9a1; }
+.bureau-shift-priority p { margin: 3px 0 0; color: #8e9cbb; font-size: .64rem; line-height: 1.35; }
+.bureau-shift-priority button { grid-column: 2; grid-row: 1 / -1; align-self: center; min-height: 36px; padding: 7px 10px; border: 1px solid #6f6022; background: #1a1708; color: #f7df68; cursor: pointer; font-size: .62rem; font-weight: 900; }
+.bureau-shift-priority button:hover, .bureau-shift-priority button:focus-visible { border-color: var(--bureau-yellow); outline: none; }
 .bureau-induction {
   max-width: 1480px;
   margin: 16px auto 0;
@@ -156,7 +160,7 @@
   .bureau-hub-layout { grid-template-columns: 190px minmax(0,1fr); }
   .bureau-side-desk { grid-column: 1 / -1; grid-template-columns: repeat(3,1fr); }
   .bureau-shift-strip { grid-template-columns: repeat(4,1fr); }
-  .bureau-shift-strip p { grid-column: 1 / -1; border-top: 1px solid #1b3565; }
+  .bureau-shift-priority { grid-column: 1 / -1; border-top: 1px solid #1b3565; }
 }
 @media (max-width: 760px) {
   .bureau-hub { padding: 14px; }
@@ -180,4 +184,6 @@
   .bureau-archive-grid { grid-template-columns: 1fr; }
   .bureau-duty-queue article { grid-template-columns: 1fr; }
   .bureau-duty-queue article button { justify-self: stretch; }
+  .bureau-shift-priority { grid-template-columns: 1fr; }
+  .bureau-shift-priority button { grid-column: 1; grid-row: auto; margin-top: 8px; }
 }

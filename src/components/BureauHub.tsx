@@ -1,4 +1,5 @@
 import { formalCaseCode, STORY_CASE_001, TRAINING_CASE_000, trainingCaseCode } from '../bureau/catalog'
+import { bureauDispatch, type BureauDepartment } from '../bureau/dispatch'
 import { bureauArchive, investigatorStatus, nextDutySeeds, type BureauProgress } from '../bureau/progress'
 import { createEndlessCasePreview, type EndlessSyndrome } from '../endless/generator'
 import type { StoryResumeSummary } from './StoryResume'
@@ -10,7 +11,7 @@ type EndlessResumeSummary = {
   solved: boolean
 }
 
-export type HubSection = 'case-board' | 'training' | 'archive' | 'duty'
+export type HubSection = BureauDepartment
 
 const SECTION_META: Record<HubSection, { code: string; label: string; description: string }> = {
   'case-board': { code: 'CASE BOARD', label: '案件板', description: '接收正式案件，查看结案与当前分派。' },
@@ -58,6 +59,7 @@ export function BureauHub({
   const discovered = archive.filter((item) => item.discovered)
   const dutySyndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
   const latestDuty = progress.duty.resolutions.at(-1)
+  const dispatch = bureauDispatch(progress, endlessResume ? { seed: endlessResume.seed, solved: endlessResume.solved } : undefined)
   const hasOpenDuty = Boolean(endlessResume && !endlessResume.solved)
   const queueStart = endlessResume?.solved ? endlessResume.seed + 1 : dutySeed
   const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createEndlessCasePreview(caseSeed))
@@ -82,7 +84,12 @@ export function BureauHub({
         <div><small>值班结案</small><strong>{progress.duty.resolutions.length}</strong></div>
         <div><small>病症档案</small><strong>{dutySyndromes.size} / 4</strong></div>
         <div><small>知识条目</small><strong>{discovered.length} / {archive.length}</strong></div>
-        <p><span>SHIFT NOTE</span>{progress.story001.resolved ? `${formalCaseCode(STORY_CASE_001)} 已归档。现在由你决定下一份工作。` : '先完成新人入职案件，调查局权限才会开放。'}</p>
+        <div className="bureau-shift-priority" aria-label="当前值班优先级">
+          <small>{dispatch.code}</small>
+          <strong>{dispatch.title}</strong>
+          <p>{dispatch.detail}</p>
+          <button type="button" onClick={() => onSectionChange(dispatch.target)}>{dispatch.action}</button>
+        </div>
       </section>
 
       {progress.story001.resolved && !progress.inductionAcknowledged && (
