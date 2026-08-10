@@ -35,6 +35,13 @@ export type ExperimentComparison = {
   errorDelta: number
 }
 
+export type DiscriminatingComparison = ExperimentComparison & {
+  axis?: 'fields' | 'model'
+  materialChange: number
+  direction: 'improved' | 'degraded' | 'flat'
+  discriminating: boolean
+}
+
 function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]) {
   return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
 }
@@ -87,6 +94,46 @@ export function compareExperimentRecords(first: EndlessRunRecord, second: Endles
     minRecallDelta: minRecall(second) - minRecall(first),
     errorDelta: second.errors - first.errors,
   }
+}
+
+export function discriminatingExperiment(first: EndlessRunRecord, second: EndlessRunRecord): DiscriminatingComparison {
+  const comparison = compareExperimentRecords(first, second)
+  const axis = comparison.delta === 'fields-only' ? 'fields'
+    : comparison.delta === 'model-only' ? 'model'
+      : undefined
+  const strongestDelta = Math.abs(comparison.fieldDelta) >= Math.abs(comparison.minRecallDelta)
+    ? comparison.fieldDelta
+    : comparison.minRecallDelta
+  const materialChange = Math.abs(strongestDelta)
+  return {
+    ...comparison,
+    axis,
+    materialChange,
+    direction: strongestDelta > 0 ? 'improved' : strongestDelta < 0 ? 'degraded' : 'flat',
+    discriminating: Boolean(axis && materialChange >= .12),
+  }
+}
+
+export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
+  for (let index = history.length - 1; index > 0; index -= 1) {
+    if (history[index].id <= afterRunId) continue
+    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    if (comparison.discriminating) return { first: history[index - 1], second: history[index], comparison }
+  }
+  return undefined
+}
+
+export function latestControlledExperiment(
+  history: EndlessRunRecord[],
+  axis: 'fields' | 'model',
+  afterRunId = 0,
+) {
+  for (let index = history.length - 1; index > 0; index -= 1) {
+    if (history[index].id <= afterRunId) continue
+    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    if (comparison.axis === axis) return { first: history[index - 1], second: history[index], comparison }
+  }
+  return undefined
 }
 
 export function accuracyBand(value: number): BandPrediction {

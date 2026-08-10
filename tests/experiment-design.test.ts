@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, experimentPlanDelta, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -97,5 +97,37 @@ describe('endless experiment comparison metadata', () => {
     expect(comparison.trainDelta).toBeCloseTo(.44)
     expect(comparison.fieldDelta).toBeCloseTo(.54)
     expect(comparison.minRecallDelta).toBeCloseTo(.58)
+  })
+
+  it('only treats a material single-variable improvement as hypothesis-discriminating evidence', () => {
+    const baseline = record({ id: 1, test: .55, recall: { cat: .6, bread: .5 } })
+    const fieldsOnly = record({
+      id: 2,
+      features: ['texture', 'aspect'],
+      test: .82,
+      recall: { cat: .85, bread: .8 },
+    })
+    expect(discriminatingExperiment(baseline, fieldsOnly)).toMatchObject({
+      delta: 'fields-only',
+      axis: 'fields',
+      direction: 'improved',
+      discriminating: true,
+    })
+
+    expect(discriminatingExperiment(fieldsOnly, baseline)).toMatchObject({
+      delta: 'fields-only',
+      axis: 'fields',
+      direction: 'degraded',
+      discriminating: true,
+    })
+
+    const mixed = record({ id: 3, model: 'tree', features: ['warmth', 'aspect'], test: .95, recall: { cat: .95, bread: .95 } })
+    expect(discriminatingExperiment(fieldsOnly, mixed)).toMatchObject({ delta: 'mixed', discriminating: false })
+
+    const tinyModelChange = record({ id: 3, model: 'tree', features: ['texture', 'aspect'], test: .86, recall: { cat: .86, bread: .83 } })
+    expect(discriminatingExperiment(fieldsOnly, tinyModelChange)).toMatchObject({ delta: 'model-only', axis: 'model', discriminating: false })
+
+    expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed])?.comparison.axis).toBe('fields')
+    expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed], 2)).toBeUndefined()
   })
 })

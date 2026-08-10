@@ -87,8 +87,9 @@
 - **剧情长局也不会被 F5 清空。** Story Case 会恢复 reducer、微阶段、实验预注册、已调查误判与有限审计预算；checkpoint 会交叉核对阶段顺序、训练 / 审计 / CASE_NOTES / 额度关系，右上角小型 `RESET` 需要二次确认才真正清档。
 - **真人测试日志能跨刷新连续。** 匿名行为日志沿用同一 sessionId，并显式记录 `SESSION_RESTORED`；普通玩家在 CASE CLOSED 就能直接导出完整 JSON，无需任何测试工具。
 - **评价不只看总分。** 无尽模式还看两类召回，能制造“93% Accuracy 仍然不能上线”的类别不平衡案件。
-- **先体验，再命名概念。** 玩家先遇到“旧题会、新题崩”，之后游戏才告诉你这叫泛化与过拟合。
-- **自动测试游戏深度。** 程序会比较 evidence-policy 与 random-clicker；当前平衡门槛要求证据策略结案率显著高于 5 次随机穷举。
+- **先体验，再命名概念。** 玩家先遇到“旧题会、新题崩”，之后游戏才告诉你这叫泛化与过拟合；正式 Duty 也会先让你用实验区分解释，拿到可靠修复后才显示 syndrome 名称。
+- **实验的价值是减少不确定性。** Duty 先复现真实故障 baseline，再让 `H-FIELDS / H-MODEL` 两条解释接受 fields-only / model-only 控制实验；一个聪明的 null result 也可以直接削弱错误解释，而不是只追最高分。
+- **自动测试游戏深度。** 程序会比较 evidence-policy 与 random-clicker，并检查生成案件不能“开局已经修好”、必须存在 material single-variable experiment；当前平衡门槛要求证据策略结案率显著高于 5 次随机穷举。
 
 ![未知样本审计与误判定位](docs/assets/misclassification.png)
 
@@ -125,8 +126,8 @@
 - 固定 seed PRNG，保证教学路线可复现
 - reducer 状态机负责教学守卫与阶段推进
 - 程序化 Web Audio 8-bit BGM / 音效
-- Vitest：ML 核心、隐藏测试边界、状态机、调查评级、无尽案件生成与 random-clicker 平衡基线
-- Playwright：剧情完整路线、Story 检查点 / 显式恢复 / 预注册恢复 / 结案导出、作弊码正式检查点、Boot Case 000、无尽证据引用 / 对照、可调查现场误判、session 恢复、错误诊断刷新锁、键盘 modal、窄屏桌面、额度恢复、分布变化、类别不平衡等真实浏览器路线
+- Vitest：ML 核心、隐藏测试边界、状态机、调查评级、Duty 故障 baseline / 区分性单变量实验、无尽案件生成与 random-clicker 平衡基线
+- Playwright：剧情完整路线、Story 检查点 / 显式恢复 / 预注册恢复 / 结案导出、作弊码正式检查点、Boot Case 000、Duty 竞争假设 / falsification / syndrome 延迟揭示、无尽证据引用 / 对照、可调查现场误判、session 恢复、错误诊断刷新锁、键盘 modal、窄屏桌面、额度恢复、分布变化、类别不平衡等真实浏览器路线
 - GitHub Actions：lint + typecheck + unit test + build + E2E
 - GitHub Pages：`main` 更新后自动构建部署，并用同一条 Playwright 流程验证生产站点
 

@@ -284,6 +284,10 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 每个 seed 还会确定性重排四个传感器通道，并从多个案件语境中选择皮肤；因此“稳定信息”不会固定在同一 UI 按钮。
 
+`createEndlessCase()` 现在还生成一个 `baseline: { model, features }`，代表事故发生时真实部署的故障配置。baseline selector 可以在 generator 内部用隐藏 field truth 校验“这套部署确实会坏、且存在 material controlled intervention”，因为这是**关卡作者 / 生成器约束**，不是玩家推理接口；`EndlessCasePreview`、Hub、Sensor Deck 与正式导航都不会暴露这个搜索过程、最佳 pair 或隐藏 audit 结果。新局因此不再固定从 `warmth + roundness + linear` 开始，而是先复现一宗真实事故。
+
+`overfit-noise` 的 field probe 数量也随本轮提高，使 `k=1` 记忆局部矛盾记录时能稳定产生现场后果；平滑模型仍保留恢复空间。由于同 seed 的程序化现场数据语义发生了变化，Duty session 升为 v2，旧 v1 run history 不做语义错误的强行迁移。
+
 正式模式前有两层桥接，但它们不改变 generator / model：
 
 1. `EndlessIntro` 只解释“配置 → 预测 → 审计 → 对照 → 诊断”的操作循环。
@@ -298,27 +302,31 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 - `class-imbalance` 由训练样本真实类别比例产生，UI 显示档案构成与分类别 recall。
 - `feature-gap` 通过同一模型在不同字段组合上的真实实验差异暴露。
 
-诊断至少要求两个**不同配置**。配置 key 由模型 + 无序特征集合构成；交换 X/Y 不算新配置。达到两个配置后仍不会直接开放病因按钮：玩家必须从 `EXPERIMENTS.LOG` 引用恰好两条不同配置记录，`diagnosisEvidenceStatus()` 才会把证据包标记为 ready。错误诊断会同时记录当前配置数和 run count；必须完成一个字段或模型发生变化的新正式审计，并在下一份证据包中包含 `id > lastDiagnosisRunCount` 的记录，才能改口。完全复现实验会写入日志，但不会解锁诊断。
+诊断不再只要求“两个不同配置”。`discriminatingExperiment()` 只有在两条相邻正式记录属于 **fields-only 或 model-only**，且 `FIELD` 或最低类别召回的绝对变化达到 **12 个百分点**时，才认为它们真正区分了竞争解释；性能显著下降和显著改善都属于信息，因为 falsification 本来就可能通过“只改一个因素后结果崩掉”完成。repeat 只验证稳定性，mixed change 无法归因，都不能解锁病因。
 
-`EXPERIMENTS.LOG` 通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动；`experimentPlanDelta()` 在下一次训练前对当前配置做同一套分类。两条引用记录用 `compareExperimentRecords()` 生成 TRAIN / FIELD / min recall / error 的纯数值差分。上述信息只描述玩家自己做了什么，不判断哪次实验“应该”成功。结案评分会奖励单变量对照、轻微惩罚同时改字段与模型，结案报告封存最终引用的 E 记录和已经检查的 field/archive 证据。
+`CASE_LEADS.LOG` 在第一条 baseline 后显示两条 syndrome-neutral 假设：`H-FIELDS / H-MODEL`。每个轴分别记住最近一次受控实验：未测试为 `OPEN`，material change 为 `SUPPORTED`，实际测试过但变化 <12pt 为 `WEAKENED`；两个轴都可能被支持，此时 UI 明确提示单一主因解释不足。这个状态由玩家自己的 run history 计算，不读取 `caseData.syndrome`。
+
+病因名称采用 progressive disclosure：`diagnosisAvailable` 现在同时要求至少两个不同配置、存在 fresh discriminating experiment、已经找到 `accuracy >= .85 && min recall >= .75` 的可靠方案，并满足错误诊断后的 freshness 守卫。满足前即使 DOM 已有多条实验记录，也不渲染 syndrome 选项。玩家随后仍必须从 `EXPERIMENTS.LOG` 引用恰好两条能构成 material single-variable comparison 的记录；错误诊断后下一份证据还必须包含 `id > lastDiagnosisRunCount` 的新 run。这样“能解释事故”和“已经修好系统”都成立后，才进入命名病因阶段。
+
+`EXPERIMENTS.LOG` 通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动；`experimentPlanDelta()` 在下一次训练前对当前配置做同一套分类。两条引用记录用 `compareExperimentRecords()` 生成 TRAIN / FIELD / min recall / error 的纯数值差分，`discriminatingExperiment()` 在其上只判断“这个单变量实验有没有让世界明显变化”，不推断 syndrome。结案评分继续奖励单变量对照、轻微惩罚 mixed change，结案报告封存最终引用的 E 记录和已经检查的 field/archive 证据。
 
 正式审计返回的 `mistakes` 在揭示之后可以被玩家主动检查：`EndlessAuditPanel` 使用按钮选择错误，`EndlessPlot` 只对已返回的 public `field-*` 错误点增加可视定位环，`CASE_LEADS.LOG` 仅记录玩家亲手打开的错误。这个流程不会在审计前创建额外测试标签入口。
 
-`session.ts` 使用 `aia.endless-session.v1.<seed>` 保存版本化本地调查状态。存档只包含玩家已经拥有的配置、audit history、诊断状态、证据引用和已检查错误，不保存 generator 内部 test IDs / syndrome answer。运行时 guard 校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；损坏 / 旧版本 payload 会被删除而不是恢复。剩余审计额度不单独持久化，而由 `5 + emergencyCredits - history.length` 重建，因此刷新不会返还额度。入口显式显示 resumable case；新案 / 当前案重置均有明确玩家动作。
+`session.ts` 使用 `aia.endless-session.v2.<seed>` 保存版本化本地调查状态。存档只包含玩家已经拥有的配置、audit history、诊断状态、证据引用和已检查错误，不保存 generator 内部 test IDs / syndrome answer。V2 对应本轮新的 deployed baseline / overfit field probe 语义；旧 `aia.endless-session.v1.<seed>` 历史指标来自不同现场数据，因此 reader 会明确清理而不是把旧 E 记录嫁接到新世界。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；损坏 / 其他旧版本 payload 会被删除。剩余审计额度不单独持久化，而由 `5 + emergencyCredits - history.length` 重建，因此刷新不会返还额度。入口显式显示 resumable case；新案 / 当前案重置均有明确玩家动作。
 
 零基础指标说明与案件解释分离：正式审计和 `FieldManual` 只定义 `TRAIN`、`FIELD`、分类别 recall 的字面语义，不根据当前结果生成 syndrome 建议。`FieldManual` 作为 `aria-modal` 会把焦点移入对话框、约束 Tab、支持 Escape，并在关闭后恢复到原触发按钮；SVG 档案异常支持 Enter / Space，Space 会 `preventDefault()` 以符合 button 语义。
 
-普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。自动 evidence-policy 与玩家 UI 读取同一类信息，不允许读取隐藏 syndrome/test label 再假装推理。
+普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。正式 Sensor Deck 不再把四个字段统一压成 `旧差异 X/5 / 现场变化 Y/5` 排行；玩家需要切换二维投影观察 `FIELD MATRIX`。自动 evidence-policy 仍可把同一类可见统计压缩成策略分数用于批量验证，但不允许读取隐藏 syndrome/test label 再假装推理。
 
 正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
 
 ## 自动玩法平衡
 `balance.ts` 同时执行：
 
-- evidence-policy：按训练类别分离、无标签现场 drift 和旧样本矛盾选择特征 / 模型 / 病因；
-- random-clicker：最多随机尝试 5 个模型×特征组合，并随机提交病因。
+- evidence-policy：和玩家一样先审计 generator 给出的故障 baseline，再根据训练类别构成、无标签现场 drift、档案质量告警与旧样本几何设计一个 fields-only / model-only 干预；如果第二跑只完成了假设区分但仍未可靠，最多再做第三次受控修复；只有拿到 material discriminating evidence + 可靠方案 + 可见证据支持的病因才算 solved；
+- random-clicker：也从同一个 deployed baseline 起步，在总 5-audit 预算内随机尝试其余模型×特征组合并随机提交病因，避免比较起点不公平。
 
-Vitest 会在大量 seed 上要求 evidence-policy 的结案率与平均未知表现显著优于 random-clicker。这个测试不证明游戏一定“好玩”，但能防止程序化案件退化成“随便点几次也和推理一样有效”。
+`duty-hypothesis-depth.test.ts` 额外在大量 seed 上要求：部署 baseline 真实不可靠、存在 ≥12pt 的 syndrome-appropriate 单变量干预，并要求绝大多数案件中目标干预轴相对竞争轴具有清晰优势；overfit 还检查自然 `k=1 → k=5` 对照具有足够高的区分覆盖率。`balance.test.ts` 则继续要求 evidence-policy 的结案率与平均未知表现显著优于 random-clicker。它们都不能证明游戏一定“好玩”，但能同时防止“开局已经修好”“没有可区分实验”和“随便点几次也和推理一样有效”三类退化。
 
 ## 行为日志
 默认仍是本地匿名记录，但 Story 检查点会把当前 `BehaviorLog` 一同保存，因此刷新后继续使用原 `sessionId / startedAt / events`；每次真正从检查点恢复会追加一条 `SESSION_RESTORED`。结案页允许玩家主动导出完整 JSON：

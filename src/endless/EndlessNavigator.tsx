@@ -1,6 +1,6 @@
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import type { EndlessRunRecord, InspectedFieldError } from './uiTypes'
+import { discriminatingExperiment, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
@@ -39,7 +39,15 @@ export function objectiveFor({
     return { focus: 'diagnose', code: 'DIAGNOSIS / READY', title: '证据包已就绪，形成病因判断', detail: '用刚引用的两条实验记录解释系统为什么会坏，而不是只看其中最高的一次分数。', target: 'diagnosis' }
   }
   if (auditComplete) {
-    return { focus: 'configure', code: 'CONTROL / NEXT RUN', title: history.length < 2 ? '建立一条对照实验' : '继续获取能区分解释的证据', detail: '本轮已经封存。尽量只改变一个因素，再重新训练。', target: 'configure' }
+    return {
+      focus: 'configure',
+      code: 'CONTROL / NEXT RUN',
+      title: history.length < 2 ? '让两个解释真正分叉' : '继续获取能区分解释的证据',
+      detail: history.length < 2
+        ? 'H-FIELDS 与 H-MODEL 现在都还说得通。下一次只换字段或只换模型，让其中一条预测被结果削弱。'
+        : '优先做单变量对照。只有结果真正拉开，才算减少了不确定性。',
+      target: 'configure',
+    }
   }
   if (trained) {
     return { focus: 'predict', code: 'HYPOTHESIS / BEFORE AUDIT', title: '先预测，再花审计额度验证', detail: '写下你认为现场会落在哪个区间，然后运行现场审计。', target: 'audit' }
@@ -90,11 +98,52 @@ export function EndlessLeadBoard({
   inspectedFieldErrors?: InspectedFieldError[]
 }) {
   const latest = history.at(-1)
+  const fieldTest = latestControlledExperiment(history, 'fields')
+  const modelTest = latestControlledExperiment(history, 'model')
+  const fieldStatus = fieldTest ? (fieldTest.comparison.discriminating ? 'supported' : 'weakened') : 'open'
+  const modelStatus = modelTest ? (modelTest.comparison.discriminating ? 'supported' : 'weakened') : 'open'
+  const latestPair = history.length >= 2 ? discriminatingExperiment(history.at(-2)!, history.at(-1)!) : undefined
   const inspectedAlerts = caseData.archiveAlerts.filter((alert) => inspectedArchiveIds.includes(alert.id))
   const evidenceCount = (inspectedAlerts.length > 0 ? 1 : 0) + history.length + inspectedFieldErrors.length
   return (
     <section className="endless-lead-board" aria-label="案件线索板">
       <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
+      {history.length > 0 && (
+        <section className="endless-hypothesis-board" aria-label="竞争假设">
+          <div className="endless-hypothesis-head"><small>COMPETING HYPOTHESES</small><strong>下一次实验要让两条预测分叉</strong></div>
+          <article className={fieldStatus}>
+            <i>H-FIELDS</i>
+            <span><b>观察字段对现场失效起关键作用</b><small>预测：保持判断规则不变，只换观察字段，FIELD 或最低召回应发生明显变化。</small></span>
+            <em>{fieldStatus.toUpperCase()}</em>
+          </article>
+          <article className={modelStatus}>
+            <i>H-MODEL</i>
+            <span><b>判断规则对现场失效起关键作用</b><small>预测：保持观察字段不变，只换判断规则，FIELD 或最低召回应发生明显变化。</small></span>
+            <em>{modelStatus.toUpperCase()}</em>
+          </article>
+          <p>
+            {fieldStatus === 'supported' && modelStatus === 'supported'
+              ? '字段轴和模型轴都曾在单变量实验中显著改变现场结果：单一“只怪字段”或“只怪模型”的解释都不够，继续检查它们如何共同造成失效。'
+              : fieldStatus === 'supported' && modelStatus === 'weakened'
+                ? '字段实验产生了显著变化，而最近一次模型-only 测试变化很小：H-MODEL 被削弱。'
+                : modelStatus === 'supported' && fieldStatus === 'weakened'
+                  ? '模型实验产生了显著变化，而最近一次 fields-only 测试变化很小：H-FIELDS 被削弱。'
+                  : fieldStatus === 'supported'
+                    ? 'H-FIELDS 已得到单变量证据支持；H-MODEL 仍是未测试解释。若要排除它，就让模型-only 预测也接受一次审计。'
+                    : modelStatus === 'supported'
+                      ? 'H-MODEL 已得到单变量证据支持；H-FIELDS 仍是未测试解释。若要排除它，就让 fields-only 预测也接受一次审计。'
+                      : fieldStatus === 'weakened' || modelStatus === 'weakened'
+                        ? `${fieldStatus === 'weakened' ? 'H-FIELDS' : 'H-MODEL'} 的单变量预测没有造成足够大的现场变化，这条解释已被削弱；另一条仍然 OPEN。`
+                        : latestPair?.delta === 'mixed'
+                ? '最新一轮同时改了字段和模型：即使分数变化，也无法知道是哪一个因素造成。两条解释继续 OPEN。'
+                : latestPair?.delta === 'repeat'
+                  ? '最新一轮是同配置复现：它能检查稳定性，但不能区分 H-FIELDS 与 H-MODEL。'
+                  : latestPair && latestPair.axis
+                    ? `最新单变量结果只变化 ${Math.round(latestPair.materialChange * 100)}pt，证据还不足以削弱另一条解释。`
+                    : '基线只能告诉你“系统确实会坏”，还不能告诉你应该换眼睛还是换规则。'}
+          </p>
+        </section>
+      )}
       <div className="endless-lead-list">
         {inspectedAlerts.length > 0 && (
           <article className="archive-alert">

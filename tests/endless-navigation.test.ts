@@ -32,8 +32,10 @@ describe('formal endless process navigator', () => {
 
     const compare = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4 })
     expect(compare.focus).toBe('configure')
-    expect(compare.title).toContain('对照')
-    expect(compare.detail).toContain('只改变一个因素')
+    expect(compare.title).toContain('两个解释')
+    expect(compare.detail).toContain('H-FIELDS')
+    expect(compare.detail).toContain('H-MODEL')
+    expect(compare.detail).toMatch(/只换字段|只换模型/)
   })
 
   it('moves from citing records to the diagnosis report without revealing an answer', () => {

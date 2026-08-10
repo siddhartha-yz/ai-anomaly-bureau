@@ -11,7 +11,7 @@ import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFo
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, latestDiscriminatingExperiment, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -65,9 +65,9 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       audio.dispose()
     }
   }, [audio])
-  const [features, setFeatures] = useState<[FeatureKey, FeatureKey]>(restoredSession?.features ?? ['warmth', 'roundness'])
+  const [features, setFeatures] = useState<[FeatureKey, FeatureKey]>(restoredSession?.features ?? caseData.baseline.features)
   const [activeSlot, setActiveSlot] = useState<0 | 1>(restoredSession?.activeSlot ?? 0)
-  const [model, setModel] = useState<ModelId>(restoredSession?.model ?? 'linear')
+  const [model, setModel] = useState<ModelId>(restoredSession?.model ?? caseData.baseline.model)
   const [trained, setTrained] = useState(restoredSession?.trained ?? false)
   const [trainAccuracy, setTrainAccuracy] = useState<number | undefined>(restoredTrainAccuracy)
   const [auditResult, setAuditResult] = useState<EndlessAudit | undefined>(restoredAudit)
@@ -181,16 +181,24 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const best = Math.max(0, ...history.map((record) => record.test))
   const bestReliable = history.filter((record) => record.reliable).sort((a, b) => b.test - a.test)[0]
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
-  const diagnosisAvailable = distinctConfigCount >= 2 && (diagnosisAttempts === 0 || distinctConfigCount > lastDiagnosisConfigCount)
+  const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
+  const diagnosisAvailable = distinctConfigCount >= 2
+    && Boolean(discriminatingEvidence)
+    && Boolean(bestReliable)
+    && (diagnosisAttempts === 0 || distinctConfigCount > lastDiagnosisConfigCount)
   const citedEvidence = diagnosisEvidenceStatus(history, selectedEvidenceRunIds, lastDiagnosisRunCount)
-  const canSubmitDiagnosis = diagnosisAvailable && citedEvidence.ready
+  const citedDiscrimination = citedEvidence.records.length === 2
+    ? discriminatingExperiment(citedEvidence.records[0], citedEvidence.records[1])
+    : undefined
+  const evidenceReady = citedEvidence.ready && Boolean(citedDiscrimination?.discriminating)
+  const canSubmitDiagnosis = diagnosisAvailable && evidenceReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
   const objective = objectiveFor({
     trained,
     auditComplete: Boolean(auditResult),
     history,
     diagnosisAvailable,
-    evidenceReady: citedEvidence.ready,
+    evidenceReady,
     diagnosisLocked,
     credits,
   })
@@ -238,10 +246,10 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     })
   }
 
-  const resetCaseState = () => {
-    setFeatures(['warmth', 'roundness'])
+  const resetCaseState = (baseline = caseData.baseline) => {
+    setFeatures([...baseline.features])
     setActiveSlot(0)
-    setModel('linear')
+    setModel(baseline.model)
     setTrained(false)
     setTrainAccuracy(undefined)
     setAuditResult(undefined)
@@ -274,9 +282,10 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const nextCase = () => {
     audio.play('ui')
     const nextSeed = seed + 1
+    const nextBaseline = createEndlessCase(nextSeed).baseline
     clearEndlessSession(window.localStorage, seed)
     clearEndlessSession(window.localStorage, nextSeed)
-    resetCaseState()
+    resetCaseState(nextBaseline)
     setSeed(nextSeed)
     onSeedChange?.(nextSeed)
   }
@@ -449,7 +458,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               attention={objective.target === 'run-log'}
               onToggleEvidence={(runId) => { audio.play('evidence'); toggleEvidenceRun(runId) }}
             />
-            {(distinctConfigCount >= 2 || diagnosisAttempts > 0) && (
+            {(diagnosisAvailable || diagnosisAttempts > 0) && (
               <EndlessDiagnosis
                 caseData={caseData}
                 value={diagnosis}
@@ -460,7 +469,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
                 submittedDiagnosis={submittedDiagnosis}
                 lastOutcome={lastDiagnosisOutcome}
                 evidenceRecords={citedEvidence.records}
-                evidenceReady={citedEvidence.ready}
+                evidenceReady={evidenceReady}
                 diagnosisAvailable={diagnosisAvailable}
                 attention={objective.target === 'diagnosis' || objective.target === 'recovery'}
                 onChange={(value) => { audio.play('select'); setDiagnosis(value) }}

@@ -174,6 +174,21 @@ Boot Case 完成后只记录 `CLEARED`，不增加经验值。
 
 Duty Case 是**独立应用方法**，不是教学章节。
 
+本轮把 Duty 的核心从“找一个高分配置”收紧成**竞争假设 → 区分实验 → 排除解释**。每宗新 Duty 先从 generator 选出的真实故障部署配置开始，第一次正式审计必须先复现事故；只有这条 baseline 之后，`CASE_LEADS.LOG` 才提出两个 syndrome-neutral 的干预假设：
+
+- `H-FIELDS`：观察字段对现场失效起关键作用；保持模型不变，只换字段应该让 FIELD / 最低召回发生明显变化。
+- `H-MODEL`：判断规则对现场失效起关键作用；保持字段不变，只换模型应该让 FIELD / 最低召回发生明显变化。
+
+这里的目标不是让系统替玩家选“正确假设”。玩家做 fields-only / model-only 正式审计后，若关键现场指标变化 ≥12 个百分点，该轴获得 `SUPPORTED`；若已经真正测试该轴但变化不足 12pt，则为 `WEAKENED`；未测试仍是 `OPEN`。两个轴都可能被支持，这时应理解为单一“只怪字段 / 只怪模型”的解释不足，而不是强行宣布唯一原因。复现实验可以检查稳定性，同时改字段和模型可以探索，但二者都不能充当区分性证据。
+
+因此一宗理想 Duty 的局部循环是：
+
+`故障 baseline → 两个 plausible hypotheses → 单变量预测 → 正式审计 → SUPPORTED / WEAKENED → 可靠修复 → 引用区分性证据 → 病因命名`
+
+诊断术语采用 progressive disclosure：只有已经取得至少一条区分性单变量证据、并找到满足可靠线的方案后，四个 syndrome 名称才出现。这样“先经历现象，再给概念命名”继续适用于 Duty。
+
+正式 Sensor Deck 也不再同时展示四个字段的 `旧差异 X/5 / 现场变化 Y/5` 总览分数。玩家可以切换字段观察 `FIELD MATRIX` 中的历史标签几何与无标签现场分布，但系统不会把这些观察预压缩成一张答案排行表。
+
 正式模式只允许三类帮助：
 
 1. 下一步动作导航，例如“还缺一条对照实验”；
@@ -278,7 +293,10 @@ BUREAU HUB
 
 - [ ] generator 中存在真实数据机制；
 - [ ] 病因能从可观察事实 + 实验中区分；
-- [ ] incident 不直接说答案；
+- [ ] 新案先真实复现事故，不能一进场就是可靠配置；
+- [ ] 至少存在一条 material single-variable experiment，能支持或削弱一个仍合理的解释；
+- [ ] repeat / mixed change 不伪装成区分证据；
+- [ ] incident 与首屏 Sensor Deck 不直接说答案或给字段排行；
 - [ ] evidence-policy 不读隐藏 diagnosis/test labels；
 - [ ] random-clicker 仍明显弱于证据策略；
 - [ ] 结案后进入 Duty archive / Archive；

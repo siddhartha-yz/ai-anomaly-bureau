@@ -69,6 +69,14 @@ describe('endless local session persistence', () => {
     expect(storage.getItem(endlessSessionKey(6000))).toBeNull()
   })
 
+  it('discards legacy v1 Duty history after the generated field semantics changed', () => {
+    const storage = new MemoryStorage()
+    const legacyKey = 'aia.endless-session.v1.6000'
+    storage.setItem(legacyKey, JSON.stringify({ ...session(), version: 1 }))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+    expect(storage.getItem(legacyKey)).toBeNull()
+  })
+
   it('rejects a forged run with impossible metric ranges', () => {
     const storage = new MemoryStorage()
     const invalid = session()

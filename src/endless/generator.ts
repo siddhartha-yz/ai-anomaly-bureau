@@ -18,6 +18,7 @@ export type EndlessCase = {
   seed: number
   caseNo: number
   syndrome: EndlessSyndrome
+  baseline: { model: ModelId; features: [FeatureKey, FeatureKey] }
   title: string
   incident: string
   reportedFacts: string[]
@@ -54,6 +55,14 @@ const FEATURE_PAIRS: Array<[FeatureKey, FeatureKey]> = [
   ['roundness', 'texture'], ['roundness', 'aspect'], ['texture', 'aspect'],
 ]
 const MODELS: ModelId[] = ['linear', 'tree', 'knn-1', 'knn-5']
+
+type InternalConfiguration = {
+  model: ModelId
+  features: [FeatureKey, FeatureKey]
+  trainAccuracy: number
+  testAccuracy: number
+  minRecall: number
+}
 
 function sample(id: string, split: 'train' | 'test', label: 'cat' | 'bread', features: RawFeatures, flags?: SampleFlags): Sample {
   return { id, split, label, features, ...(flags ? { flags } : {}) }
@@ -248,25 +257,41 @@ function generateOverfit(seed: number) {
     train.push(sample(`train-cat-${i}`, 'train', 'cat', { ...weakSensors(rng), ...diagonalFeatures(rng, 'cat', i) }))
     train.push(sample(`train-bread-${i}`, 'train', 'bread', { ...weakSensors(rng), ...diagonalFeatures(rng, 'bread', i) }))
   }
-  // Four mislabeled measurement records sit deep in the opposite region. A local
-  // memorizer can score them perfectly; smoother rules should treat them as noise.
-  train.push(
-    sample('archive-flag-01', 'train', 'cat', { ...weakSensors(rng), texture: .25, aspect: .51 }, { noise: true }),
-    sample('archive-flag-02', 'train', 'cat', { ...weakSensors(rng), texture: .50, aspect: .76 }, { noise: true }),
-    sample('archive-flag-03', 'train', 'bread', { ...weakSensors(rng), texture: .75, aspect: .49 }, { noise: true }),
-    sample('archive-flag-04', 'train', 'bread', { ...weakSensors(rng), texture: .50, aspect: .24 }, { noise: true }),
-  )
+  // Four mislabeled measurement records sit deep in the opposite region. Each
+  // has a small neighborhood of correctly labeled records around it. This makes
+  // the causal contrast robust in every 2D projection: 1-NN can latch onto the
+  // single bad record, while k=5 sees the local majority and smooths it away.
+  const noisyRecords: Array<{ id: string; label: 'cat' | 'bread'; actual: 'cat' | 'bread'; features: RawFeatures }> = [
+    { id: 'archive-flag-01', label: 'cat', actual: 'bread', features: { ...weakSensors(rng), texture: .25, aspect: .51 } },
+    { id: 'archive-flag-02', label: 'cat', actual: 'bread', features: { ...weakSensors(rng), texture: .50, aspect: .76 } },
+    { id: 'archive-flag-03', label: 'bread', actual: 'cat', features: { ...weakSensors(rng), texture: .75, aspect: .49 } },
+    { id: 'archive-flag-04', label: 'bread', actual: 'cat', features: { ...weakSensors(rng), texture: .50, aspect: .24 } },
+  ]
+  const near = (features: RawFeatures, radius: number): RawFeatures => ({
+    warmth: jitter(rng, features.warmth, radius),
+    roundness: jitter(rng, features.roundness, radius),
+    texture: jitter(rng, features.texture, radius),
+    aspect: jitter(rng, features.aspect, radius),
+  })
+  for (const record of noisyRecords) {
+    train.push(sample(record.id, 'train', record.label, record.features, { noise: true }))
+    for (let anchor = 1; anchor <= 3; anchor += 1) {
+      train.push(sample(`${record.id}-anchor-${anchor}`, 'train', record.actual, near(record.features, .035 + anchor * .006)))
+    }
+  }
   for (let i = 0; i < 12; i += 1) {
     test.push(sample(`test-cat-${i}`, 'test', 'cat', { ...weakSensors(rng), ...diagonalFeatures(rng, 'cat', i, .085) }))
     test.push(sample(`test-bread-${i}`, 'test', 'bread', { ...weakSensors(rng), ...diagonalFeatures(rng, 'bread', i, .085) }))
   }
-  // Probes near the noisy records expose 1-NN's local memorization.
-  test.push(
-    sample('test-bread-probe-1', 'test', 'bread', { ...weakSensors(rng), texture: .26, aspect: .50 }),
-    sample('test-bread-probe-2', 'test', 'bread', { ...weakSensors(rng), texture: .50, aspect: .75 }),
-    sample('test-cat-probe-1', 'test', 'cat', { ...weakSensors(rng), texture: .74, aspect: .50 }),
-    sample('test-cat-probe-2', 'test', 'cat', { ...weakSensors(rng), texture: .50, aspect: .25 }),
-  )
+  // Two field probes sit very close to each noisy record in all four dimensions.
+  // They are not duplicates: small jitter keeps them as unseen observations, but
+  // the mislabeled archive record remains the nearest local memory for 1-NN.
+  for (const [index, record] of noisyRecords.entries()) {
+    test.push(
+      sample(`test-${record.actual}-probe-${index * 2 + 1}`, 'test', record.actual, near(record.features, .008)),
+      sample(`test-${record.actual}-probe-${index * 2 + 2}`, 'test', record.actual, near(record.features, .012)),
+    )
+  }
   return { train, test }
 }
 
@@ -347,6 +372,125 @@ function permuteCaseChannels(seed: number, data: { train: Sample[]; test: Sample
   }
 }
 
+function internalConfiguration(
+  data: { train: Sample[]; test: Sample[] },
+  model: ModelId,
+  features: [FeatureKey, FeatureKey],
+): InternalConfiguration {
+  const trainPoints = projectSamples(data.train, features)
+  const testPoints = projectSamples(data.test, features)
+  const fitted = MODEL_REGISTRY[model].fit(trainPoints)
+  const train = evaluate(fitted, trainPoints)
+  const field = evaluate(fitted, testPoints)
+  const catTotal = field.confusion['cat->cat'] + field.confusion['cat->bread']
+  const breadTotal = field.confusion['bread->cat'] + field.confusion['bread->bread']
+  return {
+    model,
+    features,
+    trainAccuracy: train.accuracy,
+    testAccuracy: field.accuracy,
+    minRecall: Math.min(
+      catTotal ? field.confusion['cat->cat'] / catTotal : 0,
+      breadTotal ? field.confusion['bread->bread'] / breadTotal : 0,
+    ),
+  }
+}
+
+function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]) {
+  return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
+}
+
+function interventionGain(from: InternalConfiguration, to: InternalConfiguration) {
+  return Math.max(to.testAccuracy - from.testAccuracy, to.minRecall - from.minRecall)
+}
+
+function selectDeployedBaseline(
+  syndrome: EndlessSyndrome,
+  data: { train: Sample[]; test: Sample[] },
+) {
+  const configurations = FEATURE_PAIRS.flatMap((features) => MODELS.map((model) => internalConfiguration(data, model, features)))
+  const bestFieldGain = (configuration: InternalConfiguration) => Math.max(
+    ...configurations
+      .filter((candidate) => candidate.model === configuration.model && !sameFeatureSet(candidate.features, configuration.features))
+      .map((candidate) => interventionGain(configuration, candidate)),
+    -1,
+  )
+  const bestModelGain = (configuration: InternalConfiguration) => Math.max(
+    ...configurations
+      .filter((candidate) => candidate.model !== configuration.model && sameFeatureSet(candidate.features, configuration.features))
+      .map((candidate) => interventionGain(configuration, candidate)),
+    -1,
+  )
+  const gainToModel = (configuration: InternalConfiguration, model: ModelId) => {
+    const candidate = configurations.find((item) => item.model === model && sameFeatureSet(item.features, configuration.features))
+    return candidate ? interventionGain(configuration, candidate) : -1
+  }
+
+  let candidates: InternalConfiguration[]
+  if (syndrome === 'feature-gap') {
+    candidates = configurations.filter((configuration) =>
+      configuration.model === 'linear'
+      && configuration.testAccuracy < .8
+      && configuration.trainAccuracy < .94
+      && bestFieldGain(configuration) >= .15
+      && bestFieldGain(configuration) - bestModelGain(configuration) >= .12,
+    )
+  } else if (syndrome === 'overfit-noise') {
+    candidates = configurations.filter((configuration) =>
+      configuration.model === 'knn-1'
+      && configuration.trainAccuracy >= .98
+      && configuration.testAccuracy < .9
+      && (configuration.testAccuracy < .85 || configuration.minRecall < .75)
+      && gainToModel(configuration, 'knn-5') >= .12,
+    )
+  } else if (syndrome === 'distribution-shift') {
+    candidates = configurations.filter((configuration) =>
+      configuration.model === 'linear'
+      && configuration.trainAccuracy >= .95
+      && configuration.testAccuracy < .8
+      && bestFieldGain(configuration) >= .2
+      && bestFieldGain(configuration) - bestModelGain(configuration) >= .2,
+    )
+  } else {
+    candidates = configurations.filter((configuration) =>
+      configuration.testAccuracy >= .83
+      && configuration.minRecall < .75
+      && bestFieldGain(configuration) >= .15
+      && bestFieldGain(configuration) - bestModelGain(configuration) >= .08,
+    )
+  }
+
+  const targetField = syndrome === 'feature-gap' ? .68
+    : syndrome === 'overfit-noise' ? .76
+      : syndrome === 'distribution-shift' ? .5
+        : .9
+  candidates.sort((a, b) =>
+    Math.abs(a.testAccuracy - targetField) - Math.abs(b.testAccuracy - targetField)
+    || b.trainAccuracy - a.trainAccuracy,
+  )
+
+  if (!candidates.length) {
+    const fallback = configurations
+      .filter((configuration) => syndrome === 'overfit-noise'
+        ? configuration.model === 'knn-1'
+          && configuration.trainAccuracy >= .98
+          && configuration.testAccuracy < .9
+          && (configuration.testAccuracy < .85 || configuration.minRecall < .75)
+        : syndrome === 'class-imbalance'
+          ? configuration.testAccuracy >= .83 && configuration.minRecall < .75
+          : configuration.testAccuracy < .8)
+      .sort((a, b) => {
+        const aGain = syndrome === 'overfit-noise' ? bestModelGain(a) : bestFieldGain(a)
+        const bGain = syndrome === 'overfit-noise' ? bestModelGain(b) : bestFieldGain(b)
+        return bGain - aGain
+      })[0]
+    if (fallback) return { model: fallback.model, features: [...fallback.features] as [FeatureKey, FeatureKey] }
+  }
+
+  const selected = candidates[0] ?? configurations[0]
+  return { model: selected.model, features: [...selected.features] as [FeatureKey, FeatureKey] }
+}
+
 export function createEndlessCase(seed: number): EndlessCase {
   const syndrome: EndlessSyndrome = (['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as const)[Math.abs(seed) % 4]
   const theme = themeFor(syndrome, seed)
@@ -358,6 +502,7 @@ export function createEndlessCase(seed: number): EndlessCase {
         ? generateShift(seed)
         : generateImbalance(seed)
   const data = permuteCaseChannels(seed, baseData, theme)
+  const baseline = selectDeployedBaseline(syndrome, data)
   const publicIdByInternal = new Map(data.test.map((sample, index) => [sample.id, `field-${String(index + 1).padStart(3, '0')}`]))
   const publicId = (internalId: string) => {
     const id = publicIdByInternal.get(internalId)
@@ -410,6 +555,7 @@ export function createEndlessCase(seed: number): EndlessCase {
     seed,
     caseNo: Math.abs(seed) % 10000,
     syndrome,
+    baseline,
     title: theme.title,
     incident: theme.incident,
     reportedFacts: reportedFacts[syndrome],

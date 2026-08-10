@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：20 个测试文件、100 个测试全部通过。
-- Vite production build：通过。
-- Playwright：24 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：21 个测试文件、103 个测试全部通过。
+- Vite production build：通过；本轮冻结构建为 `assets/index-d8imknCr.js` + `assets/index-DyIuyVLf.css`（生产发布后再记录远端哈希）。
+- Playwright：26 条 Chromium E2E 全部通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、Duty 竞争假设 / falsification / syndrome 延迟揭示、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -65,12 +65,15 @@ Vitest 当前覆盖：
 - Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
 - Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。专项测试还用 80 字符 action + 所有可选 telemetry 字段填满 505 次，确认截断后的 500 条最胖合法事件仍可写入并恢复于 200KB checkpoint 上限内。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
-- 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
-- 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
-- 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类；下一次训练前使用同一纯函数语义预览当前实验计划。
-- 诊断证据包：必须显式引用两条不同配置的 run；错误诊断后下一份报告必须包含 `lastDiagnosisRunCount` 之后的新记录，旧 E 记录不能反复用于轮猜。
-- 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome。
-- 无尽 session：版本化 seed-local payload 可往返恢复，损坏 / 旧版本 / 越界指标 / 不存在的 run 引用 / audit 配置冲突都会被拒绝；存档不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
+- 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例；每宗新案还必须生成一个真实不可靠的 deployed baseline，而不是从固定默认配置开始。
+- Duty hypothesis-depth：`duty-hypothesis-depth.test.ts` 在 160 个连续 seed 上逐案检查 deployed baseline 不可靠、存在 ≥12pt 的 syndrome-appropriate 单变量干预；要求目标干预轴相对竞争轴明显占优的比例 ≥90%，overfit 的自然 `k=1 → k=5` 对照具有 ≥95% 的 material-discrimination 覆盖率。
+- 额外 800-seed 只读分析中，800/800 deployed baseline 均不可靠，800/800 都存在 ≥12pt 的目标单变量干预；791/800（98.9%）案件中目标干预轴还比竞争轴至少多 8pt，overfit 自身为 191/200。随后又独立压力扫描 2,000 个 seed（四类各 500）：2,000/2,000 baseline 均不可靠，2,000/2,000 都存在 syndrome-appropriate ≥12pt 单变量干预，没有发现 fallback 退化案。
+- 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。Formal Sensor Deck 不再同时显示所有字段的 `旧差异 X/5 / 现场变化 Y/5` 答案排行。
+- 无尽实验设计：同一配置重复审计识别为 replication；只换字段 / 只换模型 / 混合改动均有确定分类。只有 fields-only / model-only 且 FIELD 或最低 recall 绝对变化 ≥12pt 才是 discriminating evidence；显著改善和显著恶化都可以减少不确定性，repeat / mixed 不能。
+- 竞争假设状态：`H-FIELDS / H-MODEL` 各自只读取玩家 run history；未测试为 OPEN，material controlled change 为 SUPPORTED，真正测试过但变化不足 12pt 为 WEAKENED。两个轴可以同时 SUPPORTED，此时 UI 明确提示单一主因解释不足。
+- 诊断证据包：只有已有 material discriminating experiment 且存在可靠方案时 syndrome 选项才渲染；引用的两条 run 自身也必须形成有效单变量区分证据。错误诊断后下一份报告必须包含 `lastDiagnosisRunCount` 之后的新 material controlled evidence，旧 E 记录不能反复用于轮猜。
+- 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome；`discriminatingExperiment()` 只回答“这个受控实验有没有让世界明显变化”。
+- 无尽 session：当前为 `aia.endless-session.v2.<seed>`。版本化 seed-local payload 可往返恢复，损坏 / 越界指标 / 不存在的 run 引用 / audit 配置冲突都会被拒绝；由于本轮 overfit field probes / baseline 语义改变，旧 v1 history 会明确清理而不是与新现场数据混用。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
@@ -81,7 +84,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 24 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 26 条真实 Chromium 路线。
 
 调查局宏观框架单独验证：
 
@@ -130,13 +133,16 @@ Vitest 当前覆盖：
 - 正常产品流程由调查局值班室接案后进入模式说明；显式 query 仍可用于开发复现，但不会绕过新人入职去制造长期 Duty 进度。
 - Boot Case 000 真实完成“建立基线 → 只换字段做对照 → 从日志认出变量 → 三类证据阅读练习 → 诊断草稿 → 正式提交”；所有分数来自真实 generator / model / audit。
 - Training 000 完成后的 canonical 长期事实只写入 `aia.bureau-progress.v2.trainingCases`；历史 `aia.boot-case-000.v2` 只作为旧存档迁移输入，新完成路线明确断言不会再写这个副本。正式模式仍可 query 直达，训练案件可重玩。
-- 正式案件首屏只描述症状，不写出 syndrome；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
+- 正式案件首屏只描述症状，不写出 syndrome；Sensor Deck 不再给四字段全局 0–5 答案分数；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
+- 第一条正式审计后才出现 `H-FIELDS / H-MODEL` 两条竞争干预假设；浏览器路线验证它们从 OPEN 出发，repeat 保持 OPEN，真正的受控实验才产生 SUPPORTED / WEAKENED。
+- overfit seed 6117 浏览器路线验证三段节奏：E01 `KNN k=1` 真实复现 TRAIN 100% / FIELD 71.9% / 最低召回 68.8%；E02 保持字段只换成 k=5 后 FIELD / 最低召回均为 81.3%，模型轴已经形成 ≥12pt 区分证据但系统仍没过 85% 可靠线，syndrome 名称仍不渲染；E03 保持 k=5 再做 fields-only 修复到 FIELD / 两类召回 100% 后才开放引用证据与病因命名。
+- falsification seed 6006 浏览器路线验证：E01 linear baseline FIELD 54%；E02 保持字段只换到 k=5 后 FIELD 50%、最低召回不变，变化不足 12pt，因此 H-MODEL 被 WEAKENED；E03 保持 k=5 只换字段后 FIELD / 两类召回均到 100%，H-FIELDS SUPPORTED、H-MODEL 继续 WEAKENED，并进入诊断阶段。这是本轮“聪明实验杀死一个原本合理错误解释”的直接回归。
 - 过拟合类历史档案的质量告警在散点图里为可点击橙色 `!`；只有玩家亲手打开后才进入 `CASE_LEADS.LOG`。
 - 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡；`TRAIN / FIELD / 召回` 仅有字面指标词典。
 - 正式审计返回的错误卡可点击，选中后对应 public `field-*` 点会滚入 `FIELD_MATRIX` 并高亮；只有亲手检查的错误才进入 `CASE_LEADS.LOG`。
 - `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；下一次训练前先显示当前配置相对上一条记录的变化类型。
-- 达到两个不同配置后仍必须从日志引用两条记录；同配置引用会被拒绝。有效引用会生成只包含字段 / 模型 / 指标变化的客观对照，病因选项才解锁。
-- 错误诊断后，原样复现不会解锁改口；必须产生一个不同配置的新正式审计，而且下一份证据包必须包含这条新记录。
+- 两个不同配置本身不再足够：有效引用必须是 material fields-only / model-only comparison；同配置、mixed change、变化太小的单变量对照都会被拒绝。有效引用只生成字段 / 模型 / 指标变化，不替玩家解释 syndrome。
+- 错误诊断后，原样复现不会解锁改口；必须产生新的 material controlled evidence，而且下一份证据包必须包含这条新记录。浏览器测试还专门验证“从可靠方案只改一个因素后性能显著下降”同样能作为 falsification 证据重新开放报告。
 - 诊断锁且额度为 0 时，sticky 导航会直接定位到“申请 1 次补充审计”，验证有限预算不形成软锁。
 - 正式无尽 session 按 seed 保存在本地：普通刷新不会返还正式审计额度；错误诊断锁、引用状态和已检查证据也会恢复。模式入口显式显示未结案件 / 剩余额度，生成全新案件需要二次确认。
 - 已结案 session 也会显示为 `RESOLVED CASE SAVED`；浏览器路线会从剧情页重新进入无尽入口、重开同一结案案卷并核对引用证据，再从该案生成下一 seed。
@@ -160,16 +166,18 @@ E2E 使用 Playwright 的真实可操作性检查；如果 overlay、NPC、toolt
 
 ## 自动玩法平衡
 
-无尽模式不是只测试“有没有解”，还测试“思考是否真的有收益”。当前批量基线使用 90 个程序化 seed，每个案件运行 24 次 5-audit random-clicker：
+无尽模式不是只测试“有没有解”，还测试“思考是否真的有收益”。当前批量基线使用 90 个程序化 seed，每个案件运行 24 次、总预算 5-audit 的 random-clicker；evidence-policy 与 random-clicker 都从同一个真实 deployed failure baseline 起步：
 
-- evidence-policy 结案率约 **98.9%**；
-- random-clicker 结案率约 **15.7%**；
-- evidence-policy 平均最佳未知表现约 **99.4%**；
-- random-clicker 平均最佳未知表现约 **88.5%**。
+- evidence-policy 结案率 **100%**；
+- random-clicker 结案率约 **13.2%**；
+- evidence-policy 平均最佳未知表现 **100%**；
+- random-clicker 平均最佳未知表现约 **88.1%**；
+- evidence-policy **90/90** 都取得 material single-variable discriminating evidence；
+- evidence-policy 平均正式审计 **2.02 次**：88/90 用 2 次完成，2/90 需要第 3 次受控修复。
 
-Evidence policy 只读取玩家同样可见的训练标签几何与**无标签**现场分布变化，不读取隐藏 syndrome/test label。测试硬门槛要求 evidence solve rate ≥90%、random solve rate <30%、二者结案率差 >60 个百分点，并要求未知表现存在显著差距。
+Evidence policy 只读取玩家可检查的训练标签几何、类别构成、档案质量事实与**无标签**现场分布变化，不读取隐藏 syndrome/test label，也不能枚举隐藏 field outcome 选最优方案。当前硬门槛要求 evidence solve rate ≥95%、random solve rate <25%、二者结案率差 >70 个百分点，并要求未知表现仍有显著差距；代表 seed 还要求每局 `discriminating === true` 且最多 3 次审计。
 
-这些指标不是“游戏一定好玩”的证明，只是防止程序化案件退化成“随便试五次和推理差不多”。
+这些指标仍不是“游戏一定好玩”的证明；它们的含义更具体：防止程序化案件退化成“开局已经修好”“根本没有能区分解释的实验”或“随便试五次和推理差不多”。
 
 ## Headless Chromium 人工视觉路线
 

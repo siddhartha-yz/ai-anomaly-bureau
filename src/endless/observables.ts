@@ -47,6 +47,8 @@ export function contradictionRate(caseData: EndlessCase, features: [FeatureKey, 
 export function evidenceFeatureScore(caseData: EndlessCase, feature: FeatureKey) {
   const observed = featureObservation(caseData, feature)
   // Strong old-data separation is useful, but a sensor whose unlabeled field
-  // distribution visibly moves is a suspicious shortcut.
-  return observed.separation - observed.drift * 3
+  // distribution visibly moves is a suspicious shortcut. Formal Duty no longer
+  // prints this as a ready-made score; the automated policy uses it as a compact
+  // proxy for what a player can inspect by cycling FIELD MATRIX projections.
+  return observed.separation - observed.drift * 5
 }

@@ -2,7 +2,6 @@ import { MODEL_META, type ModelId } from '../ml/registry'
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase } from './generator'
 import type { EndlessFocus } from './EndlessNavigator'
-import { featureObservation } from './observables'
 import { experimentPlanDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
 
 const FEATURES: FeatureKey[] = ['warmth', 'roundness', 'texture', 'aspect']
@@ -53,17 +52,16 @@ export function EndlessControls({
           ))}
         </div>
         <div className="endless-feature-list">
-          {FEATURES.map((feature) => {
-            const observed = featureObservation(caseData, feature)
-            return (
-              <button key={feature} type="button" className={features.includes(feature) ? 'installed' : ''} onClick={() => onFeature(feature)}>
-                <strong>{caseData.featureNames[feature]}</strong>
-                <span className="sensor-evidence"><i>旧差异 {observed.separationLevel}/5</i><i>现场变化 {observed.driftLevel}/5</i></span>
-              </button>
-            )
-          })}
+          {FEATURES.map((feature) => (
+            <button key={feature} type="button" className={features.includes(feature) ? 'installed' : ''} onClick={() => onFeature(feature)}>
+              <strong>{caseData.featureNames[feature]}</strong>
+              <span className="sensor-evidence"><i>{features.includes(feature) ? '当前装载' : '候选字段'}</i></span>
+            </button>
+          ))}
         </div>
-        <div className="sensor-evidence-help">读数说明：<b>旧差异</b>只看历史标签分得多开；<b>现场变化</b>不看现场答案，只比较无标签分布有没有变。</div>
+        <div className="sensor-evidence-help">
+          正式值班不会预先替字段打分。切换字段后，左侧 <b>FIELD MATRIX</b> 会立即重画历史标签与无标签现场分布；先看结构，再决定哪一组值得花审计额度。
+        </div>
       </section>
 
       <section className="endless-control-panel model-deck">

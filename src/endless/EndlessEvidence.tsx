@@ -1,7 +1,7 @@
 import { MODEL_META } from '../ml/registry'
 import type { EndlessAudit } from './EndlessPlot'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import { compareExperimentRecords, diagnosisEvidenceStatus, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
 
 function signedPoints(value: number) {
   const points = Math.round(value * 100)
@@ -95,23 +95,31 @@ export function EndlessRunLog({
   const configurationCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const cited = diagnosisEvidenceStatus(history, selectedEvidenceIds, lastDiagnosisRunCount)
   const comparison = cited.records.length === 2 ? compareExperimentRecords(cited.records[0], cited.records[1]) : undefined
+  const citedDiscrimination = cited.records.length === 2 ? discriminatingExperiment(cited.records[0], cited.records[1]) : undefined
+  const evidenceReady = cited.ready && Boolean(citedDiscrimination?.discriminating)
   const comparisonLabel = comparison?.delta === 'repeat' ? '同配置复现'
     : comparison?.delta === 'fields-only' ? '只换字段'
       : comparison?.delta === 'model-only' ? '只换模型'
         : comparison?.delta === 'mixed' ? '字段 + 模型都换'
           : '基线'
-  const citationMessage = cited.ready
+  const citationMessage = evidenceReady
     ? `证据包就绪：E${String(cited.records[0].id).padStart(2, '0')} + E${String(cited.records[1].id).padStart(2, '0')}`
     : cited.records.length < 2
       ? `请选择两条记录作为诊断依据（${cited.records.length}/2）`
       : cited.distinctConfigurations < 2
         ? '这两条记录属于同一配置；请引用一条不同配置的对照记录。'
-        : '下一份报告必须包含上次诊断后新增的实验记录。'
+        : !cited.includesFreshEvidence
+          ? '下一份报告必须包含上次诊断后新增的实验记录。'
+          : citedDiscrimination?.delta === 'mixed'
+            ? '这两条记录同时改了字段和模型，无法知道是哪一个因素造成变化。'
+            : citedDiscrimination?.delta === 'repeat'
+              ? '同配置复现能检查稳定性，但不能区分 H-FIELDS 与 H-MODEL。'
+              : `这是单变量对照，但现场证据只变化 ${Math.round((citedDiscrimination?.materialChange ?? 0) * 100)}pt；还不足以削弱另一条解释。`
   return (
     <section className={`endless-run-log ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>EXPERIMENTS.LOG</span><strong>{history.length} 次审计 · {configurationCount} 种配置</strong></div>
       {evidenceSelectable && (
-        <div className={`endless-citation-status ${cited.ready ? 'ready' : ''}`} aria-label="诊断证据引用状态">
+        <div className={`endless-citation-status ${evidenceReady ? 'ready' : ''}`} aria-label="诊断证据引用状态">
           <b>DIAGNOSIS EVIDENCE</b><span>{citationMessage}</span>
         </div>
       )}
@@ -204,7 +212,7 @@ export function EndlessDiagnosis({
   return (
     <section className={`endless-diagnosis ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>04 / DIAGNOSIS</span><strong>提交病因</strong></div>
-      <p>先从实验日志引用两条不同配置的记录，再把它们写成病因判断。原样复现可以验证稳定性，但不算新的区分证据。</p>
+      <p>先从实验日志引用两条能区分解释的单变量对照，再把它们写成病因判断。原样复现或同时改字段与模型，都不能说明究竟是哪一个因素改变了结果。</p>
       <div className={`diagnosis-evidence-packet ${evidenceReady ? 'ready' : ''}`}>
         <small>引用证据</small>
         <strong>{evidenceRecords.length ? evidenceRecords.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '尚未建立证据包'}</strong>

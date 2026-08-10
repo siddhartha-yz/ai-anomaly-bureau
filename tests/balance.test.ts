@@ -9,16 +9,18 @@ describe('endless gameplay balance baselines', () => {
       const result = simulateEvidencePolicy(caseData)
       expect(result.diagnosis).toBe(caseData.diagnosis.correct)
       expect(result.bestAccuracy).toBeGreaterThanOrEqual(.85)
-      expect(result.audits).toBe(2)
+      expect(result.discriminating).toBe(true)
+      expect(result.audits).toBeGreaterThanOrEqual(2)
+      expect(result.audits).toBeLessThanOrEqual(3)
     }
   })
 
   it('makes evidence-led play substantially outperform five random brute-force audits', () => {
     const seeds = Array.from({ length: 90 }, (_, index) => 7300 + index)
     const gap = evaluatePolicyGap(seeds, 24)
-    expect(gap.evidenceSolveRate).toBeGreaterThanOrEqual(.9)
-    expect(gap.randomSolveRate).toBeLessThan(.3)
-    expect(gap.evidenceSolveRate - gap.randomSolveRate).toBeGreaterThan(.6)
+    expect(gap.evidenceSolveRate).toBeGreaterThanOrEqual(.95)
+    expect(gap.randomSolveRate).toBeLessThan(.25)
+    expect(gap.evidenceSolveRate - gap.randomSolveRate).toBeGreaterThan(.7)
     expect(gap.evidenceMeanBestAccuracy - gap.randomMeanBestAccuracy).toBeGreaterThan(.07)
   })
 })

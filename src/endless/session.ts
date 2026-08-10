@@ -3,7 +3,8 @@ import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessSyndrome } from './generator'
 import type { BandPrediction, EndlessRunRecord, InspectedFieldError } from './uiTypes'
 
-export const ENDLESS_SESSION_VERSION = 1
+export const ENDLESS_SESSION_VERSION = 2
+const LEGACY_ENDLESS_SESSION_VERSION = 1
 
 export type EndlessSessionData = {
   version: typeof ENDLESS_SESSION_VERSION
@@ -127,6 +128,10 @@ export function endlessSessionKey(seed: number) {
   return `aia.endless-session.v${ENDLESS_SESSION_VERSION}.${seed}`
 }
 
+function legacyEndlessSessionKey(seed: number) {
+  return `aia.endless-session.v${LEGACY_ENDLESS_SESSION_VERSION}.${seed}`
+}
+
 export function hasEndlessSessionProgress(session: EndlessSessionData | undefined) {
   return Boolean(session && (
     session.history.length
@@ -146,7 +151,14 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
   const key = endlessSessionKey(seed)
   try {
     const raw = storage.getItem(key)
-    if (!raw) return undefined
+    if (!raw) {
+      // V2 changes the generated field probes and deployed baseline semantics.
+      // An old V1 run history therefore cannot be mixed with the new world for
+      // the same seed; discard it explicitly rather than silently restoring
+      // metrics that were produced against a different field set.
+      storage.removeItem(legacyEndlessSessionKey(seed))
+      return undefined
+    }
     const parsed: unknown = JSON.parse(raw)
     if (!isSessionData(parsed, seed)) {
       storage.removeItem(key)
@@ -171,6 +183,7 @@ export function writeEndlessSession(storage: StorageLike, session: EndlessSessio
 export function clearEndlessSession(storage: StorageLike, seed: number) {
   try {
     storage.removeItem(endlessSessionKey(seed))
+    storage.removeItem(legacyEndlessSessionKey(seed))
     return true
   } catch {
     return false

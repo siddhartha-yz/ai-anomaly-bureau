@@ -463,6 +463,8 @@ test('formal endless mode exposes facts and next actions without revealing the d
   await expect(page.locator('.endless-primary.objective-action')).toBeInViewport()
   // Formal mode exposes measurements, but removes the answer-like feature prose used during development.
   await expect(page.locator('.endless-feature-list button small')).toHaveCount(0)
+  await expect(page.locator('.endless-feature-list')).not.toContainText(/旧差异|现场变化|[0-5]\/5/)
+  await expect(page.locator('.sensor-evidence-help')).toContainText(/不会预先替字段打分/)
   const archiveAlert = page.getByRole('button', { name: /查看档案异常 archive-flag-01/ })
   await archiveAlert.focus()
   await page.evaluate(() => {
@@ -499,7 +501,10 @@ test('formal endless mode exposes facts and next actions without revealing the d
   await qaShot(page, '55-endless-predict')
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
-  await expect(page.getByText('建立一条对照实验')).toBeVisible()
+  await expect(page.getByText('让两个解释真正分叉')).toBeVisible()
+  await expect(page.getByLabel('竞争假设')).toContainText('H-FIELDS')
+  await expect(page.getByLabel('竞争假设')).toContainText('H-MODEL')
+  await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
   await expect(page.locator('.endless-lead-board')).toContainText('正式审计 #1')
   await qaShot(page, '56-endless-compare')
 })
@@ -523,12 +528,90 @@ test('formal endless case briefs expose symptoms without spelling out any diagno
   }
 })
 
+test('overfit Duty separates hypothesis discovery from reliable repair before naming the syndrome', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6117')
+
+  // The deployed k=1 system first reproduces the incident.
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-audit-result')).toContainText('TRAIN')
+  await expect(page.locator('.endless-audit-result')).toContainText('FIELD AUDIT')
+  await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
+
+  // Smoothing k=1 → k=5 while keeping fields fixed kills one plausible
+  // explanation, but it does not yet produce a reliable system.
+  await page.locator('.endless-model-list').getByRole('button', { name: /k=5/ }).click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换模型')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  const modelHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-MODEL' })
+  const fieldHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-FIELDS' })
+  await expect(modelHypothesis).toContainText('SUPPORTED')
+  await expect(fieldHypothesis).toContainText('OPEN')
+  await expect(page.locator('.endless-reliability-check')).toContainText('总体 FAIL')
+  await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+  await expect(page.getByText('模型把训练噪声和偶然点记得太死')).toHaveCount(0)
+
+  // A third controlled run repairs the system; only now are diagnosis names
+  // disclosed and evidence citation becomes the next task.
+  await chooseEndlessFeatures(page, '引脚比例', '纹理波动')
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
+  await expect(page.locator('.endless-diagnosis')).toBeVisible()
+  await expect(page.getByText('模型把训练噪声和偶然点记得太死')).toBeVisible()
+  await expect(page.getByLabel('当前调查目标')).toContainText('引用两条证据')
+})
+
+test('Duty can falsify a plausible model explanation before repairing the field sensors', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6006')
+
+  // First reproduce the incident. At this point both intervention stories are
+  // still reasonable because the player has only seen one failed deployment.
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  const fieldHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-FIELDS' })
+  const modelHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-MODEL' })
+  await expect(fieldHypothesis).toContainText('OPEN')
+  await expect(modelHypothesis).toContainText('OPEN')
+
+  // Hold fields fixed and change only the rule. The field result barely moves,
+  // so the model-only prediction fails and H-MODEL is explicitly weakened.
+  await page.locator('.endless-model-list').getByRole('button', { name: /k=5/ }).click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换模型')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(modelHypothesis).toContainText('WEAKENED')
+  await expect(fieldHypothesis).toContainText('OPEN')
+  await expect(page.getByLabel('竞争假设')).toContainText(/模型-only|H-MODEL.*削弱|H-MODEL 的单变量预测/)
+  await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+
+  // Now keep k=5 fixed and change only the fields. The incident disappears,
+  // supporting H-FIELDS and opening the diagnosis phase only after a reliable fix.
+  await chooseEndlessFeatures(page, '拼片比例', '表面纹理')
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
+  await expect(fieldHypothesis).toContainText('SUPPORTED')
+  await expect(modelHypothesis).toContainText('WEAKENED')
+  await expect(page.getByLabel('竞争假设')).toContainText(/字段实验产生了显著变化/)
+  await expect(page.locator('.endless-diagnosis')).toBeVisible()
+})
+
 test('repeating the same endless configuration is replication, not new diagnostic evidence', async ({ page }) => {
   await page.goto('?mode=endless&seed=6000')
 
   for (let repeat = 0; repeat < 2; repeat += 1) {
     await page.getByRole('button', { name: '训练当前方案' }).click()
-    await page.getByRole('button', { name: /<60% 翻车/ }).click()
+    await page.getByRole('button', { name: /<60% 翻车|60–84% 勉强|≥85% 稳定/ }).first().click()
     await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   }
 
@@ -537,15 +620,22 @@ test('repeating the same endless configuration is replication, not new diagnosti
   await expect(page.getByLabel('当前调查目标')).toContainText('继续获取能区分解释的证据')
   await expect(page.locator('.endless-objective-stats')).toContainText('不同配置 1')
   await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+  await expect(page.getByLabel('竞争假设')).toContainText('同配置复现')
+  await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
 
-  await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
+  await chooseEndlessFeatures(page, '正文重复度', '发件人可信度')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /<60% 翻车|60–84% 勉强|≥85% 稳定/ }).first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-objective-stats')).toContainText('不同配置 2')
   await expect(page.locator('.endless-diagnosis')).toBeVisible()
+  const fieldHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-FIELDS' })
+  const modelHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-MODEL' })
+  await expect(fieldHypothesis).toContainText('SUPPORTED')
+  await expect(modelHypothesis).toContainText('OPEN')
 
-  // Once diagnosis becomes available, citing the two replication runs is still invalid evidence.
+  // Once a real discriminating experiment unlocks diagnosis, the two replication
+  // runs are still invalid evidence by themselves.
   await citeEndlessRuns(page, 1, 2)
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('同一配置')
   await expect(page.getByLabel('已引用实验对照')).toContainText('同配置复现')
@@ -621,15 +711,18 @@ test('wrong endless diagnosis remains locked across refresh until fresh evidence
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 3')
 
-  // A genuinely new model-only audit reopens evidence collection, but old E01+E02 still cannot be reused.
-  await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
+  // A genuinely new fields-only falsification reopens evidence collection. The
+  // current reliable E02 is deliberately perturbed to a third field set; a large
+  // performance drop is just as discriminating as an improvement.
+  await chooseEndlessFeatures(page, '链接数量', '感叹号密度')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.locator('.endless-band-picks button').first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.getByLabel('竞争假设')).toContainText(/现场证据下降|SUPPORTED/)
   await citeEndlessRuns(page, 1, 2)
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('必须包含上次诊断后新增的实验记录')
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
-  await page.locator('.endless-run-log').getByRole('button', { name: /已引用 E02/ }).click()
+  await page.locator('.endless-run-log').getByRole('button', { name: /已引用 E01/ }).click()
   await citeEndlessRuns(page, 3)
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeEnabled()
@@ -1134,18 +1227,20 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(page.locator('.endless-run-log article').nth(2)).toHaveAttribute('data-delta', 'repeat')
   await expect(page.getByRole('button', { name: '提交诊断' })).toBeDisabled()
 
-  // A controlled model-only comparison produces genuinely new evidence and reopens the report.
-  await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
-  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换模型')
+  // A new controlled falsification reopens the report. From the reliable E03
+  // configuration, switch only the fields to a third observation set and watch
+  // FIELD performance collapse; deterioration is information too.
+  await chooseEndlessFeatures(page, '链接数量', '感叹号密度')
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
   await page.getByRole('button', { name: '训练当前方案' }).click()
-  await page.getByRole('button', { name: /≥85% 稳定/ }).click()
+  await page.getByRole('button', { name: /<60% 翻车|60–84% 勉强|≥85% 稳定/ }).first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-run-log article')).toHaveCount(4)
-  await expect(page.locator('.endless-run-log article').nth(3)).toHaveAttribute('data-delta', 'model-only')
-  await expect(page.getByText(/已获得新的实验配置/)).toBeVisible()
+  await expect(page.locator('.endless-run-log article').nth(3)).toHaveAttribute('data-delta', 'fields-only')
+  await expect(page.getByLabel('竞争假设')).toContainText(/现场证据下降|SUPPORTED/)
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
   await citeEndlessRuns(page, 2, 4)
-  await expect(page.getByLabel('已引用实验对照')).toContainText('只换模型')
+  await expect(page.getByLabel('已引用实验对照')).toContainText('只换字段')
   await expect(page.getByText(/新证据已经写入报告/)).toBeVisible()
   await page.getByRole('button', { name: '观察特征没有抓住真正差异' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
@@ -1158,7 +1253,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText(/单变量对照/)
   await expect(closureReport).toContainText('EVIDENCE CHAIN')
   await expect(closureReport).toContainText('E02 + E04')
-  await expect(closureReport).toContainText('只换模型')
+  await expect(closureReport).toContainText('只换字段')
   await expect(closureReport).toContainText('FIELD INSPECTION')
   await expect(closureReport).toContainText('1 条误判复核')
   await expect(page.getByText(/实验设计：2 次单变量对照/)).toBeVisible()
@@ -1225,9 +1320,8 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await expect(page.getByText(/正常日志 40 · 故障日志 4/)).toBeVisible()
   await qaShot(page, '40-imbalance-start')
 
-  // A deceptive tree clears 90% overall but still misses half of the rare faults.
-  await chooseEndlessFeatures(page, '突发次数', '错误签名')
-  await page.locator('.endless-model-list').getByRole('button', { name: /浅层决策树/ }).click()
+  // The deployed baseline already looks healthy by overall accuracy while still
+  // missing half of the rare faults. The case must reproduce its own incident.
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
@@ -1236,9 +1330,10 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await expect(page.locator('.endless-audit-result .metric-danger')).toHaveCount(1)
   await qaShot(page, '41-imbalance-deceptive-score')
 
-  // A stable pair plus a simple linear rule recovers both classes.
+  // Keep the deployed model fixed and change only the observation fields. This
+  // is a real fields-only hypothesis test, not a mixed search for a higher score.
   await chooseEndlessFeatures(page, '错误签名', '时序比例')
-  await page.locator('.endless-model-list').getByRole('button', { name: /直线分类器/ }).click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
