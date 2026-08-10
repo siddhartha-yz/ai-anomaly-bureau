@@ -248,6 +248,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 最新 production JS 与本地 release build 的 SHA-256 均为 `9e431579dd70b1ef47fc0d57ce4c9e0d78fb471b06598213a0432f0ebb4f52a6`（393434 bytes）；CSS `assets/index-Da9oSxjH.css` 两端 SHA-256 均为 `6d711b6aa28c6ac207bbc22ac4c64319490482b5f044fd1c92b2633379bda303`（159870 bytes）。
 - 2026-08-10 10:23 +08:00，本轮 Bureau Hub / meta loop 的 production HTML 已实际引用 `assets/index-CHLw5uOw.js`；随后直接对 `github.io` 运行最新 **22-route** Chromium E2E，**22 / 22 首轮全部通过**，包括新人不见空 Hub、CASE 001 → CLEARANCE GRANTED → Hub、1280×720 Hub、Duty 工单队列、Duty 结案回流与原有 Story / Endless 全部路线。
 - 本轮 production JS 与本地 build 的 SHA-256 均为 `8cd0a26c61436bdc2cd728721f414b723d2a4967c064062d15b4c3b57f0bb5df`（411474 bytes）；CSS `assets/index-B06ZCwZi.css` 两端 SHA-256 均为 `406cf3b4ebd9931eec1c789954e3c87c127064d3bac3e101321441969a157a91`（174938 bytes）。对应提交 `9391f8e` 的 GitHub `CI` 与 `Deploy Pages` 均已 `completed / success`。
+- 2026-08-10 10:38 +08:00，safe duty preview 边界进入最终 runtime `assets/index-Dh_HZzuz.js` 后，再次对真实 Pages 完整执行 **22 / 22** Chromium E2E，首轮全部通过。JS 本地 / 远端 SHA-256 均为 `44cdd65888b13858ff6cfd5d5690cd91fc43cbd0f0e936502570b5e35965b88a`（411605 bytes）；CSS 仍为 `406cf3b4ebd9931eec1c789954e3c87c127064d3bac3e101321441969a157a91`（174938 bytes）。提交 `63bb096` 的 `CI` 与 `Deploy Pages` 均已 `completed / success`。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
