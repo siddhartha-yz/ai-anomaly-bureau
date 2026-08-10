@@ -1,4 +1,5 @@
-import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_000, trainingCaseCode, type FormalCaseId } from '../bureau/catalog'
+import { Fragment } from 'react'
+import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_CATALOG, trainingCaseCode, type FormalCaseId, type TrainingCaseId } from '../bureau/catalog'
 import { bureauDispatch, type BureauDepartment } from '../bureau/dispatch'
 import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, nextDutySeeds, trainingCaseProgress, type BureauProgress } from '../bureau/progress'
 import { createEndlessCasePreview, type EndlessSyndrome } from '../endless/generator'
@@ -37,7 +38,7 @@ export function BureauHub({
   formalCaseResumes,
   endlessResume,
   dutySeed,
-  onOpenStory,
+  onOpenFormalCase,
   onTraining,
   onDuty,
   onAcknowledgeInduction,
@@ -48,8 +49,8 @@ export function BureauHub({
   formalCaseResumes?: Partial<Record<FormalCaseId, FormalCaseResumeSummary>>
   endlessResume?: EndlessResumeSummary
   dutySeed: number
-  onOpenStory: (caseId: FormalCaseId) => void
-  onTraining: () => void
+  onOpenFormalCase: (caseId: FormalCaseId) => void
+  onTraining: (caseId: TrainingCaseId) => void
   onDuty: (seed: number) => void
   onAcknowledgeInduction: () => void
   onSectionChange: (section: HubSection) => void
@@ -57,7 +58,6 @@ export function BureauHub({
   const status = investigatorStatus(progress)
   const inductionProgress = formalCaseProgress(progress, STORY_CASE_001.id)
   const resolvedFormalCases = FORMAL_CASE_CATALOG.filter((item) => formalCaseProgress(progress, item.id).resolved).length
-  const trainingProgress = trainingCaseProgress(progress, TRAINING_CASE_000.id)
   const bureauUnlocked = isBureauUnlocked(progress)
   const archive = bureauArchive(progress)
   const discovered = archive.filter((item) => item.discovered)
@@ -158,7 +158,7 @@ export function BureauHub({
                       <div>
                         {caseProgress.resolved ? <><small>BEST REPORT</small><strong>{caseProgress.bestGrade ?? '—'} · {caseProgress.bestScore ?? '—'}/100</strong></> : resume ? <><small>CHECKPOINT</small><strong>{resume.stageLabel}</strong></> : <><small>ASSIGNMENT</small><strong>{definition.assignment}</strong></>}
                       </div>
-                      <button type="button" onClick={() => onOpenStory(definition.id)}>{caseProgress.resolved ? (resume?.solved ? '打开结案案卷' : `重新调查 ${formalCaseCode(definition)}`) : resume ? `继续 ${formalCaseCode(definition)}` : `接收 ${formalCaseCode(definition)}`}</button>
+                      <button type="button" onClick={() => onOpenFormalCase(definition.id)}>{caseProgress.resolved ? (resume?.solved ? '打开结案案卷' : `重新调查 ${formalCaseCode(definition)}`) : resume ? `继续 ${formalCaseCode(definition)}` : `接收 ${formalCaseCode(definition)}`}</button>
                     </footer>
                   </article>
                 )
@@ -173,16 +173,23 @@ export function BureauHub({
 
           {section === 'training' && (
             <div className="bureau-training-panel">
-              <article className="bureau-terminal-card">
-                <span className="bureau-terminal-index">{TRAINING_CASE_000.number}</span>
-                <div><small>{TRAINING_CASE_000.classification}</small><h3>训练案件 {TRAINING_CASE_000.number} · {TRAINING_CASE_000.title}</h3><p>{TRAINING_CASE_000.summary}</p></div>
-                <StatusPill tone={trainingProgress.completed ? 'yellow' : 'blue'}>{trainingProgress.completed ? 'CLEARED' : 'AVAILABLE'}</StatusPill>
-              </article>
-              <div className="bureau-training-brief">
-                <strong>训练中心不会替正式案件做判断。</strong>
-                <p>这里负责教调查方法；值班室只给事实和下一步动作，不会动态告诉你应该选什么答案。</p>
-                <button type="button" onClick={onTraining}>{trainingProgress.completed ? '重新进行训练案件' : `开始 ${trainingCaseCode(TRAINING_CASE_000)}`}</button>
-              </div>
+              {TRAINING_CASE_CATALOG.map((definition) => {
+                const caseProgress = trainingCaseProgress(progress, definition.id)
+                return (
+                  <Fragment key={definition.id}>
+                    <article className="bureau-terminal-card">
+                      <span className="bureau-terminal-index">{definition.number}</span>
+                      <div><small>{definition.classification}</small><h3>训练案件 {definition.number} · {definition.title}</h3><p>{definition.summary}</p></div>
+                      <StatusPill tone={caseProgress.completed ? 'yellow' : 'blue'}>{caseProgress.completed ? 'CLEARED' : 'AVAILABLE'}</StatusPill>
+                    </article>
+                    <div className="bureau-training-brief">
+                      <strong>训练中心不会替正式案件做判断。</strong>
+                      <p>这里负责教调查方法；值班室只给事实和下一步动作，不会动态告诉你应该选什么答案。</p>
+                      <button type="button" onClick={() => onTraining(definition.id)}>{caseProgress.completed ? '重新进行训练案件' : `开始 ${trainingCaseCode(definition)}`}</button>
+                    </div>
+                  </Fragment>
+                )
+              })}
             </div>
           )}
 

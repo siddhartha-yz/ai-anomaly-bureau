@@ -407,7 +407,7 @@ test('Boot Case 000 teaches comparison before unlocking formal endless play', as
   await page.getByRole('button', { name: /进入正式无尽调查/ }).click()
   await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
   await expect(page.getByText(/NEXT OBJECTIVE/)).toBeVisible()
-  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('aia.boot-case-000.v2'))).toBe('complete')
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('aia.boot-case-000.v2'))).toBeNull()
 
   // Training knowledge persists, but normal Duty access still waits for formal induction through CASE 001.
   const bureauRaw = await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)

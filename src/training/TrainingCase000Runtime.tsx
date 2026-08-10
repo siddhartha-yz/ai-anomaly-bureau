@@ -4,8 +4,8 @@ import { evaluate } from '../ml/evaluate'
 import { projectSamples } from '../ml/features'
 import { MODEL_META, MODEL_REGISTRY } from '../ml/registry'
 import type { FeatureKey } from '../ml/types'
-import { createEndlessCase, enumerateEndlessSolutions, type EndlessAuditResult } from './generator'
-import { featureObservation } from './observables'
+import { createEndlessCase, enumerateEndlessSolutions, type EndlessAuditResult } from '../endless/generator'
+import { featureObservation } from '../endless/observables'
 
 type BootRecord = {
   id: number
@@ -118,7 +118,7 @@ function BootLog({ records, caseData }: { records: BootRecord[]; caseData: Retur
   )
 }
 
-export function BootCase({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
+export function TrainingCase000Runtime({ onComplete, onBack }: { onComplete: () => void; onBack: () => void }) {
   const caseData = useMemo(() => createEndlessCase(6000), [])
   const reliableLinear = useMemo(() => enumerateEndlessSolutions(caseData).find((item) => item.model === 'linear' && item.reliable), [caseData])
   const baselineFeatures: [FeatureKey, FeatureKey] = ['warmth', 'roundness']

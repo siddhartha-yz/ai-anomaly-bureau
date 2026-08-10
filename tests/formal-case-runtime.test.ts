@@ -3,7 +3,7 @@ import { FORMAL_CASE_CATALOG, STORY_CASE_001 } from '../src/bureau/catalog'
 import { createBureauProgress, formalCaseProgress } from '../src/bureau/progress'
 import { createStoryCheatSession } from '../src/game/cheats'
 import { storySessionKey, writeStorySession } from '../src/game/session'
-import { FORMAL_CASE_RUNTIME_REGISTRY, formalCaseRuntime } from '../src/story/registry'
+import { FORMAL_CASE_RUNTIME_REGISTRY, formalCaseRuntime, readFormalCaseResumes } from '../src/story/registry'
 
 class MemoryStorage {
   values = new Map<string, string>()
@@ -31,6 +31,10 @@ describe('formal case runtime registry', () => {
       solved: false,
       experimentCount: 2,
       remainingCredits: 3,
+    })
+    expect(readFormalCaseResumes(storage as unknown as Storage, checkpoint.seed)[STORY_CASE_001.id]).toMatchObject({
+      solved: false,
+      experimentCount: 2,
     })
 
     runtime.clearSession(storage as unknown as Storage, checkpoint.seed)

@@ -69,3 +69,12 @@ export const FORMAL_CASE_RUNTIME_REGISTRY = {
 export function formalCaseRuntime(id: FormalCaseId): FormalCaseRuntimeDefinition {
   return FORMAL_CASE_RUNTIME_REGISTRY[id]
 }
+
+export function readFormalCaseResumes(storage: StorageLike, seed: number): Partial<Record<FormalCaseId, FormalCaseResumeSummary>> {
+  const summaries: Partial<Record<FormalCaseId, FormalCaseResumeSummary>> = {}
+  for (const id of Object.keys(FORMAL_CASE_RUNTIME_REGISTRY) as FormalCaseId[]) {
+    const summary = FORMAL_CASE_RUNTIME_REGISTRY[id].readResume(storage, seed)
+    if (summary) summaries[id] = summary
+  }
+  return summaries
+}

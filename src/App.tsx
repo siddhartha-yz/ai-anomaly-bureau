@@ -1,24 +1,24 @@
 import { useState } from 'react'
-import { STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId } from './bureau/catalog'
+import { STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId, type TrainingCaseId } from './bureau/catalog'
 import { acknowledgeBureauInduction, isBureauUnlocked, isTrainingCaseCompleted, readBureauProgress, reconcileLegacyProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion, writeBureauProgress, type BureauProgress } from './bureau/progress'
 import { BureauHub, type HubSection } from './components/BureauHub'
 import { FormalCaseResume } from './components/FormalCaseResume'
-import { BootCase } from './endless/BootCase'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
 import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
 import { CHEAT_AUTO_RESUME_KEY } from './game/cheats'
-import { formalCaseRuntime } from './story/registry'
+import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
+import { trainingCaseRuntime } from './training/registry'
 
-const ENDLESS_BOOT_KEY = 'aia.boot-case-000.v2'
+const LEGACY_BOOT_COMPLETION_KEY = 'aia.boot-case-000.v2'
 
-type AppMode = 'hub' | 'story' | 'endless-intro' | 'boot' | 'endless'
+type AppMode = 'hub' | 'formal-case' | 'endless-intro' | 'training' | 'endless'
 
 function App() {
   const params = new URLSearchParams(window.location.search)
   const initialSeed = Number(params.get('seed')) || 20260809
   const requestedMode = params.get('mode')
-  const legacyBootCompleted = window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete'
+  const legacyBootCompleted = window.localStorage.getItem(LEGACY_BOOT_COMPLETION_KEY) === 'complete'
   const inductionRuntime = formalCaseRuntime(STORY_CASE_001.id)
   const [bureauProgress, setBureauProgress] = useState<BureauProgress>(() => {
     let progress = readBureauProgress(window.localStorage)
@@ -34,17 +34,18 @@ function App() {
   const [dutySeed, setDutySeed] = useState(initialSeed)
   const [formalCaseSession, setFormalCaseSession] = useState(0)
   const [formalCaseId, setFormalCaseId] = useState<FormalCaseId>(STORY_CASE_001.id)
+  const [trainingCaseId, setTrainingCaseId] = useState<TrainingCaseId>(TRAINING_CASE_000.id)
   const [mode, setMode] = useState<AppMode>(() => {
     if (requestedMode === 'hub') return 'hub'
     if (requestedMode === 'endless') return 'endless'
-    if (requestedMode === 'boot') return 'boot'
-    if (requestedMode === 'story') return 'story'
-    return isBureauUnlocked(bureauProgress) ? 'hub' : 'story'
+    if (requestedMode === 'boot') return 'training'
+    if (requestedMode === 'story') return 'formal-case'
+    return isBureauUnlocked(bureauProgress) ? 'hub' : 'formal-case'
   })
   const [hubSection, setHubSection] = useState<HubSection>('case-board')
-  const [endlessReturnTarget, setEndlessReturnTarget] = useState<'hub' | 'story'>(isBureauUnlocked(bureauProgress) ? 'hub' : 'story')
-  const [bootOrigin, setBootOrigin] = useState<'hub' | 'endless-intro'>('endless-intro')
-  const [storyResumeAccepted, setStoryResumeAccepted] = useState(() => {
+  const [endlessReturnTarget, setEndlessReturnTarget] = useState<'hub' | 'formal-case'>(isBureauUnlocked(bureauProgress) ? 'hub' : 'formal-case')
+  const [trainingOrigin, setTrainingOrigin] = useState<'hub' | 'endless-intro'>('endless-intro')
+  const [formalCaseResumeAccepted, setFormalCaseResumeAccepted] = useState(() => {
     const pendingSeed = window.sessionStorage.getItem(CHEAT_AUTO_RESUME_KEY)
     if (pendingSeed !== String(initialSeed)) return false
     window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
@@ -52,7 +53,10 @@ function App() {
   })
   const activeFormalRuntime = formalCaseRuntime(formalCaseId)
   const FormalCaseComponent = activeFormalRuntime.Component
-  const storyResume = activeFormalRuntime.readResume(window.localStorage, formalCaseSeed)
+  const activeTrainingRuntime = trainingCaseRuntime(trainingCaseId)
+  const TrainingCaseComponent = activeTrainingRuntime.Component
+  const formalCaseResumes = readFormalCaseResumes(window.localStorage, formalCaseSeed)
+  const formalCaseResume = formalCaseResumes[formalCaseId]
   const savedEndlessSession = readEndlessSession(window.localStorage, dutySeed)
   const endlessResume = hasEndlessSessionProgress(savedEndlessSession) && savedEndlessSession ? {
     seed: savedEndlessSession.seed,
@@ -61,7 +65,7 @@ function App() {
     solved: savedEndlessSession.solved,
   } : undefined
 
-  const restartStory = () => {
+  const restartFormalCase = () => {
     activeFormalRuntime.clearSession(window.localStorage, formalCaseSeed)
     setFormalCaseSession((value) => value + 1)
   }
@@ -74,12 +78,12 @@ function App() {
     })
   }
 
-  const openStoryFromHub = (caseId: FormalCaseId) => {
+  const openFormalCaseFromHub = (caseId: FormalCaseId) => {
     const runtime = formalCaseRuntime(caseId)
     setFormalCaseId(caseId)
     setHubSection('case-board')
-    setStoryResumeAccepted(Boolean(runtime.readResume(window.localStorage, formalCaseSeed)?.solved))
-    setMode('story')
+    setFormalCaseResumeAccepted(Boolean(runtime.readResume(window.localStorage, formalCaseSeed)?.solved))
+    setMode('formal-case')
   }
 
   if (mode === 'hub') {
@@ -87,14 +91,15 @@ function App() {
       <BureauHub
         section={hubSection}
         progress={bureauProgress}
-        formalCaseResumes={storyResume ? { [formalCaseId]: storyResume } : undefined}
+        formalCaseResumes={formalCaseResumes}
         endlessResume={endlessResume}
         dutySeed={dutySeed}
-        onOpenStory={openStoryFromHub}
-        onTraining={() => {
+        onOpenFormalCase={openFormalCaseFromHub}
+        onTraining={(caseId) => {
+          setTrainingCaseId(caseId)
           setHubSection('training')
-          setBootOrigin('hub')
-          setMode('boot')
+          setTrainingOrigin('hub')
+          setMode('training')
         }}
         onDuty={(selectedDutySeed) => {
           setHubSection('duty')
@@ -114,8 +119,9 @@ function App() {
         bootCompleted={isTrainingCaseCompleted(bureauProgress, TRAINING_CASE_000.id)}
         resume={endlessResume}
         onBoot={() => {
-          setBootOrigin('endless-intro')
-          setMode('boot')
+          setTrainingCaseId(TRAINING_CASE_000.id)
+          setTrainingOrigin('endless-intro')
+          setMode('training')
         }}
         onSkip={() => setMode('endless')}
         onNewCase={() => {
@@ -131,12 +137,11 @@ function App() {
     )
   }
 
-  if (mode === 'boot') {
-    return <BootCase onComplete={() => {
-      window.localStorage.setItem(ENDLESS_BOOT_KEY, 'complete')
-      updateBureauProgress((current) => recordTrainingCaseCompletion(current, TRAINING_CASE_000.id))
-      setMode(bootOrigin === 'hub' ? 'hub' : 'endless')
-    }} onBack={() => setMode(bootOrigin === 'hub' ? 'hub' : 'endless-intro')} />
+  if (mode === 'training') {
+    return <TrainingCaseComponent onComplete={() => {
+      updateBureauProgress((current) => recordTrainingCaseCompletion(current, trainingCaseId))
+      setMode(trainingOrigin === 'hub' ? 'hub' : 'endless')
+    }} onBack={() => setMode(trainingOrigin === 'hub' ? 'hub' : 'endless-intro')} />
   }
 
   if (mode === 'endless') {
@@ -149,16 +154,16 @@ function App() {
     />
   }
 
-  if (mode === 'story' && storyResume && !storyResumeAccepted) {
+  if (mode === 'formal-case' && formalCaseResume && !formalCaseResumeAccepted) {
     return (
       <FormalCaseResume
         definition={activeFormalRuntime.definition}
-        summary={storyResume}
-        onContinue={() => setStoryResumeAccepted(true)}
+        summary={formalCaseResume}
+        onContinue={() => setFormalCaseResumeAccepted(true)}
         onDiscard={() => {
           activeFormalRuntime.clearSession(window.localStorage, formalCaseSeed)
           setFormalCaseSession((value) => value + 1)
-          setStoryResumeAccepted(true)
+          setFormalCaseResumeAccepted(true)
         }}
       />
     )
@@ -168,10 +173,10 @@ function App() {
     <FormalCaseComponent
       key={`${formalCaseId}-${formalCaseSeed}-${formalCaseSession}`}
       seed={formalCaseSeed}
-      onRestart={restartStory}
+      onRestart={restartFormalCase}
       onCaseClosed={({ grade, score }) => updateBureauProgress((current) => recordFormalCaseResolution(current, formalCaseId, grade, score))}
       onReturnToBureau={isBureauUnlocked(bureauProgress) ? () => {
-        setStoryResumeAccepted(false)
+        setFormalCaseResumeAccepted(false)
         setMode('hub')
       } : undefined}
     />
