@@ -52,8 +52,8 @@ describe('Story Case local checkpoint', () => {
     value.state = { ...value.state, stage: 'iterate' }
     value.experimentLog = [
       { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
-      { id: 2, model: 'knn-1', features: ['texture', 'aspect'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: true },
-      { id: 3, model: 'linear', features: ['texture', 'aspect'], trainAccuracy: .89, auditAccuracy: 1, errors: 0, prediction: 'test-improves', predictionMatched: true },
+      { id: 2, model: 'knn-1', features: ['texture', 'aspect'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: false },
+      { id: 3, model: 'linear', features: ['texture', 'aspect'], trainAccuracy: .89, auditAccuracy: 1, errors: 0, prediction: 'test-improves', predictionMatched: false },
     ]
     value.state.auditHistory = value.experimentLog.map(() => ({
       accuracy: 1,
@@ -212,6 +212,28 @@ describe('Story Case local checkpoint', () => {
     duplicateMistakes.experimentLog = [{ ...value.experimentLog[0], auditAccuracy: 14 / 16, errors: 2 }]
     storage.setItem(storySessionKey(duplicateMistakes.seed), JSON.stringify(duplicateMistakes))
     expect(readStorySession(storage, duplicateMistakes.seed)).toBeUndefined()
+  })
+
+  it('rejects a forged experiment prediction outcome', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    addFirstRunPrerequisites(value)
+    value.state = { ...value.state, stage: 'iterate' }
+    value.experimentLog = [
+      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
+      { id: 2, model: 'knn-1', features: ['warmth', 'roundness'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: true },
+    ]
+    value.state.auditHistory = value.experimentLog.map(() => ({
+      accuracy: 1,
+      errorCount: 0,
+      confusion: { 'cat->cat': 8, 'cat->bread': 0, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [],
+      orangeCatErrors: 0,
+    }))
+    storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+
+    expect(readStorySession(storage, value.seed)).toBeUndefined()
+    expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
   })
 
   it('rejects a latest experiment record that does not describe the current audited configuration', () => {

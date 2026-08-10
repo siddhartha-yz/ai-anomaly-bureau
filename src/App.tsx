@@ -28,6 +28,7 @@ import { EndlessMode } from './endless/EndlessMode'
 import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
 import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
+import { predictionMatches } from './game/experiment'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
 import { runPersonaRoute, type PersonaId } from './game/routes'
@@ -104,25 +105,6 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
       <span className="action-button-cue">{kind === 'primary' ? '点击执行' : '点击检查'}</span>
     </button>
   )
-}
-
-function predictionMatches(
-  prediction: ExperimentPrediction | undefined,
-  trainAccuracy: number,
-  auditAccuracy: number,
-  previous?: ExperimentRecord,
-): boolean | undefined {
-  if (!prediction || prediction === 'no-idea' || !previous) return undefined
-  if (prediction === 'train-up-test-down') {
-    return trainAccuracy > previous.trainAccuracy + 0.04 && auditAccuracy < previous.auditAccuracy - 0.01
-  }
-  if (prediction === 'test-improves') {
-    return auditAccuracy > previous.auditAccuracy + 0.08
-  }
-  if (prediction === 'both-improve') {
-    return trainAccuracy > previous.trainAccuracy + 0.01 && auditAccuracy > previous.auditAccuracy + 0.01
-  }
-  return undefined
 }
 
 function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {

@@ -4,6 +4,7 @@ import type { EntryPhase } from '../components/EntryExperience'
 import { LEVEL_META, TRANSFER_QUESTION } from '../content/level1'
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
+import { predictionMatches } from './experiment'
 import { MAX_BEHAVIOR_LOG_EVENTS, type BehaviorEvent, type BehaviorLog } from './logging'
 import type { AuditResult, GameState, MistakeDetail, Stage, TrainingResult } from './types'
 
@@ -270,6 +271,18 @@ function isExperimentRecord(value: unknown): value is ExperimentRecord {
     && (item.predictionMatched === undefined || typeof item.predictionMatched === 'boolean')
 }
 
+function isExperimentLogConsistent(records: ExperimentRecord[]) {
+  if (records.length === 0) return true
+  if (records[0].prediction !== undefined || records[0].predictionMatched !== undefined) return false
+  for (let index = 1; index < records.length; index += 1) {
+    const record = records[index]
+    const previous = records[index - 1]
+    if (record.prediction === undefined) return false
+    if (record.predictionMatched !== predictionMatches(record.prediction, record.trainAccuracy, record.auditAccuracy, previous)) return false
+  }
+  return true
+}
+
 function optionalChoice(value: unknown, choices: ReadonlySet<string>) {
   return value === undefined || (typeof value === 'string' && choices.has(value))
 }
@@ -405,6 +418,7 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   if (item.suspiciousAttemptId !== undefined && !isNonNegativeInteger(item.suspiciousAttemptId)) return false
   if (!Array.isArray(item.experimentLog) || !item.experimentLog.every(isExperimentRecord)) return false
   if (!item.experimentLog.every((record, index) => record.id === index + 1)) return false
+  if (!isExperimentLogConsistent(item.experimentLog)) return false
   if (item.experimentLog.length !== state.auditHistory.length) return false
   if (!item.experimentLog.every((record, index) => {
     const audit = state.auditHistory[index]
