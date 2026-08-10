@@ -731,7 +731,7 @@ test('Duty can falsify a plausible model explanation before repairing the field 
   await page.getByLabel('因果预注册').getByRole('button', { name: '应该明显变化' }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(modelHypothesis).toContainText('WEAKENED')
-  await expect(page.locator('.endless-run-log')).toContainText('因果预期：应变化')
+  await expect(page.locator('.endless-run-log')).toContainText('因果预测×：应变化 → 基本不变')
   await expect(fieldHypothesis).toContainText('OPEN')
   await expect(page.getByLabel('竞争假设')).toContainText(/模型-only|H-MODEL.*削弱|H-MODEL 的单变量预测/)
   await expect(page.locator('.endless-diagnosis')).toHaveCount(0)

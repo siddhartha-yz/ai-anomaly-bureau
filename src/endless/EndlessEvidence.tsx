@@ -1,7 +1,7 @@
 import { MODEL_META } from '../ml/registry'
 import type { EndlessAudit } from './EndlessPlot'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
+import { causalPredictionResult, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
 
 function signedPoints(value: number) {
   const points = Math.round(value * 100)
@@ -151,13 +151,17 @@ export function EndlessRunLog({
             : delta === 'fields-only' ? '只换字段'
               : delta === 'model-only' ? '只换模型'
                 : '字段 + 模型都换'
+        const causalResult = index > 0 ? causalPredictionResult(history[index - 1], record) : undefined
         return (
         <article key={record.id} data-delta={delta} className={selectedEvidenceIds.includes(record.id) ? 'evidence-selected' : ''}>
           <i>{String(record.id).padStart(2, '0')}</i>
           <span>{caseData.featureNames[record.features[0]]} + {caseData.featureNames[record.features[1]]}<small>{MODEL_META[record.model].label} · 最低召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%</small><small className={`experiment-delta ${delta}`}>Δ {deltaLabel}</small></span>
           <b>{Math.round(record.train * 100)} → {Math.round(record.test * 100)}%</b>
           <em>
-            <span>{record.predictionHit ? '预测✓' : '预测×'} · {record.reliable ? '可靠✓' : '可靠×'}{record.causalPrediction ? ` · 因果预期：${record.causalPrediction === 'material' ? '应变化' : '应基本不变'}` : ''}</span>
+            <span>
+              {record.predictionHit ? '现场预测✓' : '现场预测×'} · {record.reliable ? '可靠✓' : '可靠×'}
+              {causalResult ? ` · 因果预测${causalResult.hit ? '✓' : '×'}：${causalResult.expected === 'material' ? '应变化' : '应基本不变'} → ${causalResult.observed === 'material' ? '明显变化' : '基本不变'}` : ''}
+            </span>
             {evidenceSelectable && onToggleEvidence && (
               <button
                 type="button"

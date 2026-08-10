@@ -102,7 +102,7 @@ export function EndlessControls({
                 <button type="button" className={causalPrediction === 'material' ? 'selected' : ''} onClick={() => onCausalPrediction('material')}>应该明显变化</button>
                 <button type="button" className={causalPrediction === 'null' ? 'selected' : ''} onClick={() => onCausalPrediction('null')}>应该基本不变</button>
               </div>
-              <span>若想让“几乎没变化”的结果成为排除证据，必须在审计前留下这条因果预期；否则它只算一次普通对照。</span>
+              <span>若想让“几乎没变化”成为正式排除证据，必须先写下因果预期。审计后系统会封存“预期 / 实际”：猜错不会抹掉反证，但会留下可复盘的预测失误。</span>
             </div>
           )}
           <button type="button" className="endless-primary" disabled={!prediction || credits <= 0} onClick={onAudit}>消耗 1 次额度 · 运行现场审计</button>

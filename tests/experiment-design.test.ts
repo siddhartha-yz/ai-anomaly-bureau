@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalPredictionResult, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -140,10 +140,17 @@ describe('endless experiment comparison metadata', () => {
       recall: { cat: .76, bread: .72 },
     })
     expect(preRegisteredNullResult(baseline, weakModelChange)).toBe(false)
+    expect(causalPredictionResult(baseline, { ...weakModelChange, causalPrediction: 'null' })).toEqual({ expected: 'null', observed: 'null', hit: true })
+    expect(causalPredictionResult(baseline, { ...weakModelChange, causalPrediction: 'material' })).toEqual({ expected: 'material', observed: 'null', hit: false })
     expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'null' })).toBe(true)
     expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'material' })).toBe(true)
 
+    const materialChange = { ...weakModelChange, test: .91, recall: { cat: .92, bread: .90 }, causalPrediction: 'material' as const }
+    expect(causalPredictionResult(baseline, materialChange)).toEqual({ expected: 'material', observed: 'material', hit: true })
+    expect(preRegisteredNullResult(baseline, materialChange)).toBe(false)
+
     const mixed = { ...weakModelChange, features: ['texture', 'aspect'] as EndlessRunRecord['features'], causalPrediction: 'null' as const }
+    expect(causalPredictionResult(baseline, mixed)).toBeUndefined()
     expect(preRegisteredNullResult(baseline, mixed)).toBe(false)
   })
 })

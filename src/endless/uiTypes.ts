@@ -133,9 +133,20 @@ export function discriminatingExperiment(first: EndlessRunRecord, second: Endles
   }
 }
 
-export function preRegisteredNullResult(first: EndlessRunRecord, second: EndlessRunRecord) {
+export function causalPredictionResult(first: EndlessRunRecord, second: EndlessRunRecord) {
   const comparison = discriminatingExperiment(first, second)
-  return Boolean(comparison.axis && second.causalPrediction && !comparison.discriminating)
+  if (!comparison.axis || !second.causalPrediction) return undefined
+  const observed: CausalPrediction = comparison.discriminating ? 'material' : 'null'
+  return {
+    expected: second.causalPrediction,
+    observed,
+    hit: second.causalPrediction === observed,
+  }
+}
+
+export function preRegisteredNullResult(first: EndlessRunRecord, second: EndlessRunRecord) {
+  const result = causalPredictionResult(first, second)
+  return Boolean(result && result.observed === 'null')
 }
 
 export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
