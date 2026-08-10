@@ -412,7 +412,13 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   })) return false
   if (state.audit) {
     const latest = state.auditHistory.at(-1)
+    const latestRecord = item.experimentLog.at(-1)
     if (!latest || !sameAuditResult(latest, state.audit)) return false
+    if (!state.training || !latestRecord) return false
+    if (latestRecord.model !== state.selectedModel
+      || latestRecord.features[0] !== state.selectedFeatures[0]
+      || latestRecord.features[1] !== state.selectedFeatures[1]
+      || latestRecord.trainAccuracy !== state.training.accuracy) return false
   }
   if (item.pendingPrediction !== undefined && !PREDICTIONS.has(item.pendingPrediction)) return false
   if (!isNonNegativeInteger(item.emergencyAudits) || !isNonNegativeInteger(item.reasoningMisses)) return false

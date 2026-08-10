@@ -214,6 +214,37 @@ describe('Story Case local checkpoint', () => {
     expect(readStorySession(storage, duplicateMistakes.seed)).toBeUndefined()
   })
 
+  it('rejects a latest experiment record that does not describe the current audited configuration', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    addFirstRunPrerequisites(value)
+    const audit = {
+      accuracy: 15 / 16,
+      errorCount: 1,
+      confusion: { 'cat->cat': 7, 'cat->bread': 1, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [{
+        id: 'field-002', actual: 'cat' as const, predicted: 'bread' as const, correct: false as const,
+        features: { warmth: .9, roundness: .5, texture: .7, aspect: .4 },
+      }],
+      orangeCatErrors: 0,
+    }
+    value.state = {
+      ...value.state,
+      stage: 'inspect_errors',
+      training: { accuracy: .89, errorCount: 4, complexity: 1 },
+      audit,
+      auditHistory: [audit],
+    }
+    value.experimentLog = [{
+      id: 1, model: 'tree', features: ['warmth', 'roundness'],
+      trainAccuracy: .89, auditAccuracy: 15 / 16, errors: 1,
+    }]
+    storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
+
+    expect(readStorySession(storage, value.seed)).toBeUndefined()
+    expect(storage.getItem(storySessionKey(value.seed))).toBeNull()
+  })
+
   it('rejects a current audit that differs from the latest audit history at the same score', () => {
     const storage = new MemoryStorage()
     const value = session()
