@@ -3,10 +3,11 @@ import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
 import type { BandPrediction, EndlessRunRecord, InspectedFieldError } from './uiTypes'
 
-export const ENDLESS_SESSION_VERSION = 5
-const PREVIOUS_ENDLESS_SESSION_VERSION = 4
-const SECONDARY_ENDLESS_SESSION_VERSION = 3
-const TERTIARY_ENDLESS_SESSION_VERSION = 2
+export const ENDLESS_SESSION_VERSION = 6
+const PREVIOUS_ENDLESS_SESSION_VERSION = 5
+const SECONDARY_ENDLESS_SESSION_VERSION = 4
+const TERTIARY_ENDLESS_SESSION_VERSION = 3
+const QUATERNARY_ENDLESS_SESSION_VERSION = 2
 const LEGACY_ENDLESS_SESSION_VERSION = 1
 
 export type EndlessSessionData = {
@@ -138,6 +139,10 @@ function legacyEndlessSessionKey(seed: number) {
   return `aia.endless-session.v${LEGACY_ENDLESS_SESSION_VERSION}.${seed}`
 }
 
+function quaternaryEndlessSessionKey(seed: number) {
+  return `aia.endless-session.v${QUATERNARY_ENDLESS_SESSION_VERSION}.${seed}`
+}
+
 function previousEndlessSessionKey(seed: number) {
   return `aia.endless-session.v${PREVIOUS_ENDLESS_SESSION_VERSION}.${seed}`
 }
@@ -181,9 +186,10 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
           storage.removeItem(previousKey)
           return undefined
         }
-        // V5 changes H-RECORDS semantics by allowing benign quality alerts in
-        // non-overfit cases. Audit metrics remain valid, but already-open source
-        // folders must be reopened so restored evidence is never silently rewritten.
+        // V6 changes H-COVERAGE semantics by allowing a skewed upstream archive
+        // pool even when the deployed training subset is balanced. Audit metrics
+        // remain valid, but already-open source folders must be reopened so
+        // restored evidence is never silently rewritten.
         const migrated: unknown = { ...previous, version: ENDLESS_SESSION_VERSION, inspectedCaseLeadIds: [] }
         if (!isSessionData(migrated, seed)) {
           storage.removeItem(previousKey)
@@ -227,12 +233,6 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
       const tertiaryKey = tertiaryEndlessSessionKey(seed)
       const tertiaryRaw = storage.getItem(tertiaryKey)
       if (tertiaryRaw) {
-        if (Math.abs(seed) % 4 === 2) {
-          // V3 changed the generated distribution-shift field world; V2 shift
-          // metrics therefore still cannot be restored into V5.
-          storage.removeItem(tertiaryKey)
-          return undefined
-        }
         let previous: Record<string, unknown>
         try {
           previous = JSON.parse(tertiaryRaw) as Record<string, unknown>
@@ -249,6 +249,37 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
         try {
           storage.setItem(key, raw)
           storage.removeItem(tertiaryKey)
+        } catch {
+          return undefined
+        }
+      }
+    }
+    if (!raw) {
+      const quaternaryKey = quaternaryEndlessSessionKey(seed)
+      const quaternaryRaw = storage.getItem(quaternaryKey)
+      if (quaternaryRaw) {
+        if (Math.abs(seed) % 4 === 2) {
+          // V3 changed the generated distribution-shift field world; V2 shift
+          // metrics therefore still cannot be restored into V6.
+          storage.removeItem(quaternaryKey)
+          return undefined
+        }
+        let previous: Record<string, unknown>
+        try {
+          previous = JSON.parse(quaternaryRaw) as Record<string, unknown>
+        } catch {
+          storage.removeItem(quaternaryKey)
+          return undefined
+        }
+        const migrated: unknown = { ...previous, version: ENDLESS_SESSION_VERSION, inspectedCaseLeadIds: [] }
+        if (!isSessionData(migrated, seed)) {
+          storage.removeItem(quaternaryKey)
+          return undefined
+        }
+        raw = JSON.stringify(migrated)
+        try {
+          storage.setItem(key, raw)
+          storage.removeItem(quaternaryKey)
         } catch {
           return undefined
         }
@@ -288,6 +319,8 @@ export function clearEndlessSession(storage: StorageLike, seed: number) {
     storage.removeItem(endlessSessionKey(seed))
     storage.removeItem(previousEndlessSessionKey(seed))
     storage.removeItem(secondaryEndlessSessionKey(seed))
+    storage.removeItem(tertiaryEndlessSessionKey(seed))
+    storage.removeItem(quaternaryEndlessSessionKey(seed))
     storage.removeItem(legacyEndlessSessionKey(seed))
     return true
   } catch {

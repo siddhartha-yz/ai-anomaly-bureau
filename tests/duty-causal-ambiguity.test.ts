@@ -50,6 +50,26 @@ describe('Duty syndrome-level ambiguity', () => {
     expect(shiftSignals / batchSignals).toBeLessThan(.65)
   }, 15_000)
 
+  it('lets a positive archive-coverage warning belong to multiple underlying syndromes', () => {
+    const signalSyndromes = new Set<string>()
+    let coverageSignals = 0
+    let imbalanceSignals = 0
+
+    for (let seed = 9800; seed < 10200; seed += 1) {
+      const caseData = createEndlessCase(seed)
+      const coverageLead = caseData.leadSources.find((lead) => lead.id === 'composition')!
+      if (coverageLead.result !== 'signal') continue
+      coverageSignals += 1
+      signalSyndromes.add(caseData.syndrome)
+      if (caseData.syndrome === 'class-imbalance') imbalanceSignals += 1
+    }
+
+    expect(signalSyndromes).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
+    expect(coverageSignals).toBeGreaterThan(0)
+    // Reading H-COVERAGE as “signal” must not collapse the diagnosis to imbalance.
+    expect(imbalanceSignals / coverageSignals).toBeLessThan(.65)
+  }, 15_000)
+
   it('lets a positive quality alert belong to multiple underlying syndromes', () => {
     const signalSyndromes = new Set<string>()
     let qualitySignals = 0

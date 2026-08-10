@@ -78,32 +78,32 @@ describe('endless local session persistence', () => {
     expect(storage.getItem(legacyKey)).toBeNull()
   })
 
-  it('migrates v4 Duty history but reopens H-RECORDS after its semantics changed in v5', () => {
+  it('migrates v5 Duty history but reopens H-COVERAGE after its semantics changed in v6', () => {
     const storage = new MemoryStorage()
-    const previousKey = 'aia.endless-session.v4.6001'
-    const previous = { ...session(6001), inspectedCaseLeadIds: ['quality'] as const }
-    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 4 }))
+    const previousKey = 'aia.endless-session.v5.6001'
+    const previous = { ...session(6001), inspectedCaseLeadIds: ['composition'] as const }
+    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 5 }))
     const migrated = readEndlessSession(storage, 6001)
-    expect(migrated?.version).toBe(5)
+    expect(migrated?.version).toBe(6)
     expect(migrated?.history).toHaveLength(1)
     expect(migrated?.inspectedCaseLeadIds).toEqual([])
     expect(storage.getItem(previousKey)).toBeNull()
   })
 
-  it('migrates v3 Duty history but reopens causal-source folders whose semantics changed by v5', () => {
+  it('migrates v4 Duty history but reopens causal-source folders whose semantics changed by v6', () => {
     const storage = new MemoryStorage()
-    const previousKey = 'aia.endless-session.v3.6001'
+    const previousKey = 'aia.endless-session.v4.6001'
     const previous = { ...session(6001), inspectedCaseLeadIds: ['batch'] as const }
-    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 3 }))
+    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 4 }))
     const migrated = readEndlessSession(storage, 6001)
-    expect(migrated?.version).toBe(5)
+    expect(migrated?.version).toBe(6)
     expect(migrated?.history).toHaveLength(1)
     expect(migrated?.inspectedCaseLeadIds).toEqual([])
     expect(storage.getItem(previousKey)).toBeNull()
     expect(storage.getItem(endlessSessionKey(6001))).not.toBeNull()
   })
 
-  it('keeps the v3 source intact when canonical v5 migration cannot be written', () => {
+  it('keeps the v3 source intact when canonical v6 migration cannot be written', () => {
     const backing = new MemoryStorage()
     const previousKey = 'aia.endless-session.v3.6001'
     const previous = { ...session(6001), inspectedCaseLeadIds: ['batch'] as const }
@@ -121,13 +121,13 @@ describe('endless local session persistence', () => {
     expect(backing.getItem(endlessSessionKey(6001))).toBeNull()
   })
 
-  it('still migrates v2 non-shift history directly into v5 with unopened causal sources', () => {
+  it('still migrates v2 non-shift history directly into v6 with unopened causal sources', () => {
     const storage = new MemoryStorage()
     const previousKey = 'aia.endless-session.v2.6001'
     const { inspectedCaseLeadIds: _newField, ...previous } = session(6001)
     storage.setItem(previousKey, JSON.stringify({ ...previous, version: 2 }))
     const migrated = readEndlessSession(storage, 6001)
-    expect(migrated?.version).toBe(5)
+    expect(migrated?.version).toBe(6)
     expect(migrated?.history).toHaveLength(1)
     expect(migrated?.inspectedCaseLeadIds).toEqual([])
     expect(storage.getItem(previousKey)).toBeNull()

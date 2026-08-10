@@ -299,7 +299,7 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 正式案件的 syndrome 不直接写进 incident，而且 cause-specific 原始事实也不再自动出现在开局 UI。`generator.ts` 为每宗案生成三份 `leadSources`：
 
-- `composition / H-COVERAGE`：精确历史类别构成；类别比例 ≥3 时 finding 为 `signal`，否则为 `clear`。
+- `composition / H-COVERAGE`：历史档案池的精确类别构成；类别比例 ≥3 时 finding 为 `signal`，否则为 `clear`。class-imbalance 案的偏斜会真实进入训练集；部分其他 syndrome 也故意来自偏斜上游档案池，但其本次训练子集仍保持平衡，因此 coverage signal 只表示“上游覆盖值得追查”，不能直接推出训练不平衡。
 - `batch / H-CONTEXT`：历史 / 现场采集条件；真正的 shift 案一定有具体 `batchContext`，但一部分 feature-gap / overfit / imbalance 案也故意带有真实、却未必是主因的运营批次变化。因而 `signal` 现在只表示“变化确实发生、值得实验验证”，不能再被当成 distribution-shift 的答案代理。
 - `quality / H-RECORDS`：历史质量系统是否标记待复核记录；overfit 的真实噪声与部分其他 syndrome 的 benign quality alert 都会形成 `archiveAlerts`，且都只有玩家打开这份来源后才在散点图出现橙色可点击 `!`。positive finding 只表示记录值得检查，不等价于标签错误或 overfit。
 
@@ -317,9 +317,9 @@ baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家�
 
 正式审计返回的 `mistakes` 在揭示之后可以被玩家主动检查：`EndlessAuditPanel` 使用按钮选择错误，`EndlessPlot` 只对已返回的 public `field-*` 错误点增加可视定位环，`CASE_LEADS.LOG` 仅记录玩家亲手打开的错误。这个流程不会在审计前创建额外测试标签入口。
 
-`session.ts` 当前使用 `aia.endless-session.v4.<seed>` 保存版本化本地调查状态。存档仍只包含玩家已经拥有的配置、audit history、诊断/引用、已打开 causal source 与已检查错误，不保存 generator 内部 test IDs / syndrome answer。
+`session.ts` 当前使用 `aia.endless-session.v6.<seed>` 保存版本化本地调查状态。存档仍只包含玩家已经拥有的配置、audit history、诊断/引用、已打开 causal source 与已检查错误，不保存 generator 内部 test IDs / syndrome answer。
 
-版本迁移按数据语义处理，而不是机械改 version：v4 没有改模型或现场样本，因此 v3 audit history 可以保留；但部分 `H-CONTEXT` finding 的语义从 clear 变成了真实 confound signal，所以迁移时会把 `inspectedCaseLeadIds` 清空，让玩家重新打开这些资料夹，而不是静默改写已经读过的证据。迁移仍遵守**先成功写 canonical v4，再删除唯一旧副本**；写入失败时 v3 原件保留。v2 非 shift 也可直接迁到 v4 并从未打开 causal source 开始；v2 distribution-shift 因 v3 已改变 field world 仍必须作废，v1 继续明确清理。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；剩余审计额度仍由 `5 + emergencyCredits - history.length` 重建，因此刷新不会退款。
+版本迁移按数据语义处理，而不是机械改 version：当前 Duty session 为 v6。v6 没有改模型或现场样本，因此 v5/v4/v3 audit history 可以保留；但 `H-COVERAGE` finding 的语义从“训练数据精确构成”扩展为“上游档案池构成”，所以迁移时会把 `inspectedCaseLeadIds` 清空，让玩家重新打开 causal-source folders，而不是静默改写已经读过的证据。迁移仍遵守**先成功写 canonical v6，再删除唯一旧副本**；写入失败时旧原件保留。v2 非 shift 也可直接迁到 v6 并从未打开 causal source 开始；v2 distribution-shift 因 v3 已改变 field world 仍必须作废，v1 继续明确清理。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；剩余审计额度仍由 `5 + emergencyCredits - history.length` 重建，因此刷新不会退款。
 
 零基础指标说明与案件解释分离：正式审计和 `FieldManual` 只定义 `TRAIN`、`FIELD`、分类别 recall 的字面语义，不根据当前结果生成 syndrome 建议。`FieldManual` 作为 `aria-modal` 会把焦点移入对话框、约束 Tab、支持 Escape，并在关闭后恢复到原触发按钮；SVG 档案异常支持 Enter / Space，Space 会 `preventDefault()` 以符合 button 语义。
 

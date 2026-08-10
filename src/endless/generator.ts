@@ -541,6 +541,16 @@ export function createEndlessCase(seed: number): EndlessCase {
   const publicTest = data.test.map(({ label: _label, flags: _flags, ...rest }) => ({ ...rest, id: publicId(rest.id) }))
   const trainCatCount = data.train.filter((item) => item.label === 'cat').length
   const trainBreadCount = data.train.filter((item) => item.label === 'bread').length
+  // H-COVERAGE describes what the historical archive offers, not a guaranteed
+  // statement about the exact rows used by the deployed model. Some otherwise
+  // balanced cases therefore inherit a skewed upstream archive pool while their
+  // generated training subset remains balanced. A coverage warning is a reason
+  // to test minority behaviour, not a one-click diagnosis of class imbalance.
+  const hasBenignArchiveSkew = syndrome !== 'class-imbalance' && Math.floor(Math.abs(seed) / 4) % 3 !== 2
+  const archiveCatCount = syndrome === 'class-imbalance'
+    ? trainCatCount
+    : hasBenignArchiveSkew ? trainCatCount * 4 : trainCatCount
+  const archiveBreadCount = trainBreadCount
   const archiveAlerts = data.train
     .filter((item) => item.flags?.noise || item.flags?.qualityAlert)
     .map((item) => ({
@@ -564,8 +574,8 @@ export function createEndlessCase(seed: number): EndlessCase {
       id: 'composition',
       label: '历史档案构成',
       prompt: '核对两类历史样本各有多少，检查“总体数字”是否可能掩盖覆盖问题。',
-      finding: `历史档案：${theme.classNames.cat} ${trainCatCount} 条；${theme.classNames.bread} ${trainBreadCount} 条。`,
-      result: Math.max(trainCatCount, trainBreadCount) / Math.max(1, Math.min(trainCatCount, trainBreadCount)) >= 3 ? 'signal' : 'clear',
+      finding: `可用历史档案：${theme.classNames.cat} ${archiveCatCount} 条；${theme.classNames.bread} ${archiveBreadCount} 条。当前模型训练清单是否继承这一比例，需要结合实验记录判断。`,
+      result: Math.max(archiveCatCount, archiveBreadCount) / Math.max(1, Math.min(archiveCatCount, archiveBreadCount)) >= 3 ? 'signal' : 'clear',
     },
     {
       id: 'batch',
