@@ -35,6 +35,8 @@ function session(seed = 20260809): StorySessionData {
   }
 }
 
+const LINEAR_TRAIN_ACCURACY = 32 / 36
+
 function addFirstRunPrerequisites(value: StorySessionData) {
   value.observationAnswer = 'clusters'
   value.suspectSampleId = 'train-cat-16'
@@ -51,9 +53,9 @@ describe('Story Case local checkpoint', () => {
     addFirstRunPrerequisites(value)
     value.state = { ...value.state, stage: 'iterate' }
     value.experimentLog = [
-      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
+      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 1, errors: 0 },
       { id: 2, model: 'knn-1', features: ['texture', 'aspect'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: false },
-      { id: 3, model: 'linear', features: ['texture', 'aspect'], trainAccuracy: .89, auditAccuracy: 1, errors: 0, prediction: 'test-improves', predictionMatched: false },
+      { id: 3, model: 'linear', features: ['texture', 'aspect'], trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 1, errors: 0, prediction: 'test-improves', predictionMatched: false },
     ]
     value.state.auditHistory = value.experimentLog.map(() => ({
       accuracy: 1,
@@ -89,7 +91,7 @@ describe('Story Case local checkpoint', () => {
     value.state = {
       ...value.state,
       stage: 'inspect_errors',
-      training: { accuracy: .89, errorCount: 4, complexity: 1, params: { threshold: .5 } },
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1, params: { threshold: .5 } },
       audit,
       auditHistory: [audit],
     }
@@ -97,7 +99,7 @@ describe('Story Case local checkpoint', () => {
       id: 1,
       model: 'linear',
       features: ['warmth', 'roundness'],
-      trainAccuracy: .89,
+      trainAccuracy: LINEAR_TRAIN_ACCURACY,
       auditAccuracy: 15 / 16,
       errors: 1,
     }]
@@ -138,7 +140,7 @@ describe('Story Case local checkpoint', () => {
       (value) => { value.state = { ...value.state, stage: 'complete' } },
       (value) => { value.state = { ...value.state, completedAt: 999 } },
       (value) => {
-        value.experimentLog = [{ id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: .67, errors: 8 }]
+        value.experimentLog = [{ id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: .67, errors: 8 }]
       },
       (value) => {
         value.behaviorLog = {
@@ -180,7 +182,7 @@ describe('Story Case local checkpoint', () => {
       id: 1,
       model: 'linear',
       features: ['warmth', 'roundness'],
-      trainAccuracy: .89,
+      trainAccuracy: LINEAR_TRAIN_ACCURACY,
       auditAccuracy: .5,
       errors: 1,
     }]
@@ -214,13 +216,36 @@ describe('Story Case local checkpoint', () => {
     expect(readStorySession(storage, duplicateMistakes.seed)).toBeUndefined()
   })
 
+  it('rejects training metrics that contradict the selected model or error count', () => {
+    const storage = new MemoryStorage()
+    const impossibleScore = session()
+    addFirstRunPrerequisites(impossibleScore)
+    impossibleScore.state = {
+      ...impossibleScore.state,
+      stage: 'first_success',
+      training: { accuracy: 1, errorCount: 4, complexity: 1 },
+    }
+    storage.setItem(storySessionKey(impossibleScore.seed), JSON.stringify(impossibleScore))
+    expect(readStorySession(storage, impossibleScore.seed)).toBeUndefined()
+
+    const impossibleComplexity = session(20260811)
+    addFirstRunPrerequisites(impossibleComplexity)
+    impossibleComplexity.state = {
+      ...impossibleComplexity.state,
+      stage: 'first_success',
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 4 },
+    }
+    storage.setItem(storySessionKey(impossibleComplexity.seed), JSON.stringify(impossibleComplexity))
+    expect(readStorySession(storage, impossibleComplexity.seed)).toBeUndefined()
+  })
+
   it('rejects a forged experiment prediction outcome', () => {
     const storage = new MemoryStorage()
     const value = session()
     addFirstRunPrerequisites(value)
     value.state = { ...value.state, stage: 'iterate' }
     value.experimentLog = [
-      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
+      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 1, errors: 0 },
       { id: 2, model: 'knn-1', features: ['warmth', 'roundness'], trainAccuracy: 1, auditAccuracy: 1, errors: 0, prediction: 'train-up-test-down', predictionMatched: true },
     ]
     value.state.auditHistory = value.experimentLog.map(() => ({
@@ -253,13 +278,13 @@ describe('Story Case local checkpoint', () => {
     value.state = {
       ...value.state,
       stage: 'inspect_errors',
-      training: { accuracy: .89, errorCount: 4, complexity: 1 },
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1 },
       audit,
       auditHistory: [audit],
     }
     value.experimentLog = [{
       id: 1, model: 'tree', features: ['warmth', 'roundness'],
-      trainAccuracy: .89, auditAccuracy: 15 / 16, errors: 1,
+      trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 15 / 16, errors: 1,
     }]
     storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
 
@@ -291,13 +316,13 @@ describe('Story Case local checkpoint', () => {
     value.state = {
       ...value.state,
       stage: 'inspect_errors',
-      training: { accuracy: .89, errorCount: 4, complexity: 1 },
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1 },
       audit: currentAudit,
       auditHistory: [historyAudit],
     }
     value.experimentLog = [{
       id: 1, model: 'linear', features: ['warmth', 'roundness'],
-      trainAccuracy: .89, auditAccuracy: 15 / 16, errors: 1,
+      trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 15 / 16, errors: 1,
     }]
     storage.setItem(storySessionKey(value.seed), JSON.stringify(value))
 
@@ -318,7 +343,7 @@ describe('Story Case local checkpoint', () => {
     value.state = {
       ...value.state,
       stage: 'complete',
-      training: { accuracy: .89, errorCount: 4, complexity: 1 },
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1 },
       audit,
       auditHistory: [audit],
       hasSeenOverfit: true,
@@ -330,7 +355,7 @@ describe('Story Case local checkpoint', () => {
       id: 1,
       model: 'linear',
       features: ['texture', 'aspect'],
-      trainAccuracy: .89,
+      trainAccuracy: LINEAR_TRAIN_ACCURACY,
       auditAccuracy: 1,
       errors: 0,
     }]
@@ -363,7 +388,7 @@ describe('Story Case local checkpoint', () => {
     addFirstRunPrerequisites(earned)
     earned.state = { ...earned.state, stage: 'iterate' }
     earned.experimentLog = [
-      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
+      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: LINEAR_TRAIN_ACCURACY, auditAccuracy: 1, errors: 0 },
       ...Array.from({ length: 4 }, (_, index) => ({
         id: index + 2,
         model: 'knn-1' as const,

@@ -2,7 +2,8 @@ import type { ExperimentRecord } from '../components/CaseAttempts'
 import type { ExperimentPrediction } from '../components/ExperimentPlan'
 import type { EntryPhase } from '../components/EntryExperience'
 import { LEVEL_META, TRANSFER_QUESTION } from '../content/level1'
-import type { ModelId } from '../ml/registry'
+import { createDataset } from '../ml/data'
+import { MODEL_REGISTRY, type ModelId } from '../ml/registry'
 import type { FeatureKey, Label, RawFeatures } from '../ml/types'
 import { predictionMatches } from './experiment'
 import { MAX_BEHAVIOR_LOG_EVENTS, type BehaviorEvent, type BehaviorLog } from './logging'
@@ -166,6 +167,15 @@ function sameAuditResult(a: AuditResult, b: AuditResult) {
   })
 }
 
+function isTrainingStateConsistent(state: GameState, seed: number): boolean {
+  if (!state.training) return true
+  const trainCount = createDataset(seed).train.length
+  if (state.training.errorCount > trainCount) return false
+  const expectedAccuracy = (trainCount - state.training.errorCount) / trainCount
+  return Math.abs(state.training.accuracy - expectedAccuracy) <= 1e-9
+    && state.training.complexity === MODEL_REGISTRY[state.selectedModel].complexity
+}
+
 function isStageStateConsistent(state: GameState): boolean {
   const hasTraining = state.training !== undefined
   const hasAudit = state.audit !== undefined
@@ -254,7 +264,9 @@ function isGameState(value: unknown, seed: number): value is GameState {
     && Array.isArray(item.diagnostics)
     && item.diagnostics.every((message) => typeof message === 'string')
 
-  return structurallyValid && isStageStateConsistent(item as GameState)
+  return structurallyValid
+    && isTrainingStateConsistent(item as GameState, seed)
+    && isStageStateConsistent(item as GameState)
 }
 
 function isExperimentRecord(value: unknown): value is ExperimentRecord {
