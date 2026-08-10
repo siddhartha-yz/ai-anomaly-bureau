@@ -7,7 +7,7 @@ import type { FeatureKey } from '../ml/types'
 import { EndlessControls } from './EndlessControls'
 import { EndlessAuditPanel, EndlessDiagnosis, EndlessRunLog } from './EndlessEvidence'
 import { FieldManual } from './FieldManual'
-import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
+import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
@@ -439,7 +439,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               inspectedArchiveIds={inspectedArchiveIds}
               inspectedFieldErrors={inspectedFieldErrors}
               onInspectCaseLead={(id) => {
-                if (!inspectedCaseLeadIds.includes(id) && inspectedCaseLeadIds.length >= history.length) return
+                if (!canInspectCaseLead(history, inspectedCaseLeadIds.length, inspectedCaseLeadIds.includes(id))) return
                 audio.play('evidence')
                 setInspectedCaseLeadIds((ids) => ids.includes(id) ? ids : [...ids, id])
               }}

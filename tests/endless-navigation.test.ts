@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canInspectCaseLead, objectiveFor } from '../src/endless/EndlessNavigator'
+import { canInspectCaseLead, earnedCaseLeadReviewCount, objectiveFor } from '../src/endless/EndlessNavigator'
 import type { EndlessRunRecord } from '../src/endless/uiTypes'
 
 const record = (id: number): EndlessRunRecord => ({
@@ -16,13 +16,22 @@ const record = (id: number): EndlessRunRecord => ({
 })
 
 describe('formal endless process navigator', () => {
-  it('paces cause-source reviews at one new folder per completed audit', () => {
-    expect(canInspectCaseLead(0, 0, false)).toBe(false)
-    expect(canInspectCaseLead(1, 0, false)).toBe(true)
-    expect(canInspectCaseLead(1, 1, false)).toBe(false)
-    expect(canInspectCaseLead(1, 1, true)).toBe(true)
-    expect(canInspectCaseLead(2, 1, false)).toBe(true)
-    expect(canInspectCaseLead(2, 2, false)).toBe(false)
+  it('paces cause-source reviews by distinct experiment configurations, not audit grinding', () => {
+    const baseline = record(1)
+    const repeat = { ...record(2) }
+    const fieldsOnly = { ...record(3), features: ['texture', 'aspect'] as ['texture', 'aspect'] }
+
+    expect(earnedCaseLeadReviewCount([])).toBe(0)
+    expect(earnedCaseLeadReviewCount([baseline])).toBe(1)
+    expect(earnedCaseLeadReviewCount([baseline, repeat])).toBe(1)
+    expect(earnedCaseLeadReviewCount([baseline, repeat, fieldsOnly])).toBe(2)
+
+    expect(canInspectCaseLead([], 0, false)).toBe(false)
+    expect(canInspectCaseLead([baseline], 0, false)).toBe(true)
+    expect(canInspectCaseLead([baseline, repeat], 1, false)).toBe(false)
+    expect(canInspectCaseLead([baseline, repeat], 1, true)).toBe(true)
+    expect(canInspectCaseLead([baseline, repeat, fieldsOnly], 1, false)).toBe(true)
+    expect(canInspectCaseLead([baseline, repeat, fieldsOnly], 2, false)).toBe(false)
   })
 
   it('starts with one baseline action rather than asking the player to diagnose', () => {
