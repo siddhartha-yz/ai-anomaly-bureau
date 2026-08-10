@@ -1,27 +1,10 @@
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { discriminatingExperiment, experimentConfigKey, experimentDelta, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { discriminatingExperiment, earnedCaseLeadReviewCount, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
-
-export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {
-  const seen = new Set<string>()
-  let earned = 0
-  history.forEach((record, index) => {
-    const key = experimentConfigKey(record.model, record.features)
-    if (seen.has(key)) return
-    seen.add(key)
-    if (index === 0) {
-      earned += 1
-      return
-    }
-    const delta = experimentDelta(history[index - 1], record)
-    if (delta === 'fields-only' || delta === 'model-only') earned += 1
-  })
-  return earned
-}
 
 export function canInspectCaseLead(history: EndlessRunRecord[], inspectedLeadCount: number, alreadyInspected: boolean) {
   const earnedReviews = earnedCaseLeadReviewCount(history)

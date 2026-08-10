@@ -50,6 +50,23 @@ export function experimentConfigKey(model: ModelId, features: [FeatureKey, Featu
   return `${model}:${[...features].sort().join('+')}`
 }
 
+export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {
+  const seen = new Set<string>()
+  let earned = 0
+  history.forEach((record, index) => {
+    const key = experimentConfigKey(record.model, record.features)
+    if (seen.has(key)) return
+    seen.add(key)
+    if (index === 0) {
+      earned += 1
+      return
+    }
+    const delta = experimentDelta(history[index - 1], record)
+    if (delta === 'fields-only' || delta === 'model-only') earned += 1
+  })
+  return earned
+}
+
 export function experimentDelta(previous: EndlessRunRecord | undefined, current: EndlessRunRecord): ExperimentDelta {
   return experimentPlanDelta(previous, current.model, current.features)
 }

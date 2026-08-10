@@ -167,6 +167,16 @@ describe('endless local session persistence', () => {
     impossibleInspection.inspectedFieldErrors[0].runId = 7
     storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleInspection))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const impossibleLeadBudget = session()
+    impossibleLeadBudget.inspectedCaseLeadIds = ['composition', 'batch']
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleLeadBudget))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const duplicateLead = session()
+    duplicateLead.inspectedCaseLeadIds = ['quality', 'quality']
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(duplicateLead))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 
   it('distinguishes blank storage from resumable progress and derives remaining budget', () => {

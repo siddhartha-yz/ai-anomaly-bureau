@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { canInspectCaseLead, earnedCaseLeadReviewCount, objectiveFor } from '../src/endless/EndlessNavigator'
+import { canInspectCaseLead, objectiveFor } from '../src/endless/EndlessNavigator'
+import { earnedCaseLeadReviewCount } from '../src/endless/uiTypes'
 import type { EndlessRunRecord } from '../src/endless/uiTypes'
 
 const record = (id: number): EndlessRunRecord => ({

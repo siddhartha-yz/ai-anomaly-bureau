@@ -1,7 +1,7 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import type { BandPrediction, EndlessRunRecord, InspectedFieldError } from './uiTypes'
+import { earnedCaseLeadReviewCount, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -115,6 +115,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (!Array.isArray(item.selectedEvidenceRunIds) || !item.selectedEvidenceRunIds.every(isNonNegativeInteger)) return false
   if (!Array.isArray(item.inspectedArchiveIds) || !item.inspectedArchiveIds.every((id) => typeof id === 'string')) return false
   if (!Array.isArray(item.inspectedCaseLeadIds) || !item.inspectedCaseLeadIds.every((id) => CASE_LEADS.has(id as EndlessCaseLeadId))) return false
+  if (new Set(item.inspectedCaseLeadIds).size !== item.inspectedCaseLeadIds.length) return false
   if (!Array.isArray(item.inspectedFieldErrors) || !item.inspectedFieldErrors.every(isInspectedFieldError)) return false
   const history = item.history
   const runIds = new Set(history.map((run) => run.id))
@@ -123,6 +124,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (new Set(item.selectedEvidenceRunIds).size !== item.selectedEvidenceRunIds.length) return false
   if (item.selectedEvidenceRunIds.some((runId) => !runIds.has(runId))) return false
   if (item.inspectedFieldErrors.some((error) => !runIds.has(error.runId))) return false
+  if (item.inspectedCaseLeadIds.length > earnedCaseLeadReviewCount(history)) return false
   if (item.auditComplete) {
     const latest = history.at(-1)
     if (!item.trained || !latest || latest.model !== item.model || !sameFeatureSet(latest.features, item.features)) return false
