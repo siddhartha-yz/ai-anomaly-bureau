@@ -190,7 +190,11 @@ type Stage =
 
 Cold Open、图上异常样本调查、边界 `PROBE ?`、传感器读取、预测下注、正式审计额度、证据推理、实验记录比较、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主 reducer 阶段语义。它们把同一 stage 拆成需要观察 / 判断 / 验证的 micro-beat，而不是增加第二套业务状态机。
 
-Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。运行时 guard 还会校验 experimentLog 与 auditHistory 数量、accuracy / error 对应关系、当前 audit 与最新 history 的一致性、selected mistake / suspicious attempt 的引用有效性。Behavior telemetry 同样只接受合法 feature pair / public mistake ID，并限制事件数。reader / writer 共享 200KB 上限：损坏、旧版本或超限 payload 会删除 / 拒绝，超限写入不会覆盖最后一份有效检查点。
+Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。
+
+checkpoint guard 同时做结构与关系校验：stage / micro-beat 必须是 UI 真正可达的顺序；训练 accuracy/errorCount 要符合 seed 对应训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；current audit 与最新 auditHistory 在 confusion、mistake ID / 标签 / 特征上深一致；最新 CASE_NOTES 还必须对应当前已审计模型 / 特征 / 训练分。实验预测命中逻辑抽到 `game/experiment.ts`，运行时写记录和恢复端验证共享同一个 `predictionMatches()`，避免两套公式漂移。迁移题 correctness 直接按 `TRANSFER_QUESTION` 配置核对，额外审计次数则由已花费审计数约束，不能通过修改 localStorage 退款。
+
+Behavior telemetry 只接受合法 feature pair / public mistake ID；`completed`、timestamp 与 elapsedMs 必须和同一匿名 session 时间轴一致。Logger 最多保留最近 500 条事件，并用 `droppedEvents` 累计被丢弃的旧遥测，使极端长局仍可继续 autosave。reader / writer 共享 200KB 上限：损坏、旧版本或超限 payload 会删除 / 拒绝，失败写入不会覆盖最后一份有效检查点。
 
 Story 正式审计额度也不直接持久化：第一份未知审计不计修复预算，之后由 `4 + emergencyAudits - (experimentLog.length - 1)` 重建，因此刷新不能把花掉的额度“退回”。实验前 `pendingPrediction` 属于教学证据，会随检查点恢复；这保证“先预注册假设，再训练 / 审计”的顺序不会被 F5 绕过。
 

@@ -67,7 +67,8 @@
 - 再次打开时先进入 `UNFINISHED CASE SAVED / RESOLVED CASE SAVED` 网关，由玩家明确选择继续、查看结案或二次确认清除旧进度。
 - 右上角小型 `RESET` 同样需要二次确认，避免误触清空长局；点击其他控件会取消确认态。
 - 检查点只保留玩家已经揭示的 public `field-*` 审计信息。内部测试 ID、每样本困难 flags 与 debug 模型参数在序列化前移除。
-- checkpoint reader / writer 使用同一 200KB 上限；超限、隐藏 `test-*` telemetry、异常长行为日志等 payload 不会恢复，超限写入也不会覆盖最后一份有效存档。
+- checkpoint 不只验证 JSON 形状，还验证剧情阶段与 micro-beat 的可达顺序、训练 / 审计 / CASE_NOTES 的数值与证据关系、迁移题 correctness 和额外审计额度来源；手改 localStorage 不能伪造结案、实验命中或退款。
+- checkpoint reader / writer 使用同一 200KB 上限；超限、隐藏 `test-*` telemetry 等 payload 不会恢复，超限写入也不会覆盖最后一份有效存档。匿名行为日志最多保留最近 500 条并记录被截断数量，使极端长局仍可持续保存。
 - 如果浏览器暂时拒绝 localStorage 写入，Story 会显示 `LOCAL SAVE FAILED`，明确告知当前进度尚未保存，并提供“重试本地保存”；恢复成功后警告消失。
 - 匿名行为日志跨刷新沿用同一 sessionId，并写入 `SESSION_RESTORED` 事件；结案页允许普通玩家主动导出 JSON，服务于后续真人可用性测试。
 

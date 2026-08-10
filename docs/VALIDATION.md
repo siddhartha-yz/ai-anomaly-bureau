@@ -18,7 +18,7 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：12 个测试文件、55 个测试全部通过。
+- Vitest：12 个测试文件、65 个测试全部通过。
 - Vite production build：通过。
 - Playwright：19 条 Chromium E2E 通过，覆盖剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
@@ -60,9 +60,10 @@ Vitest 当前覆盖：
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID、mistake flags 与 debug model params 不进入序列化结果。
-- Story session 关系校验：experimentLog / auditHistory 数量与 accuracy/error 必须对应，current audit 必须匹配最新 history，selected mistake / suspicious attempt 必须引用真实已存在记录；损坏、错 seed、旧版本、非法匿名日志都会删除。
-- Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组，事件数限制 500；reader / writer 同时限制 200KB。超限 writer 返回 false 且不覆盖最后有效 checkpoint。
-- BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；显式新局会生成新的随机 session。
+- Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
+- Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
+- Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
+- BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
 - 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
 - 无尽实验设计：同一配置重复审计识别为 replication，不增加可提交诊断所需的“不同配置”数量；只换字段 / 只换模型 / 混合改动均有确定分类；下一次训练前使用同一纯函数语义预览当前实验计划。
@@ -231,6 +232,9 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 2026-08-10 06:36 +08:00，再次完整运行最新 **19-route** 生产 E2E，**19 / 19 首轮全部通过**。新增覆盖 Story resume/discard、localStorage 写入失败 + retry、四次阶段恢复、实验预注册恢复、RESET 二次确认、结案 JSON 下载与恢复/警告布局安全。
 - 最新 production JS 与本地最终 build 做 SHA-256 字节比对：两者均为 `68bfcae5029df7af47e347a160c00c565a914e04ede7e83725b5365cf16c85a1`。
 - 上述生产验收对应的功能 / 测试检查点 `1197de1`，其 GitHub `CI` 与 `Deploy Pages` workflow 均已 `completed / success`；后续纯文档提交不改变 production bundle。
+- 2026-08-10 08:26 +08:00，本轮 Story checkpoint 关系加固的最终功能检查点 `4bdf95a` 已由 Pages 实际发布为 `assets/index-sDwaHLsF.js`，GitHub `CI` 与 `Deploy Pages` 均为 `completed / success`。
+- 对该精确 production asset 连续运行两次完整 19-route E2E：两次都只有 1 条路线在任何产品断言执行前的 `page.goto` 遇到 GitHub Pages `net::ERR_CONNECTION_CLOSED`，且发生在不同 endless 路线上；各自 test retry 均立即通过，两条失败路线随后单独首轮复验也通过。没有出现 Story / Endless 的产品断言失败，因此没有为了外部连接瞬断修改业务代码或放宽本地 retry。
+- 最新 production JS 与本地 release build 的 SHA-256 均为 `9e431579dd70b1ef47fc0d57ce4c9e0d78fb471b06598213a0432f0ebb4f52a6`（393434 bytes）；CSS `assets/index-Da9oSxjH.css` 两端 SHA-256 均为 `6d711b6aa28c6ac207bbc22ac4c64319490482b5f044fd1c92b2633379bda303`（159870 bytes）。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
