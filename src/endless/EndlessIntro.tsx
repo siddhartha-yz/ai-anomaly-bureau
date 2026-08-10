@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TRAINING_CASE_000 } from '../bureau/catalog'
 
 export type EndlessResumeSummary = {
   seed: number
@@ -71,17 +72,17 @@ export function EndlessIntro({ bootCompleted, resume, onBoot, onSkip, onNewCase,
                 {newCaseArmed ? '再次点击：放弃旧进度并生成新案件' : '生成一宗全新案件'}
               </button>
               <button type="button" className="endless-intro-secondary" onClick={onBoot}>
-                {bootCompleted ? '重玩训练案件 000' : '先进行训练案件 000'}
+                {bootCompleted ? `重玩训练案件 ${TRAINING_CASE_000.number}` : `先进行训练案件 ${TRAINING_CASE_000.number}`}
               </button>
             </>
           ) : (
             <>
               <button type="button" className="endless-intro-primary" onClick={bootCompleted ? onSkip : onBoot}>
                 <small>{bootCompleted ? 'TRAINING COMPLETE' : 'RECOMMENDED FIRST'}</small>
-                <strong>{bootCompleted ? '进入正式无尽调查' : '进行训练案件 000'}</strong>
+                <strong>{bootCompleted ? '进入正式无尽调查' : `进行训练案件 ${TRAINING_CASE_000.number}`}</strong>
               </button>
               <button type="button" className="endless-intro-secondary" onClick={bootCompleted ? onBoot : onSkip}>
-                {bootCompleted ? '重玩训练案件 000' : '已熟悉流程？直接进入无尽调查'}
+                {bootCompleted ? `重玩训练案件 ${TRAINING_CASE_000.number}` : '已熟悉流程？直接进入无尽调查'}
               </button>
             </>
           )}

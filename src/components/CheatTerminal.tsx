@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { formalCaseCode, STORY_CASE_001, TRAINING_CASE_000 } from '../bureau/catalog'
 import { acknowledgeBureauInduction, readBureauProgress, recordStory001Resolution, writeBureauProgress } from '../bureau/progress'
 import { clearEndlessSession } from '../endless/session'
 import { CHEAT_AUTO_RESUME_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
@@ -11,7 +12,7 @@ const EXAMPLES = [
   ['CASE001 FINAL', '跳到最终未知审计已通过'],
   ['CASE001 CLOSED', '直接打开完整合法的结案状态'],
   ['BUREAU UNLOCK', '本地授予调查局权限并进入办公室'],
-  ['TRAINING', '打开训练案件 000'],
+  ['TRAINING', `打开训练案件 ${TRAINING_CASE_000.number}`],
   ['DUTY 6003', '以指定 seed 打开一宗全新的值班案件'],
 ] as const
 
@@ -95,7 +96,7 @@ export function CheatTerminal() {
       const closedStory = createStoryCheatSession('closed', seed)
       if (!writeStorySession(window.localStorage, closedStory)) {
         setError(true)
-        setMessage('无法写入 CASE 001 结案检查点。')
+        setMessage(`无法写入 ${formalCaseCode(STORY_CASE_001)} 结案检查点。`)
         return
       }
       let progress = readBureauProgress(window.localStorage)

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { TRAINING_CASE_000 } from '../bureau/catalog'
 import { evaluate } from '../ml/evaluate'
 import { projectSamples } from '../ml/features'
 import { MODEL_META, MODEL_REGISTRY } from '../ml/registry'
@@ -177,7 +178,7 @@ export function BootCase({ onComplete, onBack }: { onComplete: () => void; onBac
   return (
     <main className="bootcase-shell">
       <header className="bootcase-header">
-        <div><small>TRAINING CASE 000 // CONTROLLED PRACTICE</small><h1>训练案件 000 · 学会怎么调查</h1></div>
+        <div><small>TRAINING CASE {TRAINING_CASE_000.number} // CONTROLLED PRACTICE</small><h1>训练案件 {TRAINING_CASE_000.number} · 学会怎么调查</h1></div>
         <button type="button" onClick={onBack}>退出训练</button>
       </header>
 

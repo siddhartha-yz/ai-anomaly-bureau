@@ -1,10 +1,11 @@
+import { STORY_CASE_001 } from '../bureau/catalog'
 import type { Stage } from '../game/types'
 import type { FeatureKey } from '../ml/types'
 import type { ModelId } from '../ml/registry'
 
 export const LEVEL_META = {
   id: 'lost-classifier',
-  title: '失控的分类器',
+  title: STORY_CASE_001.title,
   incident: '校园流浪动物识别机器人，把橘猫识别成了面包。',
   successTestAccuracy: 0.84,
   maxOrangeCatErrors: 1,

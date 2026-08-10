@@ -1,3 +1,4 @@
+import { formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
 import type { BureauProgress } from './progress'
 
 export type BureauDepartment = 'case-board' | 'training' | 'archive' | 'duty'
@@ -31,7 +32,7 @@ export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResume
       target: 'case-board',
       code: 'INDUCTION',
       title: '领取正式调查员证件',
-      detail: 'CASE 001 已归档，先完成一次入职交接。',
+      detail: `${formalCaseCode(STORY_CASE_001)} 已归档，先完成一次入职交接。`,
       action: '查看案件板',
     }
   }
@@ -51,7 +52,7 @@ export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResume
       target: 'training',
       code: 'TRAINING',
       title: '训练中心有一份推荐练习',
-      detail: 'TRAINING 000 用两次真实实验练习控制变量；它不是正式案件的硬门槛。',
+      detail: `${trainingCaseCode(TRAINING_CASE_000)} 用两次真实实验练习控制变量；它不是正式案件的硬门槛。`,
       action: '前往训练中心',
     }
   }
