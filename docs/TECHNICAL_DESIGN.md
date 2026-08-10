@@ -10,7 +10,10 @@
 ## 目录结构
 ```text
 src/
-  content/level1.ts          # 第一关文案、阶段配置、特征与模型解锁
+  bureau/
+    catalog.ts               # 手工正式案件 / 训练案件唯一目录
+    progress.ts              # 调查局长期结案与知识事实
+  content/level1.ts          # 第一关阶段文案、特征与模型解锁
   ml/
     types.ts                 # Sample / Feature / Model 接口
     rng.ts                   # 可复现 PRNG
@@ -174,6 +177,8 @@ interface FittedClassifier {
 
 ## 调查局 Meta 层
 
+`src/bureau/catalog.ts` 是手工内容身份的唯一注册点。当前 `FORMAL_CASE_CATALOG` 只含 Story Case 001，`TRAINING_CASE_CATALOG` 只含 Training 000；Hub、Entry、Story cartridge、Resume 与 archive provenance 读取同一目录，避免以后新增正式案件时复制编号 / 标题 / briefing 文案。
+
 `src/bureau/progress.ts` 保存跨案件的长期事实，和 Story / Endless 各自的详细 session 分层：
 
 ```ts
@@ -192,7 +197,7 @@ App 路由的正常产品语义是：
 
 - 未完成 Story 001：默认进入 Story，新人没有 Duty UI 入口；
 - Story 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
-- 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；
+- 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；Hub 的当前部门由 App 层保存，因此 Training / Duty 临时离开后返回原部门而不是重置案件板；
 - explicit query (`?mode=endless`, `?mode=boot`, `?mode=hub`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度；历史 `?debug=1` 参数不再改变应用权限。
 
 `BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。

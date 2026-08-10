@@ -155,6 +155,12 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await page.getByRole('button', { name: /训练中心/ }).click()
   await expect(page.getByText('训练案件 000 · 对照实验')).toBeVisible()
   await expect(page.getByText('CLEARED')).toBeVisible()
+  await page.getByRole('button', { name: '重新进行训练案件' }).click()
+  await expect(page.getByRole('heading', { name: /训练案件 000/ })).toBeVisible()
+  await page.getByRole('button', { name: '退出训练' }).click()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  await expect(page.getByRole('button', { name: /训练中心/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('训练案件 000 · 对照实验')).toBeVisible()
 
   await page.getByRole('button', { name: /值班室/ }).click()
   await expect(page.getByText('监督学习 · 值班系统')).toBeVisible()
@@ -166,6 +172,8 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(page.getByRole('button', { name: '返回调查局' })).toBeVisible()
   await page.getByRole('button', { name: '返回调查局' }).click()
   await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  await expect(page.getByRole('button', { name: /值班室/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('监督学习 · 值班系统')).toBeVisible()
 
   await page.getByRole('button', { name: /案件板/ }).click()
   await page.getByRole('button', { name: '重新调查 CASE 001' }).click()

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { formalCaseCode, STORY_CASE_001 } from '../bureau/catalog'
 import { PixelCat, PixelScanner } from './PixelScene'
 
 export type EntryPhase = 'title' | 'incident' | 'boot' | 'game'
@@ -30,11 +31,11 @@ function TitleScene({ onStart, onBureau, audioEnabled }: { onStart: () => void; 
         <h1 className="entry-pixel-title" aria-label="AI异常调查局">
           <span className="entry-title-ai">AI</span><span>异</span><span>常</span><span>调</span><span>查</span><span>局</span>
         </h1>
-        <p className="entry-case">CASE 001 · 失控的分类器</p>
+        <p className="entry-case">{formalCaseCode(STORY_CASE_001)} · {STORY_CASE_001.title}</p>
       </div>
 
       <section className="entry-story" aria-label="案件背景">
-        <p className="entry-dispatch"><span>23:17</span> 校园北门收到一条异常识别报告。</p>
+        <p className="entry-dispatch"><span>{STORY_CASE_001.dispatchTime}</span> {STORY_CASE_001.dispatchLocation}收到一条异常识别报告。</p>
         <div className="entry-incident-line">
           <strong>一只橘猫，被识别成了面包。</strong>
           <span>先亲眼看看事故，再决定怎么修。</span>
@@ -51,7 +52,7 @@ function TitleScene({ onStart, onBureau, audioEnabled }: { onStart: () => void; 
       <div className="entry-call-to-action">
         <button type="button" className="entry-start-button" onClick={onStart} autoFocus>
           <span className="entry-start-icon">▶</span>
-          <span className="entry-start-copy"><small>STORY CASE 001</small><strong>查看事故录像</strong></span>
+          <span className="entry-start-copy"><small>STORY {formalCaseCode(STORY_CASE_001)}</small><strong>查看事故录像</strong></span>
           <kbd>ENTER</kbd>
         </button>
         <div className="entry-start-meta"><span>剧情案件 + 无尽调查</span><i>·</i><span>有限实验预算</span><i>·</i><span>{audioEnabled ? '♪ 8-BIT AUDIO ON' : 'AUDIO OFF'}</span></div>

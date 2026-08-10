@@ -1,4 +1,5 @@
 import type { EndlessSyndrome } from '../endless/generator'
+import { formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
 
 export const BUREAU_PROGRESS_VERSION = 1
 export const BUREAU_PROGRESS_KEY = `aia.bureau-progress.v${BUREAU_PROGRESS_VERSION}`
@@ -175,11 +176,11 @@ export function reconcileLegacyProgress(progress: BureauProgress, legacy: { stor
 export function bureauArchive(progress: BureauProgress) {
   const syndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
   return [
-    { id: 'train-test', title: '训练集 / 未知样本', discovered: progress.story001.resolved, source: 'CASE 001' },
-    { id: 'generalization', title: '泛化', discovered: progress.story001.resolved, source: 'CASE 001' },
-    { id: 'overfitting', title: '过拟合', discovered: progress.story001.resolved || syndromes.has('overfit-noise'), source: progress.story001.resolved ? 'CASE 001' : 'DUTY' },
-    { id: 'controlled-experiment', title: '控制变量实验', discovered: progress.bootCase000.completed, source: 'TRAINING 000' },
-    { id: 'recall', title: '分类别召回', discovered: progress.bootCase000.completed || syndromes.has('class-imbalance'), source: progress.bootCase000.completed ? 'TRAINING 000' : 'DUTY' },
+    { id: 'train-test', title: '训练集 / 未知样本', discovered: progress.story001.resolved, source: formalCaseCode(STORY_CASE_001) },
+    { id: 'generalization', title: '泛化', discovered: progress.story001.resolved, source: formalCaseCode(STORY_CASE_001) },
+    { id: 'overfitting', title: '过拟合', discovered: progress.story001.resolved || syndromes.has('overfit-noise'), source: progress.story001.resolved ? formalCaseCode(STORY_CASE_001) : 'DUTY' },
+    { id: 'controlled-experiment', title: '控制变量实验', discovered: progress.bootCase000.completed, source: trainingCaseCode(TRAINING_CASE_000) },
+    { id: 'recall', title: '分类别召回', discovered: progress.bootCase000.completed || syndromes.has('class-imbalance'), source: progress.bootCase000.completed ? trainingCaseCode(TRAINING_CASE_000) : 'DUTY' },
     { id: 'feature-gap', title: '观察信息不足', discovered: syndromes.has('feature-gap'), source: 'DUTY' },
     { id: 'distribution-shift', title: '分布变化', discovered: syndromes.has('distribution-shift'), source: 'DUTY' },
     { id: 'class-imbalance', title: '类别不平衡', discovered: syndromes.has('class-imbalance'), source: 'DUTY' },

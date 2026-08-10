@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { formalCaseCode, STORY_CASE_001, TRAINING_CASE_000, trainingCaseCode } from '../bureau/catalog'
 import { bureauArchive, investigatorStatus, nextDutySeeds, type BureauProgress } from '../bureau/progress'
 import { createEndlessCasePreview, type EndlessSyndrome } from '../endless/generator'
 import type { StoryResumeSummary } from './StoryResume'
@@ -10,7 +10,7 @@ type EndlessResumeSummary = {
   solved: boolean
 }
 
-type HubSection = 'case-board' | 'training' | 'archive' | 'duty'
+export type HubSection = 'case-board' | 'training' | 'archive' | 'duty'
 
 const SECTION_META: Record<HubSection, { code: string; label: string; description: string }> = {
   'case-board': { code: 'CASE BOARD', label: '案件板', description: '接收正式案件，查看结案与当前分派。' },
@@ -31,6 +31,7 @@ function StatusPill({ children, tone = 'blue' }: { children: React.ReactNode; to
 }
 
 export function BureauHub({
+  section,
   progress,
   storyResume,
   endlessResume,
@@ -39,7 +40,9 @@ export function BureauHub({
   onTraining,
   onDuty,
   onAcknowledgeInduction,
+  onSectionChange,
 }: {
+  section: HubSection
   progress: BureauProgress
   storyResume?: StoryResumeSummary
   endlessResume?: EndlessResumeSummary
@@ -48,8 +51,8 @@ export function BureauHub({
   onTraining: () => void
   onDuty: (seed: number) => void
   onAcknowledgeInduction: () => void
+  onSectionChange: (section: HubSection) => void
 }) {
-  const [section, setSection] = useState<HubSection>('case-board')
   const status = investigatorStatus(progress)
   const archive = bureauArchive(progress)
   const discovered = archive.filter((item) => item.discovered)
@@ -79,14 +82,14 @@ export function BureauHub({
         <div><small>值班结案</small><strong>{progress.duty.resolutions.length}</strong></div>
         <div><small>病症档案</small><strong>{dutySyndromes.size} / 4</strong></div>
         <div><small>知识条目</small><strong>{discovered.length} / {archive.length}</strong></div>
-        <p><span>SHIFT NOTE</span>{progress.story001.resolved ? 'CASE 001 已归档。现在由你决定下一份工作。' : '先完成新人入职案件，调查局权限才会开放。'}</p>
+        <p><span>SHIFT NOTE</span>{progress.story001.resolved ? `${formalCaseCode(STORY_CASE_001)} 已归档。现在由你决定下一份工作。` : '先完成新人入职案件，调查局权限才会开放。'}</p>
       </section>
 
       {progress.story001.resolved && !progress.inductionAcknowledged && (
         <section className="bureau-induction" role="dialog" aria-label="正式调查员权限已开放">
           <div className="bureau-induction-stamp">CLEARANCE<br />GRANTED</div>
           <div className="bureau-induction-copy">
-            <small>CASE 001 / ARCHIVED</small>
+            <small>{formalCaseCode(STORY_CASE_001)} / ARCHIVED</small>
             <h2>新人案件结案。正式调查员权限已开放。</h2>
             <p>从现在开始，你不再沿着一条教程线前进。案件板保存正式调查，训练中心练方法，调查档案记录你真正见过的故障，值班室负责陌生的程序化案件。</p>
             <div className="bureau-induction-unlocks"><span>✓ 调查档案</span><span>✓ 训练中心</span><span>✓ 值班室</span></div>
@@ -107,7 +110,7 @@ export function BureauHub({
                 className={section === id ? 'active' : ''}
                 aria-pressed={section === id}
                 disabled={locked}
-                onClick={() => setSection(id)}
+                onClick={() => onSectionChange(id)}
               >
                 <small>{meta.code}</small><strong>{meta.label}</strong><span>{locked ? '入职后开放' : meta.description}</span>
               </button>
@@ -124,15 +127,15 @@ export function BureauHub({
           {section === 'case-board' && (
             <div className="bureau-case-board">
               <article className="bureau-case-file primary">
-                <header><span>CASE 001</span><StatusPill tone={progress.story001.resolved ? 'yellow' : 'blue'}>{progress.story001.resolved ? 'CLOSED' : 'ACTIVE'}</StatusPill></header>
+                <header><span>{formalCaseCode(STORY_CASE_001)}</span><StatusPill tone={progress.story001.resolved ? 'yellow' : 'blue'}>{progress.story001.resolved ? 'CLOSED' : 'ACTIVE'}</StatusPill></header>
                 <div className="bureau-case-file-body">
-                  <div className="bureau-case-icon" aria-hidden="true">CAT<br /><i>≠</i><br />BREAD</div>
+                  <div className="bureau-case-icon" aria-hidden="true">{STORY_CASE_001.icon[0]}<br /><i>{STORY_CASE_001.icon[1]}</i><br />{STORY_CASE_001.icon[2]}</div>
                   <div>
-                    <small>SUPERVISED CLASSIFICATION INCIDENT</small>
-                    <h3>失控的分类器</h3>
-                    <p>校园北门的识别器把一只橘猫判成了面包。调查它从旧数据里学错了什么，并验证修复能否面对未知样本。</p>
+                    <small>{STORY_CASE_001.classification}</small>
+                    <h3>{STORY_CASE_001.title}</h3>
+                    <p>{STORY_CASE_001.incident}{STORY_CASE_001.objective}</p>
                     <div className="bureau-case-meta">
-                      <span>剧情调查</span><span>监督学习</span><span>有限未知审计</span>
+                      {STORY_CASE_001.tags.map((tag) => <span key={tag}>{tag}</span>)}
                     </div>
                   </div>
                 </div>
@@ -140,7 +143,7 @@ export function BureauHub({
                   <div>
                     {progress.story001.resolved ? <><small>BEST REPORT</small><strong>{progress.story001.bestGrade ?? '—'} · {progress.story001.bestScore ?? '—'}/100</strong></> : storyResume ? <><small>CHECKPOINT</small><strong>{storyResume.stageLabel}</strong></> : <><small>ASSIGNMENT</small><strong>新人入职案件</strong></>}
                   </div>
-                  <button type="button" onClick={onOpenStory}>{progress.story001.resolved ? (storyResume?.solved ? '打开结案案卷' : '重新调查 CASE 001') : storyResume ? '继续 CASE 001' : '接收 CASE 001'}</button>
+                  <button type="button" onClick={onOpenStory}>{progress.story001.resolved ? (storyResume?.solved ? '打开结案案卷' : `重新调查 ${formalCaseCode(STORY_CASE_001)}`) : storyResume ? `继续 ${formalCaseCode(STORY_CASE_001)}` : `接收 ${formalCaseCode(STORY_CASE_001)}`}</button>
                 </footer>
               </article>
 
@@ -154,14 +157,14 @@ export function BureauHub({
           {section === 'training' && (
             <div className="bureau-training-panel">
               <article className="bureau-terminal-card">
-                <span className="bureau-terminal-index">000</span>
-                <div><small>CONTROLLED INVESTIGATION DRILL</small><h3>训练案件 000 · 对照实验</h3><p>学习如何比较两条实验记录、一次只改变一个因素，以及“选中病因 ≠ 已经提交诊断”。</p></div>
+                <span className="bureau-terminal-index">{TRAINING_CASE_000.number}</span>
+                <div><small>{TRAINING_CASE_000.classification}</small><h3>训练案件 {TRAINING_CASE_000.number} · {TRAINING_CASE_000.title}</h3><p>{TRAINING_CASE_000.summary}</p></div>
                 <StatusPill tone={progress.bootCase000.completed ? 'yellow' : 'blue'}>{progress.bootCase000.completed ? 'CLEARED' : 'AVAILABLE'}</StatusPill>
               </article>
               <div className="bureau-training-brief">
                 <strong>训练中心不会替正式案件做判断。</strong>
                 <p>这里负责教调查方法；值班室只给事实和下一步动作，不会动态告诉你应该选什么答案。</p>
-                <button type="button" onClick={onTraining}>{progress.bootCase000.completed ? '重新进行训练案件' : '开始训练案件 000'}</button>
+                <button type="button" onClick={onTraining}>{progress.bootCase000.completed ? '重新进行训练案件' : `开始 ${trainingCaseCode(TRAINING_CASE_000)}`}</button>
               </div>
             </div>
           )}

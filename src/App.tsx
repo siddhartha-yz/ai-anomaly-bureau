@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
 import { BeginnerGuide } from './components/BeginnerGuide'
-import { BureauHub } from './components/BureauHub'
+import { BureauHub, type HubSection } from './components/BureauHub'
 import { CaseAttempts, type ExperimentRecord } from './components/CaseAttempts'
 import { calculateCaseScore, CaseRating } from './components/CaseRating'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
@@ -23,6 +23,7 @@ import { StoryResume } from './components/StoryResume'
 import { TaskBanner } from './components/TaskBanner'
 import { STAGE_CONTENT, TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { BootCase } from './endless/BootCase'
+import { formalCaseCode, STORY_CASE_001 } from './bureau/catalog'
 import { acknowledgeBureauInduction, readBureauProgress, reconcileLegacyProgress, recordBootCaseCompletion, recordDutyResolution, recordStory001Resolution, writeBureauProgress, type BureauProgress, type InvestigationGrade } from './bureau/progress'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
@@ -578,8 +579,8 @@ function GameSession({ seed, onRestart, onReturnToBureau, onCaseClosed }: {
           </div>
         </div>
         <div className="case-cartridge">
-          <span className="case-cartridge-index">CASE 001</span>
-          <span className="case-cartridge-title">失控的分类器</span>
+          <span className="case-cartridge-index">{formalCaseCode(STORY_CASE_001)}</span>
+          <span className="case-cartridge-title">{STORY_CASE_001.title}</span>
           <span className={`case-cartridge-state ${state.stage === 'complete' ? 'closed' : ''}`}>
             {state.stage === 'complete' ? 'CLOSED' : 'IN PROGRESS'}
           </span>
@@ -976,6 +977,7 @@ function App() {
     if (requestedMode === 'story') return 'story'
     return bureauProgress.story001.resolved ? 'hub' : 'story'
   })
+  const [hubSection, setHubSection] = useState<HubSection>('case-board')
   const [endlessReturnTarget, setEndlessReturnTarget] = useState<'hub' | 'story'>(bureauProgress.story001.resolved ? 'hub' : 'story')
   const [bootOrigin, setBootOrigin] = useState<'hub' | 'endless-intro'>('endless-intro')
   const [storyResumeAccepted, setStoryResumeAccepted] = useState(() => {
@@ -1018,6 +1020,7 @@ function App() {
   }
 
   const openStoryFromHub = () => {
+    setHubSection('case-board')
     setStoryResumeAccepted(Boolean(storyResume?.solved))
     setMode('story')
   }
@@ -1025,21 +1028,25 @@ function App() {
   if (mode === 'hub') {
     return (
       <BureauHub
+        section={hubSection}
         progress={bureauProgress}
         storyResume={storyResume}
         endlessResume={endlessResume}
         dutySeed={seed}
         onOpenStory={openStoryFromHub}
         onTraining={() => {
+          setHubSection('training')
           setBootOrigin('hub')
           setMode('boot')
         }}
         onDuty={(dutySeed) => {
+          setHubSection('duty')
           if (dutySeed !== seed) changeSeed(dutySeed)
           setEndlessReturnTarget('hub')
           setMode('endless-intro')
         }}
         onAcknowledgeInduction={() => updateBureauProgress((current) => acknowledgeBureauInduction(current))}
+        onSectionChange={setHubSection}
       />
     )
   }

@@ -123,7 +123,11 @@ Hub 是**世界与长期状态**，不是另一个实验驾驶舱。
 - 同 seed 重玩不会制造额外“经验”；
 - 不同 seed 但同一种病症也不会快速刷出独立调查员身份。
 
-## 4. Story Case 001 的定位
+## 4. 正式案件目录与 Story Case 001
+
+所有手工正式案件必须先注册到 `src/bureau/catalog.ts`。编号、标题、事故摘要、调查目标、分类标签与玩家展示 tags 由 catalog 统一提供；Entry、Story 顶栏、Resume、案件板与档案来源不得各自复制一份字符串。V1 的 `FORMAL_CASE_CATALOG` **严格只有 CASE 001**，训练案件保存在独立 `TRAINING_CASE_CATALOG`，因此不会因为 UI 需要占位就伪造一个“CASE 002”。
+
+CASE 001 的定位
 
 CASE 001 是**新人入职案件**，不是整个产品永久首页。
 
@@ -145,6 +149,8 @@ CASE 001 是**新人入职案件**，不是整个产品永久首页。
 `CASE CLOSED → CLEARANCE GRANTED → Bureau Hub`
 
 之后 CASE 001 成为案件板中的一份可重开案卷。
+
+Hub 的部门选择属于办公室层状态，而不是某个案件的状态。从训练中心进入 Boot 后退出会回到训练中心；从值班室进入 Duty 后退出会回到值班室；从案件板打开 Story 再返回则回到案件板。这样 Hub 是持续存在的工作空间，而不是每次返回都重置到第一页的总菜单。
 
 ## 5. Boot Case 000 的定位
 

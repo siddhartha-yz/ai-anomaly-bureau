@@ -1,3 +1,4 @@
+import { formalCaseCode, STORY_CASE_001 } from '../bureau/catalog'
 import type { Stage } from '../game/types'
 
 const GUIDE: Record<Stage, { title: string; line: string; cue: string }> = {
@@ -63,7 +64,7 @@ const GUIDE: Record<Stage, { title: string; line: string; cue: string }> = {
   },
   complete: {
     title: '案件关闭',
-    line: 'CASE 001 已完成。',
+    line: `${formalCaseCode(STORY_CASE_001)} 已完成。`,
     cue: 'CASE CLOSED',
   },
 }
