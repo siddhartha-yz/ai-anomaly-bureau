@@ -20,7 +20,7 @@ npm run test:e2e
 - TypeScript strict typecheck：通过。
 - Vitest：18 个测试文件、96 个测试全部通过。
 - Vite production build：通过。
-- Playwright：23 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
+- Playwright：24 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -79,11 +79,12 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 23 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 24 条真实 Chromium 路线。
 
 调查局宏观框架单独验证：
 
 - 全新浏览器仍从 CASE 001 进入，不显示空 Hub、OFFICE 或正常 Duty 入口。
+- Bureau migration browser route 会真实写入损坏的 v2 JSON 与完整 v1 payload，刷新后要求恢复正式调查员 / CASE 001 / Training 000 长期事实、写出合法 v2 并删除旧 v1 key。
 - CASE 001 真实结案后写入 Bureau progress；刷新首次进入 Hub 时出现 `CLEARANCE GRANTED`，确认后不会重复出现。
 - Hub 案件板从 formal catalog 渲染并能重开 CASE 001；训练中心从 training catalog 渲染并识别 Training 000 `CLEARED`；调查档案只显示已经真实发现的条目。
 - 值班室无未结案时显示 3 份 symptom-only `INCOMING REPORTS`；已经归档的 seed 不会重新出现在工单队列。

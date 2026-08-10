@@ -216,6 +216,36 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
 })
 
+test('Bureau recovers valid legacy progress when the newer v2 payload is corrupted', async ({ page }) => {
+  const legacyProgress = {
+    version: 1,
+    inductionAcknowledged: true,
+    story001: { resolved: true, bestGrade: 'B', bestScore: 82, resolvedAt: '2026-08-10T01:00:00.000Z' },
+    bootCase000: { completed: true, completedAt: '2026-08-10T01:10:00.000Z' },
+    duty: { resolutions: [] },
+  }
+
+  await page.goto('?mode=hub&seed=6300')
+  await page.evaluate(([v2Key, v1Value]) => {
+    window.localStorage.setItem(v2Key, '{broken-v2-json')
+    window.localStorage.setItem('aia.bureau-progress.v1', v1Value)
+  }, [BUREAU_PROGRESS_KEY, JSON.stringify(legacyProgress)])
+  await page.reload()
+
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  await expect(page.getByLabel('调查员状态')).toContainText('正式调查员')
+  await expect(page.getByText('B · 82/100')).toBeVisible()
+  await bureauDepartment(page, /训练中心/).click()
+  await expect(page.getByText('CLEARED')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('aia.bureau-progress.v1'))).toBeNull()
+  const migratedRaw = await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)
+  expect(JSON.parse(migratedRaw!)).toMatchObject({
+    version: 2,
+    formalCases: { [STORY_CASE_001.id]: { resolved: true, bestGrade: 'B', bestScore: 82 } },
+    trainingCases: { [TRAINING_CASE_000.id]: { completed: true } },
+  })
+})
+
 test('a first-time trainee still enters through Case 001 instead of an empty meta menu', async ({ page }) => {
   await page.goto('?seed=20260809')
   await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
