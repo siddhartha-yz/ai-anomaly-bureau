@@ -1,13 +1,26 @@
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { discriminatingExperiment, experimentConfigKey, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { discriminatingExperiment, experimentConfigKey, experimentDelta, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {
-  return new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
+  const seen = new Set<string>()
+  let earned = 0
+  history.forEach((record, index) => {
+    const key = experimentConfigKey(record.model, record.features)
+    if (seen.has(key)) return
+    seen.add(key)
+    if (index === 0) {
+      earned += 1
+      return
+    }
+    const delta = experimentDelta(history[index - 1], record)
+    if (delta === 'fields-only' || delta === 'model-only') earned += 1
+  })
+  return earned
 }
 
 export function canInspectCaseLead(history: EndlessRunRecord[], inspectedLeadCount: number, alreadyInspected: boolean) {
@@ -151,8 +164,8 @@ export function EndlessLeadBoard({
     <section className="endless-lead-board" aria-label="案件线索板">
       <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
       <section className="endless-causal-leads" aria-label="因果线索来源">
-        <div className="endless-hypothesis-head"><small>COMPETING CAUSES</small><strong>{history.length ? '每个不同实验配置只解封一份原因来源' : '先复现事故，三条因果假设随后解封'}</strong></div>
-        {history.length > 0 && <p className="endless-causal-cadence">每个真正不同的正式实验配置提供 1 次来源解封额度；同配置复现不会继续解封。未使用额度可保留，当前可新开 {Math.max(0, earnedReviews - inspectedCaseLeadIds.length)} 份。</p>}
+        <div className="endless-hypothesis-head"><small>COMPETING CAUSES</small><strong>{history.length ? '基线后，每个新的单变量对照解封一份原因来源' : '先复现事故，三条因果假设随后解封'}</strong></div>
+        {history.length > 0 && <p className="endless-causal-cadence">第一次 baseline 提供 1 次来源解封额度；之后只有此前未审计过、且相对上一轮只改字段或只改模型的配置才再提供 1 次。重复配置与字段 + 模型同时改动都不会解封。未使用额度可保留，当前可新开 {Math.max(0, earnedReviews - inspectedCaseLeadIds.length)} 份。</p>}
         <div className="endless-causal-lead-grid">
           {caseData.leadSources.map((lead) => {
             const inspected = inspectedCaseLeadIds.includes(lead.id)
@@ -167,7 +180,7 @@ export function EndlessLeadBoard({
               >
                 <i>{causeCodes[lead.id]} · {inspected ? 'OPEN' : available ? 'READY' : 'SEALED'}</i>
                 <strong>{lead.label}</strong>
-                <small>{inspected ? lead.finding : available ? lead.prompt : '需要先取得下一条正式审计记录，才能继续解封新的来源。'}</small>
+                <small>{inspected ? lead.finding : available ? lead.prompt : '需要先完成一个新的单变量正式对照，才能继续解封来源。'}</small>
               </button>
             )
           })}

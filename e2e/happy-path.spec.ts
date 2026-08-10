@@ -590,7 +590,7 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
   await expect(causalLeads.getByRole('button', { name: /历史质量记录/ })).toBeEnabled()
   await expect(causalLeads.getByRole('button', { name: /历史档案构成/ })).toBeDisabled()
   await expect(causalLeads.getByRole('button', { name: /采集批次记录/ })).toBeDisabled()
-  await expect(causalLeads).toContainText('需要先取得下一条正式审计记录')
+  await expect(causalLeads).toContainText('需要先完成一个新的单变量正式对照')
   await expect(page.getByLabel('当前调查目标')).toContainText('让两个解释真正分叉')
   await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(4)
   const archiveAlert = page.getByRole('button', { name: /查看档案异常 archive-flag-01/ })
@@ -748,6 +748,37 @@ test('Duty can falsify a plausible model explanation before repairing the field 
   await expect(modelHypothesis).toContainText('WEAKENED')
   await expect(page.getByLabel('竞争假设')).toContainText(/字段实验产生了显著变化/)
   await expect(page.locator('.endless-diagnosis')).toBeVisible()
+})
+
+test('mixed endless changes do not earn a new causal-source review until a controlled follow-up', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6000')
+
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText('当前可新开 0 份')
+
+  // Change both axes at once. The run is novel, but it is not attributable, so
+  // it must not buy another source review.
+  await chooseEndlessFeatures(page, '正文重复度', '发件人可信度')
+  await page.locator('.endless-model-list button:not(.selected)').first().click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('字段 + 模型都换')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-objective-stats')).toContainText('不同配置 2')
+  await expect(page.getByLabel('因果线索来源')).toContainText('当前可新开 0 份')
+  await expect(page.getByLabel('因果线索来源').locator('button:disabled')).toHaveCount(2)
+
+  // A new model-only run from that state is controlled and earns one review.
+  await page.locator('.endless-model-list button:not(.selected)').first().click()
+  await expect(page.getByLabel('当前实验计划对照')).toContainText('只换模型')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-objective-stats')).toContainText('不同配置 3')
+  await expect(page.getByLabel('因果线索来源')).toContainText('当前可新开 1 份')
 })
 
 test('repeating the same endless configuration is replication, not new diagnostic evidence', async ({ page }) => {

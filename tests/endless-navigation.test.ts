@@ -16,22 +16,27 @@ const record = (id: number): EndlessRunRecord => ({
 })
 
 describe('formal endless process navigator', () => {
-  it('paces cause-source reviews by distinct experiment configurations, not audit grinding', () => {
+  it('paces cause-source reviews by controlled experiment progress, not audit grinding or mixed changes', () => {
     const baseline = record(1)
     const repeat = { ...record(2) }
     const fieldsOnly = { ...record(3), features: ['texture', 'aspect'] as ['texture', 'aspect'] }
+    const mixed = { ...record(4), model: 'tree' as const, features: ['warmth', 'roundness'] as ['warmth', 'roundness'] }
+    const modelOnly = { ...record(5), model: 'knn-1' as const, features: ['warmth', 'roundness'] as ['warmth', 'roundness'] }
 
     expect(earnedCaseLeadReviewCount([])).toBe(0)
     expect(earnedCaseLeadReviewCount([baseline])).toBe(1)
     expect(earnedCaseLeadReviewCount([baseline, repeat])).toBe(1)
     expect(earnedCaseLeadReviewCount([baseline, repeat, fieldsOnly])).toBe(2)
+    expect(earnedCaseLeadReviewCount([baseline, repeat, fieldsOnly, mixed])).toBe(2)
+    expect(earnedCaseLeadReviewCount([baseline, repeat, fieldsOnly, mixed, modelOnly])).toBe(3)
 
     expect(canInspectCaseLead([], 0, false)).toBe(false)
     expect(canInspectCaseLead([baseline], 0, false)).toBe(true)
     expect(canInspectCaseLead([baseline, repeat], 1, false)).toBe(false)
     expect(canInspectCaseLead([baseline, repeat], 1, true)).toBe(true)
     expect(canInspectCaseLead([baseline, repeat, fieldsOnly], 1, false)).toBe(true)
-    expect(canInspectCaseLead([baseline, repeat, fieldsOnly], 2, false)).toBe(false)
+    expect(canInspectCaseLead([baseline, repeat, fieldsOnly, mixed], 2, false)).toBe(false)
+    expect(canInspectCaseLead([baseline, repeat, fieldsOnly, mixed, modelOnly], 2, false)).toBe(true)
   })
 
   it('starts with one baseline action rather than asking the player to diagnose', () => {
