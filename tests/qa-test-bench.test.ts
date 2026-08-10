@@ -23,13 +23,13 @@ describe('QA Test Bench save sandbox', () => {
 
     storage.setItem('aia.story-session.v1.20260809', 'story-test-mutated')
     storage.removeItem('aia.bureau-progress.v2')
-    storage.setItem('aia.endless-session.v3.6006', 'test-duty')
+    storage.setItem('aia.endless-session.v4.6006', 'test-duty')
 
     const result = restoreQaSession(storage)
     expect(result).toEqual({ ok: true, returnPath: '/ai-anomaly-bureau/?mode=hub&seed=20260809', restoredKeys: 2 })
     expect(storage.getItem('aia.story-session.v1.20260809')).toBe('story-original')
     expect(storage.getItem('aia.bureau-progress.v2')).toBe('bureau-original')
-    expect(storage.getItem('aia.endless-session.v3.6006')).toBeNull()
+    expect(storage.getItem('aia.endless-session.v4.6006')).toBeNull()
     expect(storage.getItem('unrelated.preference')).toBe('leave-me-alone')
     expect(storage.getItem(QA_BACKUP_KEY)).toBeNull()
   })
@@ -49,10 +49,10 @@ describe('QA Test Bench save sandbox', () => {
     const storage = new MemoryStorage()
     storage.setItem('aia.story-session.v1.1', 'original')
     beginQaSession(storage, '/start')
-    storage.setItem('aia.endless-session.v3.6000', 'temporary')
+    storage.setItem('aia.endless-session.v4.6000', 'temporary')
     expect(clearQaWorkingState(storage)).toBe(true)
     expect(storage.getItem('aia.story-session.v1.1')).toBeNull()
-    expect(storage.getItem('aia.endless-session.v3.6000')).toBeNull()
+    expect(storage.getItem('aia.endless-session.v4.6000')).toBeNull()
     expect(readQaSnapshot(storage)?.entries['aia.story-session.v1.1']).toBe('original')
   })
 

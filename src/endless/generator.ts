@@ -91,6 +91,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     {
       title: 'CASE / 失物招领误分',
       incident: '失物招领柜近期把不少保温瓶归到普通水杯。相似容器之间的误分已经连续出现，值班员要求重新调查这套分类规则。',
+      batchContext: { history: '旧柜台 / 冷白灯 / 固定俯拍', field: '新柜台 / 暖白灯 / 固定俯拍' },
       classNames: { cat: '普通水杯', bread: '保温瓶' },
       featureNames: { warmth: '主色亮度', roundness: '杯口圆度', texture: '杯盖纹路', aspect: '瓶身长宽' },
       featureHints: {
@@ -135,6 +136,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
       title: 'CASE / 打印机纸张质检',
       archiveIssue: '测量仪校准异常 / 记录可信度低',
       incident: '纸张质检系统近期对卡纸风险判断不稳，值班人员已经记录到多次错误放行。需要重新确认问题来自哪里。',
+      batchContext: { history: '白班 / 校准台 A / 常温', field: '晚班 / 校准台 B / 常温' },
       classNames: { cat: '正常纸张', bread: '卡纸风险' },
       featureNames: { warmth: '纸面白度', roundness: '边角圆整度', texture: '纤维纹理', aspect: '边缘形变' },
       featureHints: {
@@ -193,6 +195,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     {
       title: 'CASE / 机房告警漏报',
       incident: '机房告警系统近期仍会漏掉真正的故障，值班员已经连续遇到未报警事件。现有总体报告无法解释这些漏报。',
+      batchContext: { history: '工作日 / 机房 A / 常规负载', field: '周末 / 机房 B / 低负载' },
       classNames: { cat: '正常日志', bread: '故障日志' },
       featureNames: { warmth: '日志长度', roundness: '突发次数', texture: '错误签名', aspect: '时序比例' },
       featureHints: {
@@ -535,8 +538,9 @@ export function createEndlessCase(seed: number): EndlessCase {
   // Opening reports intentionally describe symptoms, not causes. Precise archive
   // composition, batch metadata and quality flags are all real evidence, but the
   // player has to choose to inspect those sources after reproducing the failure.
-  // This keeps the opening brief compatible with several causal stories instead
-  // of turning metadata presence into a syndrome fingerprint.
+  // Some non-shift cases deliberately contain a real operational batch change as
+  // a background confound. A positive H-CONTEXT finding therefore says only that
+  // the change deserves testing; it no longer uniquely identifies distribution shift.
   const reportedFacts = [
     `${theme.classNames.cat} / ${theme.classNames.bread} 的错误已经在最近现场重复出现，值班报告确认并非单个偶发样本。`,
     '历史档案构成、采集批次与质量记录都可复核；在完成第一条现场基线前，调查局不会替你判断哪一条最可疑。',

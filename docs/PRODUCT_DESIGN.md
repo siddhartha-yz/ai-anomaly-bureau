@@ -106,7 +106,7 @@ V1 不扩第二个手工剧情关卡，而是增加可重复的 `Supervised Inve
 - 当前四类真实故障：**特征不足、训练噪声 / 过拟合、分布漂移、类别不平衡**。
 - 每类故障有多组案件语境；四个传感器通道会随 seed 重排，不能背“永远点后两个”。
 - 玩家能看到训练标签与无标签现场特征分布，但 Formal Duty 不再把四个传感器统一显示成“旧样本差异 X/5 / 现场变化 Y/5”的答案排行；要判断字段价值，必须切换 `FIELD MATRIX` 的投影亲自观察结构。
-- 每宗程序化 Duty 先复现 generator 选出的真实故障部署 baseline。baseline 前三条 causal story 全部 `SEALED`；之后玩家先选择复核 `H-COVERAGE / H-CONTEXT / H-RECORDS` 中的一条，再用 `H-FIELDS / H-MODEL` 的 fields-only / model-only 实验验证“什么干预真正会改变世界”。显著变化支持该轴，真正测试但变化很小会削弱该轴，两个轴也可能同时重要。
+- 每宗程序化 Duty 先复现 generator 选出的真实故障部署 baseline。baseline 前三条 causal story 全部 `SEALED`；之后玩家先选择复核 `H-COVERAGE / H-CONTEXT / H-RECORDS` 中的一条，再用 `H-FIELDS / H-MODEL` 的 fields-only / model-only 实验验证“什么干预真正会改变世界”。其中 **H-CONTEXT 的 positive finding 已不再和 distribution-shift 一一对应**：部分其他病因也会带着真实但非主因的批次变化，玩家必须把事实和实验后果组合起来判断。
 - 训练不耗预算；正式未知审计初始只有 5 次。每次审计前必须预测未知表现。
 - 正式审计返回的现场误判不是静态结果卡：玩家可以点击错误记录，把对应 `field-*` 样本重新定位到 `FIELD_MATRIX`，并把亲手检查过的错误写入 `CASE_LEADS.LOG`。
 - 结案要求先找到可靠方案，再提交病因。仅有两个不同配置不够：至少要有一组 fields-only / model-only 对照让 FIELD 或最低召回发生 ≥12pt 的 material change，并从 `EXPERIMENTS.LOG` 引用这组区分性证据。repeat 与同时改字段+模型都不能完成归因。诊断答错后必须取得新的 material controlled evidence，并在下一份证据包里包含它。

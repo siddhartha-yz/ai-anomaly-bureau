@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：23 个测试文件、112 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CZZF0Q_G.js` + `assets/index-H5bxzfje.css`（生产发布后再记录远端哈希）。
-- Playwright：29 条 Chromium E2E **首轮全部通过**，覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：23 个测试文件、114 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BV0eJOSO.js` + `assets/index-H5bxzfje.css`（生产发布后再记录远端哈希）。
+- Playwright：29 条 Chromium E2E 全部通过（完整串行命令因 120s 工具上限在第 26 条后被终止；前 26 条均通过，剩余 3 条随后逐条补跑并全部通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -74,7 +74,7 @@ Vitest 当前覆盖：
 - 竞争假设状态：`H-FIELDS / H-MODEL` 各自只读取玩家 run history；未测试为 OPEN，material controlled change 为 SUPPORTED，真正测试过但变化不足 12pt 为 WEAKENED。两个轴可以同时 SUPPORTED，此时 UI 明确提示单一主因解释不足。
 - 诊断 gate 现在要求 **reliable solution + material discriminating experiment + 至少一份主动 causal-source review + falsification**。falsification 可以是 source `clear`（例如质量记录无异常 / 批次无实质切换），也可以是真正测试过但变化 <12pt 的 fields-only/model-only null result。只有支持证据、没有排除任何替代解释时，`NEXT OBJECTIVE` 会停在 `CAUSE / FALSIFY`，syndrome 选项仍不渲染。引用的两条 run 自身也必须构成有效单变量区分证据；错误诊断后仍要求 fresh material controlled evidence。
 - 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome；`discriminatingExperiment()` 只回答“这个受控实验有没有让世界明显变化”。
-- 无尽 session：当前为 `aia.endless-session.v3.<seed>`，新增 `inspectedCaseLeadIds`。v2 非 shift 案可安全迁移，并且测试要求**先成功写 v3 再删除 v2**；模拟 `QuotaExceededError` 时 v2 原件必须保留。v3 改变了 shift field world，因此旧 v2 shift history 明确作废；v1 继续不迁移。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
+- 无尽 session：当前为 `aia.endless-session.v4.<seed>`。v3 audit history 可安全迁移，但 causal-source finding 语义已有变化，因此迁移后 `inspectedCaseLeadIds` 会重置为空，要求玩家重新打开来源；测试同时要求**先成功写 v4 再删除 v3**，模拟 `QuotaExceededError` 时 v3 原件必须保留。v2 非 shift 仍可直接迁入 v4；v2 shift 因 v3 已改变 field world 继续明确作废；v1 继续不迁移。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
@@ -297,7 +297,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 没有建立大规模视觉 snapshot 回归；视觉仍以真实截图人工检查为主。
 - GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
 - 外部中文像素字体网络不可用时会回退到系统 CJK 字体，功能不受影响，但视觉会变化。
-- 本轮已经解决了最直接的 **opening syndrome fingerprint**：精确 batch / 40:4 / quality alert 都从首屏撤下，并要求 support + falsification 才能命名病因。但更深一层的风险仍在：三份 positive causal finding 目前和 syndrome 的对应关系仍偏整齐——`H-RECORDS signal` 强烈指向 overfit、`H-CONTEXT signal` 强烈指向 shift、`H-COVERAGE signal` 强烈指向 imbalance。熟悉系统的重复玩家可能学会“先拆一份资料夹，看哪份亮 signal”而不是继续建模多个 causal story。下一轮最值得做的是让**同一 positive fact 也能出现在多个 syndrome 中**，再依靠其与干预结果 / 错误样本结构的组合完成归因，而不是增加新模型或更多病名。
+- opening fingerprint 已进一步削弱：`H-CONTEXT signal` 现在会出现在 **四种 syndrome** 中。每个 distribution-shift 案仍有真实环境/设备变化，但 feature-gap / overfit / imbalance 的部分主题也带有真实运营批次变化作为 background confound；400-seed 回归要求看到 batch signal 后，真实 shift 占比仍低于 65%，因此“资料夹亮了”不能直接当答案。剩余风险集中在 `H-RECORDS signal` 与 overfit、`H-COVERAGE signal` 与 imbalance 仍较整齐；后续应继续为这两类 positive evidence 引入非因果但真实的 confound，而不是增加病名。
 
 ## 下一步真实玩家测试重点
 

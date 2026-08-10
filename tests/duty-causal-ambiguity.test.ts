@@ -30,6 +30,26 @@ describe('Duty syndrome-level ambiguity', () => {
     }
   }, 15_000)
 
+  it('lets a positive batch-change fact belong to multiple underlying syndromes', () => {
+    const signalSyndromes = new Set<string>()
+    let batchSignals = 0
+    let shiftSignals = 0
+
+    for (let seed = 9000; seed < 9400; seed += 1) {
+      const caseData = createEndlessCase(seed)
+      const batchLead = caseData.leadSources.find((lead) => lead.id === 'batch')!
+      if (batchLead.result !== 'signal') continue
+      batchSignals += 1
+      signalSyndromes.add(caseData.syndrome)
+      if (caseData.syndrome === 'distribution-shift') shiftSignals += 1
+    }
+
+    expect(signalSyndromes).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
+    expect(batchSignals).toBeGreaterThan(0)
+    // Reading H-CONTEXT as “signal” must not collapse the diagnosis to shift.
+    expect(shiftSignals / batchSignals).toBeLessThan(.65)
+  }, 15_000)
+
   it('makes overfit and distribution-shift first audits occupy the same failure band', () => {
     const overfit: number[] = []
     const shift: number[] = []
