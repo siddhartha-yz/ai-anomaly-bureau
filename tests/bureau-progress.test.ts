@@ -5,6 +5,7 @@ import {
   bureauArchive,
   createBureauProgress,
   investigatorStatus,
+  nextDutySeeds,
   readBureauProgress,
   reconcileLegacyProgress,
   recordBootCaseCompletion,
@@ -56,6 +57,13 @@ describe('Bureau meta progression', () => {
     expect(progress.duty.resolutions.find((item) => item.seed === 6001)?.score).toBe(89)
     expect(bureauArchive(progress).find((item) => item.id === 'controlled-experiment')?.discovered).toBe(true)
     expect(bureauArchive(progress).find((item) => item.id === 'distribution-shift')?.discovered).toBe(true)
+  })
+
+  it('does not reissue already resolved seeds in the duty queue', () => {
+    let progress = createBureauProgress()
+    progress = recordDutyResolution(progress, { seed: 6101, syndrome: 'overfit-noise', grade: 'A', score: 90 })
+    progress = recordDutyResolution(progress, { seed: 6103, syndrome: 'distribution-shift', grade: 'A', score: 91 })
+    expect(nextDutySeeds(progress, 6101)).toEqual([6102, 6104, 6105])
   })
 
   it('promotes only from distinct pathology experience, not repeated seed grinding', () => {

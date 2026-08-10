@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { bureauArchive, investigatorStatus, type BureauProgress } from '../bureau/progress'
-import type { EndlessSyndrome } from '../endless/generator'
+import { bureauArchive, investigatorStatus, nextDutySeeds, type BureauProgress } from '../bureau/progress'
+import { createEndlessCase, type EndlessSyndrome } from '../endless/generator'
 import type { StoryResumeSummary } from './StoryResume'
 
 type EndlessResumeSummary = {
@@ -19,6 +19,13 @@ const SECTION_META: Record<HubSection, { code: string; label: string; descriptio
   duty: { code: 'DUTY DESK', label: '值班室', description: '处理程序化异常报告，把方法用在陌生案件上。' },
 }
 
+const PATHOLOGY_LABEL: Record<EndlessSyndrome, string> = {
+  'feature-gap': '观察信息不足',
+  'overfit-noise': '训练噪声 / 过拟合',
+  'distribution-shift': '分布变化',
+  'class-imbalance': '类别不平衡',
+}
+
 function StatusPill({ children, tone = 'blue' }: { children: React.ReactNode; tone?: 'blue' | 'yellow' | 'muted' }) {
   return <span className={`bureau-status-pill ${tone}`}>{children}</span>
 }
@@ -27,6 +34,7 @@ export function BureauHub({
   progress,
   storyResume,
   endlessResume,
+  dutySeed,
   onOpenStory,
   onTraining,
   onDuty,
@@ -35,9 +43,10 @@ export function BureauHub({
   progress: BureauProgress
   storyResume?: StoryResumeSummary
   endlessResume?: EndlessResumeSummary
+  dutySeed: number
   onOpenStory: () => void
   onTraining: () => void
-  onDuty: () => void
+  onDuty: (seed: number) => void
   onAcknowledgeInduction: () => void
 }) {
   const [section, setSection] = useState<HubSection>('case-board')
@@ -46,6 +55,9 @@ export function BureauHub({
   const discovered = archive.filter((item) => item.discovered)
   const dutySyndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
   const latestDuty = progress.duty.resolutions.at(-1)
+  const hasOpenDuty = Boolean(endlessResume && !endlessResume.solved)
+  const queueStart = endlessResume?.solved ? endlessResume.seed + 1 : dutySeed
+  const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createEndlessCase(caseSeed))
 
   return (
     <main className="bureau-hub" aria-label="AI异常调查局主页">
@@ -180,15 +192,27 @@ export function BureauHub({
                     <><StatusPill tone="blue">QUEUE READY</StatusPill><strong>暂无未结案件</strong><span>接入后生成当前 seed 的异常报告</span></>
                   )}
                 </div>
-                <button type="button" onClick={onDuty}>{endlessResume ? (endlessResume.solved ? '打开值班结案' : '继续未结值班案件') : '接入值班系统'}</button>
+                {endlessResume && <button type="button" onClick={() => onDuty(endlessResume.seed)}>{endlessResume.solved ? '打开值班结案' : '继续未结值班案件'}</button>}
+                {!hasOpenDuty && (
+                  <div className="bureau-duty-queue" aria-label="待接异常报告">
+                    <header><span>INCOMING REPORTS</span><strong>选择一份接案</strong></header>
+                    {dutyQueue.map((candidate) => (
+                      <article key={candidate.seed}>
+                        <div><small>CASE {String(candidate.caseNo).padStart(4, '0')}</small><strong>{candidate.title.replace(/^CASE \/ /, '')}</strong><p>{candidate.incident}</p></div>
+                        <button type="button" onClick={() => onDuty(candidate.seed)}>接收报告</button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+                {hasOpenDuty && <p className="bureau-duty-queue-locked">当前还有一宗未结值班案件。先继续或在案件入口明确放弃旧案，新的报告不会覆盖现有进度。</p>}
               </section>
               <section className="bureau-duty-history">
                 <header><span>DUTY ARCHIVE</span><strong>{progress.duty.resolutions.length} RESOLVED</strong></header>
                 {latestDuty ? (
-                  <div className="bureau-duty-latest"><small>LATEST</small><strong>CASE {latestDuty.seed} · {latestDuty.grade}</strong><span>{latestDuty.score}/100 · {latestDuty.syndrome}</span></div>
+                  <div className="bureau-duty-latest"><small>LATEST</small><strong>CASE {latestDuty.seed} · {latestDuty.grade}</strong><span>{latestDuty.score}/100 · {PATHOLOGY_LABEL[latestDuty.syndrome]}</span></div>
                 ) : <p>还没有值班结案。训练中心可以先教你怎么看实验记录。</p>}
                 <div className="bureau-pathology-progress" aria-label="已处理病症">
-                  {(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as EndlessSyndrome[]).map((id) => <span key={id} className={dutySyndromes.has(id) ? 'known' : ''}>{dutySyndromes.has(id) ? '◆' : '◇'} {id}</span>)}
+                  {(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as EndlessSyndrome[]).map((id) => <span key={id} className={dutySyndromes.has(id) ? 'known' : ''}>{dutySyndromes.has(id) ? '◆' : '◇'} {PATHOLOGY_LABEL[id]}</span>)}
                 </div>
               </section>
             </div>

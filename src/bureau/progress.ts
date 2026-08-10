@@ -183,6 +183,17 @@ export function bureauArchive(progress: BureauProgress) {
   ]
 }
 
+export function nextDutySeeds(progress: BureauProgress, startSeed: number, count = 3) {
+  const resolved = new Set(progress.duty.resolutions.map((item) => item.seed))
+  const seeds: number[] = []
+  let candidate = Math.max(0, Math.trunc(startSeed))
+  while (seeds.length < count) {
+    if (!resolved.has(candidate)) seeds.push(candidate)
+    candidate += 1
+  }
+  return seeds
+}
+
 export function investigatorStatus(progress: BureauProgress) {
   const discoveredSyndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome)).size
   if (!progress.story001.resolved) return { code: 'TRAINEE', label: '实习调查员' }

@@ -1081,12 +1081,14 @@ function App() {
         progress={bureauProgress}
         storyResume={storyResume}
         endlessResume={endlessResume}
+        dutySeed={seed}
         onOpenStory={openStoryFromHub}
         onTraining={() => {
           setBootOrigin('hub')
           setMode('boot')
         }}
-        onDuty={() => {
+        onDuty={(dutySeed) => {
+          if (dutySeed !== seed) changeSeed(dutySeed)
           setEndlessReturnTarget('hub')
           setMode('endless-intro')
         }}
