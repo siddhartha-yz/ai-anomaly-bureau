@@ -516,6 +516,34 @@ describe('Story Case local checkpoint', () => {
     expect(restored?.behaviorLog?.events.at(-1)?.action).toBe('ACTION_504')
   })
 
+  it('keeps a maximum-size valid behavior log inside the Story checkpoint byte budget', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const logger = new BehaviorLogger(value.seed)
+    for (let index = 0; index < 505; index += 1) {
+      logger.record({
+        stage: 'inspect_data',
+        action: `${String(index).padStart(4, '0')}:${'A'.repeat(75)}`,
+        features: ['warmth', 'roundness'],
+        model: 'linear',
+        trainAccuracy: 1,
+        testAccuracy: 1,
+        mistakeId: 'field-001',
+        hintLevel: 3,
+        retryCount: 999,
+        completed: false,
+      })
+    }
+    value.behaviorLog = logger.snapshot()
+
+    expect(value.behaviorLog.events).toHaveLength(500)
+    expect(value.behaviorLog.droppedEvents).toBe(5)
+    expect(writeStorySession(storage, value)).toBe(true)
+    const raw = storage.getItem(storySessionKey(value.seed))!
+    expect(raw.length).toBeLessThan(200_000)
+    expect(readStorySession(storage, value.seed)?.behaviorLog?.events).toHaveLength(500)
+  })
+
   it('refuses invalid or oversized writes without overwriting the last valid checkpoint', () => {
     const storage = new MemoryStorage()
     const value = session()
