@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { bureauArchive, investigatorStatus, nextDutySeeds, type BureauProgress } from '../bureau/progress'
-import { createEndlessCase, type EndlessSyndrome } from '../endless/generator'
+import { createEndlessCasePreview, type EndlessSyndrome } from '../endless/generator'
 import type { StoryResumeSummary } from './StoryResume'
 
 type EndlessResumeSummary = {
@@ -57,7 +57,7 @@ export function BureauHub({
   const latestDuty = progress.duty.resolutions.at(-1)
   const hasOpenDuty = Boolean(endlessResume && !endlessResume.solved)
   const queueStart = endlessResume?.solved ? endlessResume.seed + 1 : dutySeed
-  const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createEndlessCase(caseSeed))
+  const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createEndlessCasePreview(caseSeed))
 
   return (
     <main className="bureau-hub" aria-label="AI异常调查局主页">

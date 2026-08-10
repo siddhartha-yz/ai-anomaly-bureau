@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEndlessCase, enumerateEndlessSolutions, type EndlessCase } from '../src/endless/generator'
+import { createEndlessCase, createEndlessCasePreview, enumerateEndlessSolutions, type EndlessCase } from '../src/endless/generator'
 import type { FeatureKey } from '../src/ml/types'
 
 function keyWith(caseData: EndlessCase, text: string): FeatureKey {
@@ -32,6 +32,16 @@ describe('supervised endless case generator', () => {
     expect(Object.entries(a.featureNames)).not.toEqual(Object.entries(c.featureNames))
     expect(a.diagnosis.options).toEqual(b.diagnosis.options)
     expect(a.diagnosis.options.map((option) => option.id)).not.toEqual(c.diagnosis.options.map((option) => option.id))
+  })
+
+  it('exposes only symptom-safe fields to the Bureau duty queue preview', () => {
+    const preview = createEndlessCasePreview(6001)
+    expect(Object.keys(preview).sort()).toEqual(['caseNo', 'incident', 'reportedFacts', 'seed', 'title'])
+    expect(preview.incident).not.toMatch(/过拟合|漂移|特征不足|类别不平衡/)
+    expect(preview.reportedFacts.join('')).not.toMatch(/观察特征没有抓住真正差异|模型把训练噪声和偶然点记得太死/)
+    expect('diagnosis' in preview).toBe(false)
+    expect('publicTest' in preview).toBe(false)
+    expect('audit' in preview).toBe(false)
   })
 
   it('presents observable symptoms and archive facts without putting the diagnosis in the case brief', () => {

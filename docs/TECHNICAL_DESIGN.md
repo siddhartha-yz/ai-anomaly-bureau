@@ -195,7 +195,7 @@ App 路由的正常产品语义是：
 - 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；
 - explicit query (`?mode=endless`, `?mode=boot`, `?debug=1`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度。
 
-`BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCase()` 的 `title / incident` 生成 3 份 symptom-only 工单预览。Hub 从不读取 syndrome 作为工单提示。
+`BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
 
 ## 游戏状态机
 ```ts

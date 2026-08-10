@@ -47,6 +47,8 @@ export type EndlessSolution = {
   reliable: boolean
 }
 
+export type EndlessCasePreview = Pick<EndlessCase, 'seed' | 'caseNo' | 'title' | 'incident' | 'reportedFacts'>
+
 const FEATURE_PAIRS: Array<[FeatureKey, FeatureKey]> = [
   ['warmth', 'roundness'], ['warmth', 'texture'], ['warmth', 'aspect'],
   ['roundness', 'texture'], ['roundness', 'aspect'], ['texture', 'aspect'],
@@ -448,6 +450,11 @@ export function createEndlessCase(seed: number): EndlessCase {
       explanation: explanations[syndrome],
     },
   }
+}
+
+export function createEndlessCasePreview(seed: number): EndlessCasePreview {
+  const { caseNo, title, incident, reportedFacts } = createEndlessCase(seed)
+  return { seed, caseNo, title, incident, reportedFacts }
 }
 
 export function enumerateEndlessSolutions(caseData: EndlessCase): EndlessSolution[] {
