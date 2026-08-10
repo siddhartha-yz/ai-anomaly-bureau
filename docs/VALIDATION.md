@@ -250,6 +250,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 本轮 production JS 与本地 build 的 SHA-256 均为 `8cd0a26c61436bdc2cd728721f414b723d2a4967c064062d15b4c3b57f0bb5df`（411474 bytes）；CSS `assets/index-B06ZCwZi.css` 两端 SHA-256 均为 `406cf3b4ebd9931eec1c789954e3c87c127064d3bac3e101321441969a157a91`（174938 bytes）。对应提交 `9391f8e` 的 GitHub `CI` 与 `Deploy Pages` 均已 `completed / success`。
 - 2026-08-10 10:38 +08:00，safe duty preview 边界进入最终 runtime `assets/index-Dh_HZzuz.js` 后，再次对真实 Pages 完整执行 **22 / 22** Chromium E2E，首轮全部通过。JS 本地 / 远端 SHA-256 均为 `44cdd65888b13858ff6cfd5d5690cd91fc43cbd0f0e936502570b5e35965b88a`（411605 bytes）；CSS 仍为 `406cf3b4ebd9931eec1c789954e3c87c127064d3bac3e101321441969a157a91`（174938 bytes）。提交 `63bb096` 的 `CI` 与 `Deploy Pages` 均已 `completed / success`。
 
+- 2026-08-10 12:54 +08:00，本轮调查局框架 / 作弊码最终 runtime 检查点 `34dfac3` 已由 Pages 发布为 `assets/index-DtiyRLxy.js`。对该精确线上版本完整运行 **23 / 23 production E2E，首轮全部通过**；覆盖正式 Story 作弊 checkpoint、Bureau / Training / seeded Duty 跨模式作弊码、case catalog、Hub 部门回流与 SHIFT PRIORITY，同时保留此前 Story / Endless 全部回归路线。GitHub `CI` 与 `Deploy Pages` 均为 `completed / success`。最终 JS 本地 / 线上 SHA-256 均为 `47a148aa154cd4c91a814b8151afa3ef0d2b86211d9591b4dd0fe3c38240a010`（413943 bytes）；CSS `assets/index-KfJ1P0yG.css` 两端 SHA-256 均为 `ebc5b8feba255c857ab68492ed2ecb6f160fc5e7def1f29ab3b59bc6d0d2c31f`（177241 bytes）。
+
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
 ## CSS / App.tsx 维护债务审计
