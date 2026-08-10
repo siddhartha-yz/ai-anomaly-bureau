@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { objectiveFor } from '../src/endless/EndlessNavigator'
+import { canInspectCaseLead, objectiveFor } from '../src/endless/EndlessNavigator'
 import type { EndlessRunRecord } from '../src/endless/uiTypes'
 
 const record = (id: number): EndlessRunRecord => ({
@@ -16,6 +16,15 @@ const record = (id: number): EndlessRunRecord => ({
 })
 
 describe('formal endless process navigator', () => {
+  it('paces cause-source reviews at one new folder per completed audit', () => {
+    expect(canInspectCaseLead(0, 0, false)).toBe(false)
+    expect(canInspectCaseLead(1, 0, false)).toBe(true)
+    expect(canInspectCaseLead(1, 1, false)).toBe(false)
+    expect(canInspectCaseLead(1, 1, true)).toBe(true)
+    expect(canInspectCaseLead(2, 1, false)).toBe(true)
+    expect(canInspectCaseLead(2, 2, false)).toBe(false)
+  })
+
   it('starts with one baseline action rather than asking the player to diagnose', () => {
     const objective = objectiveFor({ trained: false, auditComplete: false, history: [], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 5 })
     expect(objective.focus).toBe('baseline')

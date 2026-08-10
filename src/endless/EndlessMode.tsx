@@ -439,6 +439,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               inspectedArchiveIds={inspectedArchiveIds}
               inspectedFieldErrors={inspectedFieldErrors}
               onInspectCaseLead={(id) => {
+                if (!inspectedCaseLeadIds.includes(id) && inspectedCaseLeadIds.length >= history.length) return
                 audio.play('evidence')
                 setInspectedCaseLeadIds((ids) => ids.includes(id) ? ids : [...ids, id])
               }}

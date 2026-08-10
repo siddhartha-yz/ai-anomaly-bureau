@@ -6,6 +6,10 @@ export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'di
 export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
 
+export function canInspectCaseLead(historyCount: number, inspectedLeadCount: number, alreadyInspected: boolean) {
+  return alreadyInspected || (historyCount > 0 && inspectedLeadCount < historyCount)
+}
+
 export function objectiveFor({
   trained,
   auditComplete,
@@ -141,21 +145,23 @@ export function EndlessLeadBoard({
     <section className="endless-lead-board" aria-label="案件线索板">
       <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
       <section className="endless-causal-leads" aria-label="因果线索来源">
-        <div className="endless-hypothesis-head"><small>COMPETING CAUSES</small><strong>{history.length ? '三条原因目前都说得通；先挑一条去核验' : '先复现事故，三条因果假设随后解封'}</strong></div>
+        <div className="endless-hypothesis-head"><small>COMPETING CAUSES</small><strong>{history.length ? '每次正式审计只解封一份原因来源' : '先复现事故，三条因果假设随后解封'}</strong></div>
+        {history.length > 0 && <p className="endless-causal-cadence">每条正式审计提供 1 次来源解封额度，未使用额度可保留。当前可新开 {Math.max(0, history.length - inspectedCaseLeadIds.length)} 份；调查不能靠一次 baseline 把三个资料夹全点开。</p>}
         <div className="endless-causal-lead-grid">
           {caseData.leadSources.map((lead) => {
             const inspected = inspectedCaseLeadIds.includes(lead.id)
+            const available = canInspectCaseLead(history.length, inspectedCaseLeadIds.length, inspected)
             return (
               <button
                 type="button"
                 key={lead.id}
-                disabled={!history.length}
+                disabled={!available}
                 className={inspected ? 'inspected' : ''}
                 onClick={() => onInspectCaseLead?.(lead.id)}
               >
-                <i>{causeCodes[lead.id]} · {inspected ? 'OPEN' : 'SEALED'}</i>
+                <i>{causeCodes[lead.id]} · {inspected ? 'OPEN' : available ? 'READY' : 'SEALED'}</i>
                 <strong>{lead.label}</strong>
-                <small>{inspected ? lead.finding : lead.prompt}</small>
+                <small>{inspected ? lead.finding : available ? lead.prompt : '需要先取得下一条正式审计记录，才能继续解封新的来源。'}</small>
               </button>
             )
           })}

@@ -587,6 +587,10 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
 
   await inspectCausalLead(page, /历史质量记录/)
   await expect(causalLeads).toContainText('质量系统标出了 4 条需要人工复核的历史记录')
+  await expect(causalLeads.getByRole('button', { name: /历史质量记录/ })).toBeEnabled()
+  await expect(causalLeads.getByRole('button', { name: /历史档案构成/ })).toBeDisabled()
+  await expect(causalLeads.getByRole('button', { name: /采集批次记录/ })).toBeDisabled()
+  await expect(causalLeads).toContainText('需要先取得下一条正式审计记录')
   await expect(page.getByLabel('当前调查目标')).toContainText('让两个解释真正分叉')
   await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(4)
   const archiveAlert = page.getByRole('button', { name: /查看档案异常 archive-flag-01/ })
