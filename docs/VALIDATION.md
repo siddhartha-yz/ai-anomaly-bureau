@@ -259,6 +259,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 2026-08-10 12:54 +08:00，本轮调查局框架 / 作弊码最终 runtime 检查点 `34dfac3` 已由 Pages 发布为 `assets/index-DtiyRLxy.js`。对该精确线上版本完整运行 **23 / 23 production E2E，首轮全部通过**；覆盖正式 Story 作弊 checkpoint、Bureau / Training / seeded Duty 跨模式作弊码、case catalog、Hub 部门回流与 SHIFT PRIORITY，同时保留此前 Story / Endless 全部回归路线。GitHub `CI` 与 `Deploy Pages` 均为 `completed / success`。最终 JS 本地 / 线上 SHA-256 均为 `47a148aa154cd4c91a814b8151afa3ef0d2b86211d9591b4dd0fe3c38240a010`（413943 bytes）；CSS `assets/index-KfJ1P0yG.css` 两端 SHA-256 均为 `ebc5b8feba255c857ab68492ed2ecb6f160fc5e7def1f29ab3b59bc6d0d2c31f`（177241 bytes）。
 - 2026-08-10 14:28 +08:00，本轮 authored-case framework 最终代码检查点 `39dc728` 已由 Pages 发布为 `assets/index-DGjhPZT4.js`；随后文档检查点 `b127bd8` 的 GitHub `CI` Run 94 与 `Deploy Pages` Run 78 也都显示 `completed successfully`。线上 HTML 实际引用 `assets/index-DGjhPZT4.js` 与 `assets/index-KfJ1P0yG.css`；JS 本地 / 线上 SHA-256 均为 `2bd3e2347534c519767afe3061d8f3a5125d4866a1ef93139ed0e33f58a10f97`（416012 bytes），CSS 两端仍为 `ebc5b8feba255c857ab68492ed2ecb6f160fc5e7def1f29ab3b59bc6d0d2c31f`（177241 bytes）。直接对该精确 `github.io` 版本运行完整 **23 / 23 production E2E，首轮全部通过**，包括 catalog-driven Formal / Training runtime、Bureau progress v2、Formal/Duty seed 隔离与旧 query 兼容路线。
 - 2026-08-10 14:41 +08:00，Bureau 迁移恢复最终代码检查点 `21d1344` 的 GitHub `CI` Run 96 与 `Deploy Pages` Run 80 均 `completed successfully`；生产 HTML 已切换到 `assets/index-BXnu41BS.js`。本地 / 线上 JS SHA-256 均为 `e4e30ab651ee4e3135ef026a93d127474d7b506df83689d2e31b7154d3c015fb`（416099 bytes），CSS `assets/index-KfJ1P0yG.css` 两端仍为 `ebc5b8feba255c857ab68492ed2ecb6f160fc5e7def1f29ab3b59bc6d0d2c31f`（177241 bytes）。随后测试检查点 `9cf8ad5` 的 `CI` Run 97 与 `Deploy Pages` Run 81 也均 `completed successfully`；直接对该精确 `github.io` 代码版本运行当前完整 **24 / 24 production E2E，首轮全部通过**，新增真实覆盖“损坏 v2 JSON + 完整 v1 → 恢复 Bureau 长期事实 → 写出合法 v2 → 删除旧 v1”。
+- 2026-08-10 15:12 +08:00，本轮最终 authored-content / application-shell 检查点 `f190ef5` 的 GitHub `CI` Run 101 与 `Deploy Pages` Run 85 均 `completed successfully`。生产 HTML 实际引用 `assets/index-BYY1gKnf.js` 与 `assets/index-KfJ1P0yG.css`；JS 本地 / 线上 SHA-256 均为 `97f0ac5dd7ae250ea5fdf5d2f3f33e90e94c9b196e939e11824025981cc05b6e`（416226 bytes），CSS 两端 SHA-256 均为 `ebc5b8feba255c857ab68492ed2ecb6f160fc5e7def1f29ab3b59bc6d0d2c31f`（177241 bytes）。该精确线上版本完整执行 **24 / 24 production E2E，首轮全部通过**；本地最终发布级验证同时为 **20 个 Vitest 文件 / 100 个测试全通过**。这一版已包含 Formal / Training runtime registry、Bureau progress v2 与恢复、Formal / Duty seed 隔离、`bureau/duty.ts` preview/resume/clear 边界、ESLint import 架构护栏，以及 `app/bootstrap.ts` 对旧 Story / Training 进度的容错归并。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
@@ -269,7 +270,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 现状：
 
 - UI 经多轮迭代后存在多个分层 CSS 文件；本轮没有为了框架重构顺带合并视觉层。
-- `App.tsx` 已从 1123 行降到约 185 行，只保留应用级模式、case id、Bureau progression 与返回路径编排；CASE 001 运行时、Formal resume/clear/reconciliation 与 Training 000 runtime 已移出 App。
+- `App.tsx` 已从 1123 行降到 168 行，只保留应用级模式、case id、Bureau progression 更新与返回路径编排；CASE 001 运行时、Formal resume/clear/reconciliation、Training 000 runtime、Duty session 摘要/清档以及旧进度启动迁移均已移出 App。
 - 粗略静态扫描仍能找到若干可能的历史 class，但包含动态 class、媒体查询和层叠覆盖，无法仅凭文本搜索安全删除。
 
 判断：当前视觉结果已经通过真浏览器验证；React 的 authored-content 边界已经完成本轮目标，但为了“代码洁癖”继续合并 CSS 的风险高于收益。本轮没有进行大规模视觉样式重构。
