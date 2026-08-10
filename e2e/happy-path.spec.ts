@@ -1131,4 +1131,7 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await page.getByRole('button', { name: /多数类把总体准确率撑高/ }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()
+  const directQueryProgress = JSON.parse((await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY))!)
+  expect(directQueryProgress.story001.resolved).toBe(false)
+  expect(directQueryProgress.duty.resolutions).toEqual([])
 })

@@ -85,7 +85,7 @@ Vitest 当前覆盖：
 - CASE 001 真实结案后写入 Bureau progress；刷新首次进入 Hub 时出现 `CLEARANCE GRANTED`，确认后不会重复出现。
 - Hub 案件板能重开 CASE 001；训练中心识别 Boot Case `CLEARED`；调查档案只显示已经真实发现的条目。
 - 值班室无未结案时显示 3 份 symptom-only `INCOMING REPORTS`；已经归档的 seed 不会重新出现在工单队列。
-- Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷。
+- Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷；显式 `?mode=endless` 开发直达即使完成案件，也不会在未入职 profile 中写入 Duty 长期进度。
 - 存在未结 Duty session 时，Hub 只引导继续旧案；新报告不能静默覆盖现有 session。
 - Hub / 工单队列在 1280×720 下无横向溢出，四个部门都可操作。
 
@@ -246,6 +246,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 2026-08-10 08:26 +08:00，本轮 Story checkpoint 关系加固的最终功能检查点 `4bdf95a` 已由 Pages 实际发布为 `assets/index-sDwaHLsF.js`，GitHub `CI` 与 `Deploy Pages` 均为 `completed / success`。
 - 对该精确 production asset 连续运行两次完整 19-route E2E：两次都只有 1 条路线在任何产品断言执行前的 `page.goto` 遇到 GitHub Pages `net::ERR_CONNECTION_CLOSED`，且发生在不同 endless 路线上；各自 test retry 均立即通过，两条失败路线随后单独首轮复验也通过。没有出现 Story / Endless 的产品断言失败，因此没有为了外部连接瞬断修改业务代码或放宽本地 retry。
 - 最新 production JS 与本地 release build 的 SHA-256 均为 `9e431579dd70b1ef47fc0d57ce4c9e0d78fb471b06598213a0432f0ebb4f52a6`（393434 bytes）；CSS `assets/index-Da9oSxjH.css` 两端 SHA-256 均为 `6d711b6aa28c6ac207bbc22ac4c64319490482b5f044fd1c92b2633379bda303`（159870 bytes）。
+- 2026-08-10 10:23 +08:00，本轮 Bureau Hub / meta loop 的 production HTML 已实际引用 `assets/index-CHLw5uOw.js`；随后直接对 `github.io` 运行最新 **22-route** Chromium E2E，**22 / 22 首轮全部通过**，包括新人不见空 Hub、CASE 001 → CLEARANCE GRANTED → Hub、1280×720 Hub、Duty 工单队列、Duty 结案回流与原有 Story / Endless 全部路线。
+- 本轮 production JS 与本地 build 的 SHA-256 均为 `8cd0a26c61436bdc2cd728721f414b723d2a4967c064062d15b4c3b57f0bb5df`（411474 bytes）；CSS `assets/index-B06ZCwZi.css` 两端 SHA-256 均为 `406cf3b4ebd9931eec1c789954e3c87c127064d3bac3e101321441969a157a91`（174938 bytes）。对应提交 `9391f8e` 的 GitHub `CI` 与 `Deploy Pages` 均已 `completed / success`。
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
