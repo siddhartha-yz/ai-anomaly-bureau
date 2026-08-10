@@ -62,12 +62,12 @@ describe('Story Case local checkpoint', () => {
       mistakes: [],
       orangeCatErrors: 0,
     }))
-    value.emergencyAudits = 1
+    value.emergencyAudits = 0
 
     expect(writeStorySession(storage, value)).toBe(true)
     const restored = readStorySession(storage, value.seed)
     expect(restored?.experimentLog).toHaveLength(3)
-    expect(storyAuditCredits(restored!)).toBe(3)
+    expect(storyAuditCredits(restored!)).toBe(2)
     expect(storySessionHasProgress(restored!)).toBe(true)
   })
 
@@ -350,6 +350,41 @@ describe('Story Case local checkpoint', () => {
     writeStorySession(storage, value)
     expect(clearStorySession(storage, value.seed)).toBe(true)
     expect(readStorySession(storage, value.seed)).toBeUndefined()
+  })
+
+  it('rejects impossible emergency audit refunds but accepts one earned after exhausting the base budget', () => {
+    const storage = new MemoryStorage()
+    const impossible = session()
+    impossible.emergencyAudits = 1
+    storage.setItem(storySessionKey(impossible.seed), JSON.stringify(impossible))
+    expect(readStorySession(storage, impossible.seed)).toBeUndefined()
+
+    const earned = session(20260810)
+    addFirstRunPrerequisites(earned)
+    earned.state = { ...earned.state, stage: 'iterate' }
+    earned.experimentLog = [
+      { id: 1, model: 'linear', features: ['warmth', 'roundness'], trainAccuracy: .89, auditAccuracy: 1, errors: 0 },
+      ...Array.from({ length: 4 }, (_, index) => ({
+        id: index + 2,
+        model: 'knn-1' as const,
+        features: ['warmth', 'roundness'] as ['warmth', 'roundness'],
+        trainAccuracy: 1,
+        auditAccuracy: 1,
+        errors: 0,
+        prediction: 'no-idea' as const,
+      })),
+    ]
+    earned.state.auditHistory = earned.experimentLog.map(() => ({
+      accuracy: 1,
+      errorCount: 0,
+      confusion: { 'cat->cat': 8, 'cat->bread': 0, 'bread->cat': 0, 'bread->bread': 8 },
+      mistakes: [],
+      orangeCatErrors: 0,
+    }))
+    earned.emergencyAudits = 1
+
+    expect(writeStorySession(storage, earned)).toBe(true)
+    expect(storyAuditCredits(readStorySession(storage, earned.seed)!)).toBe(1)
   })
 
   it('rejects hidden telemetry IDs, excessive event logs and oversized raw checkpoints', () => {

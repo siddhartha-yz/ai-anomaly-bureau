@@ -436,6 +436,9 @@ function isStorySession(value: unknown, seed: number): value is StorySessionData
   }
   if (item.pendingPrediction !== undefined && !PREDICTIONS.has(item.pendingPrediction)) return false
   if (!isNonNegativeInteger(item.emergencyAudits) || !isNonNegativeInteger(item.reasoningMisses)) return false
+  const paidAudits = Math.max(0, item.experimentLog.length - 1)
+  const maxEarnedEmergencyAudits = Math.max(0, paidAudits - 3)
+  if (item.emergencyAudits > maxEarnedEmergencyAudits) return false
   if (item.behaviorLog !== undefined && !isBehaviorLog(item.behaviorLog, seed)) return false
   if (item.selectedMistake !== undefined && !state.audit?.mistakes.some((mistake) => mistake.id === item.selectedMistake)) return false
   if (item.suspiciousAttemptId !== undefined && !item.experimentLog.some((record) => record.id === item.suspiciousAttemptId)) return false
