@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -129,5 +129,21 @@ describe('endless experiment comparison metadata', () => {
 
     expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed])?.comparison.axis).toBe('fields')
     expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed], 2)).toBeUndefined()
+  })
+
+  it('only lets a weak controlled result count as falsification when its causal expectation was registered first', () => {
+    const baseline = record({ id: 1, test: .72, recall: { cat: .74, bread: .70 } })
+    const weakModelChange = record({
+      id: 2,
+      model: 'tree',
+      test: .75,
+      recall: { cat: .76, bread: .72 },
+    })
+    expect(preRegisteredNullResult(baseline, weakModelChange)).toBe(false)
+    expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'null' })).toBe(true)
+    expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'material' })).toBe(true)
+
+    const mixed = { ...weakModelChange, features: ['texture', 'aspect'] as EndlessRunRecord['features'], causalPrediction: 'null' as const }
+    expect(preRegisteredNullResult(baseline, mixed)).toBe(false)
   })
 })

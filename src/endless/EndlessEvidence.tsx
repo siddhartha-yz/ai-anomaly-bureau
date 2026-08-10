@@ -157,7 +157,7 @@ export function EndlessRunLog({
           <span>{caseData.featureNames[record.features[0]]} + {caseData.featureNames[record.features[1]]}<small>{MODEL_META[record.model].label} · 最低召回 {Math.round(Math.min(record.recall.cat, record.recall.bread) * 100)}%</small><small className={`experiment-delta ${delta}`}>Δ {deltaLabel}</small></span>
           <b>{Math.round(record.train * 100)} → {Math.round(record.test * 100)}%</b>
           <em>
-            <span>{record.predictionHit ? '预测✓' : '预测×'} · {record.reliable ? '可靠✓' : '可靠×'}</span>
+            <span>{record.predictionHit ? '预测✓' : '预测×'} · {record.reliable ? '可靠✓' : '可靠×'}{record.causalPrediction ? ` · 因果预期：${record.causalPrediction === 'material' ? '应变化' : '应基本不变'}` : ''}</span>
             {evidenceSelectable && onToggleEvidence && (
               <button
                 type="button"

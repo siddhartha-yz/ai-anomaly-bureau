@@ -52,6 +52,16 @@ describe('endless local session persistence', () => {
     expect(raw).not.toMatch(/test-cat|test-bread|syndrome|diagnosis\.correct/)
   })
 
+  it('persists a pre-audit causal expectation and rejects unknown expectation values', () => {
+    const storage = new MemoryStorage()
+    const value = { ...session(), causalPrediction: 'null' as const }
+    expect(writeEndlessSession(storage, value)).toBe(true)
+    expect(readEndlessSession(storage, 6000)?.causalPrediction).toBe('null')
+
+    storage.setItem(endlessSessionKey(6000), JSON.stringify({ ...value, causalPrediction: 'after-the-fact' }))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
   it('isolates progress by seed', () => {
     const storage = new MemoryStorage()
     writeEndlessSession(storage, session(6000))

@@ -1,7 +1,7 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { earnedCaseLeadReviewCount, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { earnedCaseLeadReviewCount, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -18,6 +18,7 @@ export type EndlessSessionData = {
   model: ModelId
   trained: boolean
   prediction?: BandPrediction
+  causalPrediction?: CausalPrediction
   auditComplete: boolean
   emergencyCredits: number
   history: EndlessRunRecord[]
@@ -39,6 +40,7 @@ export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 const FEATURES = new Set<FeatureKey>(['warmth', 'roundness', 'texture', 'aspect'])
 const MODELS = new Set<ModelId>(['linear', 'tree', 'knn-1', 'knn-5'])
 const PREDICTIONS = new Set<BandPrediction>(['high', 'mid', 'low'])
+const CAUSAL_PREDICTIONS = new Set<CausalPrediction>(['material', 'null'])
 const SYNDROMES = new Set<EndlessSyndrome>(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'])
 const LABELS = new Set<Label>(['cat', 'bread'])
 const OUTCOMES = new Set(['wrong', 'needs-reliable'] as const)
@@ -75,6 +77,7 @@ function isRunRecord(value: unknown): value is EndlessRunRecord {
     && isRate(item.test)
     && isNonNegativeInteger(item.errors)
     && PREDICTIONS.has(item.prediction as BandPrediction)
+    && optionalMember(item.causalPrediction, CAUSAL_PREDICTIONS)
     && typeof item.predictionHit === 'boolean'
     && Boolean(item.recall)
     && isRate(item.recall?.cat)
@@ -107,7 +110,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (item.version !== ENDLESS_SESSION_VERSION || item.seed !== seed) return false
   if (!isFeaturePair(item.features) || (item.activeSlot !== 0 && item.activeSlot !== 1) || !MODELS.has(item.model as ModelId)) return false
   if (typeof item.trained !== 'boolean' || typeof item.auditComplete !== 'boolean' || typeof item.solved !== 'boolean') return false
-  if (!optionalMember(item.prediction, PREDICTIONS) || !optionalMember(item.diagnosis, SYNDROMES) || !optionalMember(item.submittedDiagnosis, SYNDROMES)) return false
+  if (!optionalMember(item.prediction, PREDICTIONS) || !optionalMember(item.causalPrediction, CAUSAL_PREDICTIONS) || !optionalMember(item.diagnosis, SYNDROMES) || !optionalMember(item.submittedDiagnosis, SYNDROMES)) return false
   if (!optionalMember(item.lastDiagnosisOutcome, OUTCOMES as Set<'wrong' | 'needs-reliable'>)) return false
   if (!isNonNegativeInteger(item.emergencyCredits) || !isNonNegativeInteger(item.diagnosisAttempts)) return false
   if (!isNonNegativeInteger(item.lastDiagnosisConfigCount) || !isNonNegativeInteger(item.lastDiagnosisRunCount)) return false

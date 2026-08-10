@@ -2,6 +2,7 @@ import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
 
 export type BandPrediction = 'high' | 'mid' | 'low'
+export type CausalPrediction = 'material' | 'null'
 
 export type EndlessRunRecord = {
   id: number
@@ -12,6 +13,7 @@ export type EndlessRunRecord = {
   errors: number
   prediction: BandPrediction
   predictionHit: boolean
+  causalPrediction?: CausalPrediction
   recall: { cat: number; bread: number }
   reliable: boolean
 }
@@ -129,6 +131,11 @@ export function discriminatingExperiment(first: EndlessRunRecord, second: Endles
     direction: strongestDelta > 0 ? 'improved' : strongestDelta < 0 ? 'degraded' : 'flat',
     discriminating: Boolean(axis && materialChange >= .12),
   }
+}
+
+export function preRegisteredNullResult(first: EndlessRunRecord, second: EndlessRunRecord) {
+  const comparison = discriminatingExperiment(first, second)
+  return Boolean(comparison.axis && second.causalPrediction && !comparison.discriminating)
 }
 
 export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {

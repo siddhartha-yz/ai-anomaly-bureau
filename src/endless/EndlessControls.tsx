@@ -2,14 +2,14 @@ import { MODEL_META, type ModelId } from '../ml/registry'
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase } from './generator'
 import type { EndlessFocus } from './EndlessNavigator'
-import { experimentPlanDelta, type BandPrediction, type EndlessRunRecord } from './uiTypes'
+import { experimentPlanDelta, type BandPrediction, type CausalPrediction, type EndlessRunRecord } from './uiTypes'
 
 const FEATURES: FeatureKey[] = ['warmth', 'roundness', 'texture', 'aspect']
 const MODELS: ModelId[] = ['linear', 'tree', 'knn-1', 'knn-5']
 
 export function EndlessControls({
-  caseData, features, activeSlot, model, trained, trainAccuracy, prediction, credits, auditComplete,
-  previousRun, focus, onActiveSlot, onFeature, onModel, onTrain, onPrediction, onAudit, onEmergency,
+  caseData, features, activeSlot, model, trained, trainAccuracy, prediction, causalPrediction, credits, auditComplete,
+  previousRun, focus, onActiveSlot, onFeature, onModel, onTrain, onPrediction, onCausalPrediction, onAudit, onEmergency,
 }: {
   caseData: EndlessCase
   features: [FeatureKey, FeatureKey]
@@ -18,6 +18,7 @@ export function EndlessControls({
   trained: boolean
   trainAccuracy?: number
   prediction?: BandPrediction
+  causalPrediction?: CausalPrediction
   credits: number
   auditComplete: boolean
   previousRun?: EndlessRunRecord
@@ -27,6 +28,7 @@ export function EndlessControls({
   onModel: (model: ModelId) => void
   onTrain: () => void
   onPrediction: (prediction: BandPrediction) => void
+  onCausalPrediction: (prediction: CausalPrediction) => void
   onAudit: () => void
   onEmergency: () => void
 }) {
@@ -92,6 +94,17 @@ export function EndlessControls({
             <button type="button" className={prediction === 'mid' ? 'selected' : ''} onClick={() => onPrediction('mid')}>60–84% 勉强</button>
             <button type="button" className={prediction === 'low' ? 'selected' : ''} onClick={() => onPrediction('low')}>&lt;60% 翻车</button>
           </div>
+          {(planDelta === 'fields-only' || planDelta === 'model-only') && (
+            <div className="endless-causal-prediction" aria-label="因果预注册">
+              <small>CAUSAL PRE-REGISTRATION</small>
+              <strong>只改这一个变量，FIELD / 最低召回应该明显变化吗？</strong>
+              <div className="endless-causal-picks">
+                <button type="button" className={causalPrediction === 'material' ? 'selected' : ''} onClick={() => onCausalPrediction('material')}>应该明显变化</button>
+                <button type="button" className={causalPrediction === 'null' ? 'selected' : ''} onClick={() => onCausalPrediction('null')}>应该基本不变</button>
+              </div>
+              <span>若想让“几乎没变化”的结果成为排除证据，必须在审计前留下这条因果预期；否则它只算一次普通对照。</span>
+            </div>
+          )}
           <button type="button" className="endless-primary" disabled={!prediction || credits <= 0} onClick={onAudit}>消耗 1 次额度 · 运行现场审计</button>
           {credits <= 0 && <button type="button" className="endless-emergency" onClick={onEmergency}>申请额外审计（评级扣分）</button>}
         </section>

@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, latestControlledExperiment, latestDiscriminatingExperiment, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestControlledExperiment, latestDiscriminatingExperiment, preRegisteredNullResult, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -73,6 +73,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const [trainAccuracy, setTrainAccuracy] = useState<number | undefined>(restoredTrainAccuracy)
   const [auditResult, setAuditResult] = useState<EndlessAudit | undefined>(restoredAudit)
   const [prediction, setPrediction] = useState<BandPrediction | undefined>(restoredSession?.prediction)
+  const [causalPrediction, setCausalPrediction] = useState<CausalPrediction | undefined>(restoredSession?.causalPrediction)
   const [credits, setCredits] = useState(restoredSession ? remainingEndlessAuditCredits(restoredSession) : 5)
   const [emergencyCredits, setEmergencyCredits] = useState(restoredSession?.emergencyCredits ?? 0)
   const [history, setHistory] = useState<EndlessRunRecord[]>(restoredSession?.history ?? [])
@@ -95,6 +96,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       model,
       trained,
       prediction,
+      causalPrediction,
       auditComplete: Boolean(auditResult),
       emergencyCredits,
       history,
@@ -111,7 +113,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       solved,
     })
   }, [
-    seed, features, activeSlot, model, trained, prediction, auditResult, emergencyCredits, history,
+    seed, features, activeSlot, model, trained, prediction, causalPrediction, auditResult, emergencyCredits, history,
     diagnosis, diagnosisAttempts, lastDiagnosisConfigCount, lastDiagnosisRunCount, selectedEvidenceRunIds,
     submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedCaseLeadIds, inspectedFieldErrors, solved,
   ])
@@ -121,6 +123,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     setTrainAccuracy(undefined)
     setAuditResult(undefined)
     setPrediction(undefined)
+    setCausalPrediction(undefined)
     setSelectedFieldErrorId(undefined)
   }
 
@@ -159,6 +162,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   }
 
   const audit = () => {
+    const planDelta = experimentPlanDelta(history.at(-1), model, features)
     if (!trained || trainAccuracy === undefined || !prediction || credits <= 0) return
     audio.play('audit')
     const result = caseData.audit(model, features)
@@ -171,6 +175,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       errors: result.errorCount,
       prediction,
       predictionHit: prediction === accuracyBand(result.accuracy),
+      ...((planDelta === 'fields-only' || planDelta === 'model-only') && causalPrediction ? { causalPrediction } : {}),
       recall: result.recall,
       reliable: caseData.isReliable(result),
     }
@@ -178,6 +183,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     setCredits((value) => value - 1)
     setHistory((records) => [...records, record])
     setPrediction(undefined)
+    setCausalPrediction(undefined)
   }
 
   const best = Math.max(0, ...history.map((record) => record.test))
@@ -187,7 +193,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const sourceFalsification = inspectedCaseLeadIds.some((id) => caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear')
   const interventionFalsification = (['fields', 'model'] as const).some((axis) => {
     const controlled = latestControlledExperiment(history, axis)
-    return Boolean(controlled && !controlled.comparison.discriminating)
+    return Boolean(controlled && preRegisteredNullResult(controlled.first, controlled.second))
   })
   const falsificationReady = sourceFalsification || interventionFalsification
   const diagnosisAvailable = distinctConfigCount >= 2
@@ -266,6 +272,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     setTrainAccuracy(undefined)
     setAuditResult(undefined)
     setPrediction(undefined)
+    setCausalPrediction(undefined)
     setCredits(5)
     setEmergencyCredits(0)
     setHistory([])
@@ -453,6 +460,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               trained={trained}
               trainAccuracy={trainAccuracy}
               prediction={prediction}
+              causalPrediction={causalPrediction}
               credits={credits}
               auditComplete={Boolean(auditResult)}
               previousRun={history.at(-1)}
@@ -462,6 +470,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               onModel={chooseModel}
               onTrain={train}
               onPrediction={(value) => { audio.play('select'); setPrediction(value) }}
+              onCausalPrediction={(value) => { audio.play('select'); setCausalPrediction(value) }}
               onAudit={audit}
               onEmergency={requestEmergencyAudit}
             />
