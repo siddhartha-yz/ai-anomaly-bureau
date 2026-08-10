@@ -33,6 +33,7 @@ export default tseslint.config(
           { name: './story/StoryCase001Runtime', message: 'App must select formal cases through story/registry.' },
           { name: './training/TrainingCase000Runtime', message: 'App must select training cases through training/registry.' },
           { name: './game/session', message: 'Formal-case checkpoint internals belong behind story/registry.' },
+          { name: './endless/session', message: 'Duty session internals belong behind bureau/duty.' },
         ],
       }],
     },

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId, type TrainingCaseId } from './bureau/catalog'
+import { clearDutyProgress, readDutyResume } from './bureau/duty'
 import { acknowledgeBureauInduction, isBureauUnlocked, isTrainingCaseCompleted, readBureauProgress, reconcileLegacyProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion, writeBureauProgress, type BureauProgress } from './bureau/progress'
 import { BureauHub, type HubSection } from './components/BureauHub'
 import { FormalCaseResume } from './components/FormalCaseResume'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
-import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
 import { CHEAT_AUTO_RESUME_KEY } from './game/cheats'
 import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
 import { trainingCaseRuntime } from './training/registry'
@@ -57,13 +57,7 @@ function App() {
   const TrainingCaseComponent = activeTrainingRuntime.Component
   const formalCaseResumes = readFormalCaseResumes(window.localStorage, formalCaseSeed)
   const formalCaseResume = formalCaseResumes[formalCaseId]
-  const savedEndlessSession = readEndlessSession(window.localStorage, dutySeed)
-  const endlessResume = hasEndlessSessionProgress(savedEndlessSession) && savedEndlessSession ? {
-    seed: savedEndlessSession.seed,
-    historyCount: savedEndlessSession.history.length,
-    remainingCredits: remainingEndlessAuditCredits(savedEndlessSession),
-    solved: savedEndlessSession.solved,
-  } : undefined
+  const endlessResume = readDutyResume(window.localStorage, dutySeed)
 
   const restartFormalCase = () => {
     activeFormalRuntime.clearSession(window.localStorage, formalCaseSeed)
@@ -126,8 +120,8 @@ function App() {
         onSkip={() => setMode('endless')}
         onNewCase={() => {
           const nextSeed = dutySeed + 1
-          clearEndlessSession(window.localStorage, dutySeed)
-          clearEndlessSession(window.localStorage, nextSeed)
+          clearDutyProgress(window.localStorage, dutySeed)
+          clearDutyProgress(window.localStorage, nextSeed)
           setDutySeed(nextSeed)
           setMode('endless')
         }}

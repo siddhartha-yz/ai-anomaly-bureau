@@ -1,16 +1,9 @@
 import { Fragment } from 'react'
 import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_CATALOG, trainingCaseCode, type FormalCaseId, type TrainingCaseId } from '../bureau/catalog'
 import { bureauDispatch, type BureauDepartment } from '../bureau/dispatch'
-import { createDutyCasePreview } from '../bureau/duty'
+import { createDutyCasePreview, type DutyResumeSummary } from '../bureau/duty'
 import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, nextDutySeeds, trainingCaseProgress, type BureauProgress, type DutyResolution } from '../bureau/progress'
 import type { FormalCaseResumeSummary } from '../story/registry'
-
-type EndlessResumeSummary = {
-  seed: number
-  historyCount: number
-  remainingCredits: number
-  solved: boolean
-}
 
 export type HubSection = BureauDepartment
 
@@ -49,7 +42,7 @@ export function BureauHub({
   section: HubSection
   progress: BureauProgress
   formalCaseResumes?: Partial<Record<FormalCaseId, FormalCaseResumeSummary>>
-  endlessResume?: EndlessResumeSummary
+  endlessResume?: DutyResumeSummary
   dutySeed: number
   onOpenFormalCase: (caseId: FormalCaseId) => void
   onTraining: (caseId: TrainingCaseId) => void
