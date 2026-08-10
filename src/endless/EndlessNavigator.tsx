@@ -1,9 +1,9 @@
 import type { FeatureKey } from '../ml/types'
-import type { EndlessCase, EndlessSyndrome } from './generator'
+import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generator'
 import { discriminatingExperiment, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
-export type EndlessObjectiveTarget = 'train' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
+export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
 
 export function objectiveFor({
@@ -14,6 +14,8 @@ export function objectiveFor({
   evidenceReady,
   diagnosisLocked,
   credits,
+  inspectedCaseLeadCount = 0,
+  needsFalsification = false,
 }: {
   trained: boolean
   auditComplete: boolean
@@ -22,6 +24,8 @@ export function objectiveFor({
   evidenceReady: boolean
   diagnosisLocked: boolean
   credits: number
+  inspectedCaseLeadCount?: number
+  needsFalsification?: boolean
 }): EndlessObjectiveState {
   if (diagnosisLocked && credits <= 0) {
     return { focus: 'diagnose', code: 'RECOVER / NO CREDIT', title: '诊断要改口，但审计额度已经耗尽', detail: '在诊断报告里申请 1 次补充审计。它会扣评级，但不会让案件死锁。', target: 'recovery' }
@@ -37,6 +41,24 @@ export function objectiveFor({
   }
   if (diagnosisAvailable && evidenceReady) {
     return { focus: 'diagnose', code: 'DIAGNOSIS / READY', title: '证据包已就绪，形成病因判断', detail: '用刚引用的两条实验记录解释系统为什么会坏，而不是只看其中最高的一次分数。', target: 'diagnosis' }
+  }
+  if (auditComplete && history.length > 0 && inspectedCaseLeadCount === 0) {
+    return {
+      focus: 'review',
+      code: 'CAUSE / CHOOSE A LEAD',
+      title: '事故已经复现，先决定查哪一种原因',
+      detail: '档案构成、采集批次、质量记录现在都可以复核。先打开一条你认为最能区分因果故事的线索，再设计下一次实验。',
+      target: 'lead-board',
+    }
+  }
+  if (auditComplete && needsFalsification) {
+    return {
+      focus: 'review',
+      code: 'CAUSE / FALSIFY',
+      title: '方案已经能工作，但你还没有排除竞争解释',
+      detail: '不要急着命名病因。再查一份原因来源，或设计一次你预测“应该几乎不起作用”的单变量实验；只有真的杀掉一个解释，报告才够硬。',
+      target: 'lead-board',
+    }
   }
   if (auditComplete) {
     return {
@@ -68,6 +90,7 @@ export function EndlessObjective({ objective, credits, historyCount, configurati
 }) {
   const locateLabel = objective.target === 'recovery' ? '定位：补充审计'
     : objective.target === 'train' ? '定位：训练当前方案'
+      : objective.target === 'lead-board' ? '定位：因果线索'
       : objective.target === 'audit' ? '定位：预测与审计'
         : objective.target === 'run-log' ? '定位：引用实验记录'
           : objective.target === 'diagnosis' ? '定位：诊断报告'
@@ -89,14 +112,23 @@ export function EndlessObjective({ objective, credits, historyCount, configurati
 export function EndlessLeadBoard({
   caseData,
   history,
+  inspectedCaseLeadIds = [],
   inspectedArchiveIds = [],
   inspectedFieldErrors = [],
+  onInspectCaseLead,
 }: {
   caseData: EndlessCase
   history: EndlessRunRecord[]
+  inspectedCaseLeadIds?: EndlessCaseLeadId[]
   inspectedArchiveIds?: string[]
   inspectedFieldErrors?: InspectedFieldError[]
+  onInspectCaseLead?: (id: EndlessCaseLeadId) => void
 }) {
+  const causeCodes: Record<EndlessCaseLeadId, string> = {
+    composition: 'H-COVERAGE',
+    batch: 'H-CONTEXT',
+    quality: 'H-RECORDS',
+  }
   const latest = history.at(-1)
   const fieldTest = latestControlledExperiment(history, 'fields')
   const modelTest = latestControlledExperiment(history, 'model')
@@ -104,10 +136,31 @@ export function EndlessLeadBoard({
   const modelStatus = modelTest ? (modelTest.comparison.discriminating ? 'supported' : 'weakened') : 'open'
   const latestPair = history.length >= 2 ? discriminatingExperiment(history.at(-2)!, history.at(-1)!) : undefined
   const inspectedAlerts = caseData.archiveAlerts.filter((alert) => inspectedArchiveIds.includes(alert.id))
-  const evidenceCount = (inspectedAlerts.length > 0 ? 1 : 0) + history.length + inspectedFieldErrors.length
+  const evidenceCount = inspectedCaseLeadIds.length + (inspectedAlerts.length > 0 ? 1 : 0) + history.length + inspectedFieldErrors.length
   return (
     <section className="endless-lead-board" aria-label="案件线索板">
       <div className="endless-panel-head"><span>CASE_LEADS.LOG</span><strong>{evidenceCount ? `${evidenceCount} 条新增证据` : '等待实验'}</strong></div>
+      <section className="endless-causal-leads" aria-label="因果线索来源">
+        <div className="endless-hypothesis-head"><small>COMPETING CAUSES</small><strong>{history.length ? '三条原因目前都说得通；先挑一条去核验' : '先复现事故，三条因果假设随后解封'}</strong></div>
+        <div className="endless-causal-lead-grid">
+          {caseData.leadSources.map((lead) => {
+            const inspected = inspectedCaseLeadIds.includes(lead.id)
+            return (
+              <button
+                type="button"
+                key={lead.id}
+                disabled={!history.length}
+                className={inspected ? 'inspected' : ''}
+                onClick={() => onInspectCaseLead?.(lead.id)}
+              >
+                <i>{causeCodes[lead.id]} · {inspected ? 'OPEN' : 'SEALED'}</i>
+                <strong>{lead.label}</strong>
+                <small>{inspected ? lead.finding : lead.prompt}</small>
+              </button>
+            )
+          })}
+        </div>
+      </section>
       {history.length > 0 && (
         <section className="endless-hypothesis-board" aria-label="竞争假设">
           <div className="endless-hypothesis-head"><small>COMPETING HYPOTHESES</small><strong>下一次实验要让两条预测分叉</strong></div>

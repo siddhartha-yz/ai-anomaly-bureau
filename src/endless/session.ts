@@ -1,9 +1,10 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
-import type { EndlessSyndrome } from './generator'
+import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
 import type { BandPrediction, EndlessRunRecord, InspectedFieldError } from './uiTypes'
 
-export const ENDLESS_SESSION_VERSION = 2
+export const ENDLESS_SESSION_VERSION = 3
+const PREVIOUS_ENDLESS_SESSION_VERSION = 2
 const LEGACY_ENDLESS_SESSION_VERSION = 1
 
 export type EndlessSessionData = {
@@ -25,6 +26,7 @@ export type EndlessSessionData = {
   submittedDiagnosis?: EndlessSyndrome
   lastDiagnosisOutcome?: 'wrong' | 'needs-reliable'
   inspectedArchiveIds: string[]
+  inspectedCaseLeadIds: EndlessCaseLeadId[]
   inspectedFieldErrors: InspectedFieldError[]
   solved: boolean
 }
@@ -37,6 +39,7 @@ const PREDICTIONS = new Set<BandPrediction>(['high', 'mid', 'low'])
 const SYNDROMES = new Set<EndlessSyndrome>(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'])
 const LABELS = new Set<Label>(['cat', 'bread'])
 const OUTCOMES = new Set(['wrong', 'needs-reliable'] as const)
+const CASE_LEADS = new Set<EndlessCaseLeadId>(['composition', 'batch', 'quality'])
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -108,6 +111,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (!Array.isArray(item.history) || !item.history.every(isRunRecord)) return false
   if (!Array.isArray(item.selectedEvidenceRunIds) || !item.selectedEvidenceRunIds.every(isNonNegativeInteger)) return false
   if (!Array.isArray(item.inspectedArchiveIds) || !item.inspectedArchiveIds.every((id) => typeof id === 'string')) return false
+  if (!Array.isArray(item.inspectedCaseLeadIds) || !item.inspectedCaseLeadIds.every((id) => CASE_LEADS.has(id as EndlessCaseLeadId))) return false
   if (!Array.isArray(item.inspectedFieldErrors) || !item.inspectedFieldErrors.every(isInspectedFieldError)) return false
   const history = item.history
   const runIds = new Set(history.map((run) => run.id))
@@ -132,12 +136,17 @@ function legacyEndlessSessionKey(seed: number) {
   return `aia.endless-session.v${LEGACY_ENDLESS_SESSION_VERSION}.${seed}`
 }
 
+function previousEndlessSessionKey(seed: number) {
+  return `aia.endless-session.v${PREVIOUS_ENDLESS_SESSION_VERSION}.${seed}`
+}
+
 export function hasEndlessSessionProgress(session: EndlessSessionData | undefined) {
   return Boolean(session && (
     session.history.length
     || session.trained
     || session.diagnosisAttempts
     || session.inspectedArchiveIds.length
+    || session.inspectedCaseLeadIds.length
     || session.inspectedFieldErrors.length
     || session.solved
   ))
@@ -150,7 +159,46 @@ export function remainingEndlessAuditCredits(session: EndlessSessionData) {
 export function readEndlessSession(storage: StorageLike, seed: number): EndlessSessionData | undefined {
   const key = endlessSessionKey(seed)
   try {
-    const raw = storage.getItem(key)
+    let raw = storage.getItem(key)
+    if (!raw) {
+      const previousRaw = storage.getItem(previousEndlessSessionKey(seed))
+      if (previousRaw) {
+        if (Math.abs(seed) % 4 === 2) {
+          // V3 softens distribution-shift field generation so the first audit
+          // overlaps other causal stories instead of collapsing into a unique
+          // numeric fingerprint. V2 shift audit metrics therefore describe a
+          // different field world and must not be restored. Other syndrome data
+          // is unchanged and can migrate safely below.
+          storage.removeItem(previousEndlessSessionKey(seed))
+          return undefined
+        }
+        let previous: Record<string, unknown>
+        try {
+          previous = JSON.parse(previousRaw) as Record<string, unknown>
+        } catch {
+          storage.removeItem(previousEndlessSessionKey(seed))
+          return undefined
+        }
+        // V3 only adds player-owned lead-inspection state. Generator/model
+        // semantics are unchanged from V2 for non-shift cases, so V2 history is
+        // safe to migrate by starting those new lead checks as unopened.
+        const migrated: unknown = { ...previous, version: ENDLESS_SESSION_VERSION, inspectedCaseLeadIds: [] }
+        if (!isSessionData(migrated, seed)) {
+          storage.removeItem(previousEndlessSessionKey(seed))
+          return undefined
+        }
+        raw = JSON.stringify(migrated)
+        // Persist the canonical V3 payload before deleting the only old copy.
+        // If storage is full/unavailable, leave V2 intact so the migration can
+        // be retried instead of turning a read into data loss.
+        try {
+          storage.setItem(key, raw)
+          storage.removeItem(previousEndlessSessionKey(seed))
+        } catch {
+          return undefined
+        }
+      }
+    }
     if (!raw) {
       // V2 changes the generated field probes and deployed baseline semantics.
       // An old V1 run history therefore cannot be mixed with the new world for
@@ -183,6 +231,7 @@ export function writeEndlessSession(storage: StorageLike, session: EndlessSessio
 export function clearEndlessSession(storage: StorageLike, seed: number) {
   try {
     storage.removeItem(endlessSessionKey(seed))
+    storage.removeItem(previousEndlessSessionKey(seed))
     storage.removeItem(legacyEndlessSessionKey(seed))
     return true
   } catch {

@@ -48,6 +48,7 @@ describe('Bureau Duty adapter', () => {
       lastDiagnosisRunCount: 0,
       selectedEvidenceRunIds: [],
       inspectedArchiveIds: [],
+      inspectedCaseLeadIds: [],
       inspectedFieldErrors: [],
       solved: false,
     }

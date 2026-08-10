@@ -24,18 +24,34 @@ describe('formal endless process navigator', () => {
     expect(objective.target).toBe('train')
   })
 
-  it('moves from train to prediction to a controlled next experiment', () => {
+  it('moves from train to prediction to choosing one causal lead before the next experiment', () => {
     const predict = objectiveFor({ trained: true, auditComplete: false, history: [], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 5 })
     expect(predict.focus).toBe('predict')
     expect(predict.title).toContain('预测')
     expect(predict.target).toBe('audit')
 
-    const compare = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4 })
+    const inspect = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4 })
+    expect(inspect.focus).toBe('review')
+    expect(inspect.title).toContain('先决定查哪一种原因')
+    expect(inspect.detail).toMatch(/档案构成|采集批次|质量记录/)
+    expect(inspect.target).toBe('lead-board')
+
+    const compare = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4, inspectedCaseLeadCount: 1 })
     expect(compare.focus).toBe('configure')
     expect(compare.title).toContain('两个解释')
     expect(compare.detail).toContain('H-FIELDS')
     expect(compare.detail).toContain('H-MODEL')
     expect(compare.detail).toMatch(/只换字段|只换模型/)
+
+    const skippedLead = objectiveFor({ trained: true, auditComplete: true, history: [record(1), record(2)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 3 })
+    expect(skippedLead.focus).toBe('review')
+    expect(skippedLead.target).toBe('lead-board')
+    expect(skippedLead.title).toContain('先决定查哪一种原因')
+
+    const needsFalsification = objectiveFor({ trained: true, auditComplete: true, history: [record(1), record(2)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 3, inspectedCaseLeadCount: 1, needsFalsification: true })
+    expect(needsFalsification.focus).toBe('review')
+    expect(needsFalsification.title).toContain('还没有排除竞争解释')
+    expect(needsFalsification.detail).toMatch(/排除|不起作用|杀掉一个解释/)
   })
 
   it('moves from citing records to the diagnosis report without revealing an answer', () => {

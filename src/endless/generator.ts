@@ -5,6 +5,15 @@ import { createRng, jitter } from '../ml/rng'
 import type { FeatureKey, PublicSample, RawFeatures, Sample, SampleFlags } from '../ml/types'
 
 export type EndlessSyndrome = 'feature-gap' | 'overfit-noise' | 'distribution-shift' | 'class-imbalance'
+export type EndlessCaseLeadId = 'composition' | 'batch' | 'quality'
+
+export type EndlessCaseLead = {
+  id: EndlessCaseLeadId
+  label: string
+  prompt: string
+  finding: string
+  result: 'signal' | 'clear'
+}
 
 export type EndlessAuditResult = {
   accuracy: number
@@ -22,6 +31,7 @@ export type EndlessCase = {
   title: string
   incident: string
   reportedFacts: string[]
+  leadSources: EndlessCaseLead[]
   archiveAlerts: Array<{ id: string; label: string }>
   batchContext?: { history: string; field: string }
   classNames: { cat: string; bread: string }
@@ -80,7 +90,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
   'feature-gap': [
     {
       title: 'CASE / 失物招领误分',
-      incident: '失物招领柜近期把不少保温瓶归到普通水杯。历史抽查没有大规模告警，但现场投诉集中在外观相似的容器。',
+      incident: '失物招领柜近期把不少保温瓶归到普通水杯。相似容器之间的误分已经连续出现，值班员要求重新调查这套分类规则。',
       classNames: { cat: '普通水杯', bread: '保温瓶' },
       featureNames: { warmth: '主色亮度', roundness: '杯口圆度', texture: '杯盖纹路', aspect: '瓶身长宽' },
       featureHints: {
@@ -90,7 +100,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     },
     {
       title: 'CASE / 打印页分拣混乱',
-      incident: '打印室最近把课程作业和活动宣传单频繁混在一起。历史档案里两类页面都不少，问题究竟出在哪一环还不清楚。',
+      incident: '打印室最近把课程作业和活动宣传单频繁混在一起。错误并非单次偶发，现有自动分拣已经无法直接信任。',
       classNames: { cat: '课程作业', bread: '宣传单' },
       featureNames: { warmth: '纸面亮度', roundness: '墨块面积', texture: '标题结构', aspect: '版式重复度' },
       featureHints: {
@@ -100,7 +110,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     },
     {
       title: 'CASE / 社团邮箱误杀',
-      incident: '社团报名邮件近期被大量丢进垃圾箱。旧版本的历史抽查没有大规模告警，但新一批报名邮件误杀明显增加。',
+      incident: '社团报名邮件近期被大量丢进垃圾箱。多名报名者报告同类误杀，值班员要求确认系统究竟在哪一环失效。',
       classNames: { cat: '正常邮件', bread: '垃圾邮件' },
       featureNames: { warmth: '感叹号密度', roundness: '链接数量', texture: '发件人可信度', aspect: '正文重复度' },
       featureHints: {
@@ -113,7 +123,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     {
       title: 'CASE / 温室叶片误报',
       archiveIssue: '旧摄像头采集质量告警 / 镜头污染',
-      incident: '温室最近出现大量病害误报：健康叶片频繁触发警报。历史记录上的分数一直很高，但新一批叶片表现明显不稳。',
+      incident: '温室最近出现大量病害误报：健康叶片频繁触发警报。系统此前被认为可以上线，但当前现场结果已经无法继续信任。',
       classNames: { cat: '健康叶片', bread: '病害叶片' },
       featureNames: { warmth: '叶面亮度', roundness: '轮廓完整度', texture: '叶脉纹理', aspect: '斑点比例' },
       featureHints: {
@@ -124,7 +134,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     {
       title: 'CASE / 打印机纸张质检',
       archiveIssue: '测量仪校准异常 / 记录可信度低',
-      incident: '纸张质检模型在历史档案上接近满分，但现场卡纸风险仍判断不稳。旧档案里留下了几条仪器校准异常记录。',
+      incident: '纸张质检系统近期对卡纸风险判断不稳，值班人员已经记录到多次错误放行。需要重新确认问题来自哪里。',
       classNames: { cat: '正常纸张', bread: '卡纸风险' },
       featureNames: { warmth: '纸面白度', roundness: '边角圆整度', texture: '纤维纹理', aspect: '边缘形变' },
       featureHints: {
@@ -135,7 +145,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     {
       title: 'CASE / 芯片质检异常',
       archiveIssue: '传感器读数异常 / 采集质量待复核',
-      incident: '芯片质检模型在历史样品上几乎满分，上线后仍会漏掉缺陷。档案系统标出了少量传感器读数异常。',
+      incident: '芯片质检系统上线后仍会漏掉缺陷，现场人员已经停止把自动判断当作最终结论。需要重新调查失败原因。',
       classNames: { cat: '正常芯片', bread: '缺陷芯片' },
       featureNames: { warmth: '边缘亮度', roundness: '焊点圆整度', texture: '纹理波动', aspect: '引脚比例' },
       featureHints: {
@@ -146,9 +156,9 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
   ],
   'distribution-shift': [
     {
-      title: 'CASE / 雨天道路监控',
+      title: 'CASE / 道路监控误判',
       batchContext: { history: '晴天 / 白天 / 路面干燥', field: '雨天 / 反光增强 / 能见度下降' },
-      incident: '模型在晴天道路的历史验证很好，雨天上线后却频繁把行人与路牌混淆。现场采集条件与历史档案明显不同。',
+      incident: '道路监控近期频繁把行人与路牌混淆。错误从最近一批现场样本开始集中出现，但当前还没有完成原因复核。',
       classNames: { cat: '行人', bread: '路牌' },
       featureNames: { warmth: '画面亮度', roundness: '目标面积', texture: '边缘纹理', aspect: '目标长宽' },
       featureHints: {
@@ -157,9 +167,9 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
       },
     },
     {
-      title: 'CASE / 体育馆夜场误判',
+      title: 'CASE / 球类识别异常',
       batchContext: { history: '白天 / 固定远景 / 顶灯关闭', field: '夜场 / 顶灯开启 / 摄像距离变化' },
-      incident: '白天采集的球类模型搬到夜场后错误骤增。夜场的灯光和摄像距离与历史采集条件都发生了变化。',
+      incident: '体育馆的球类识别近期错误骤增，篮球与排球之间反复互相误判。值班员要求确认这次异常的真正来源。',
       classNames: { cat: '篮球', bread: '排球' },
       featureNames: { warmth: '颜色暖度', roundness: '表观半径', texture: '表面纹理', aspect: '拼片比例' },
       featureHints: {
@@ -168,9 +178,9 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
       },
     },
     {
-      title: 'CASE / 夜间闸机异常',
+      title: 'CASE / 闸机识别异常',
       batchContext: { history: '白天 / Camera-A / 稳定自然光', field: '夜间 / Camera-B / 红外补光' },
-      incident: '闸机模型白天验证一直稳定，但夜间摄像头上线后错误暴增。现场时段和光照条件与历史档案不同。',
+      incident: '闸机识别近期错误明显增加，授权与异常通行之间出现连续误判。需要先复现故障，再调查哪一环发生变化。',
       classNames: { cat: '授权通行', bread: '异常通行' },
       featureNames: { warmth: '画面亮度', roundness: '轮廓面积', texture: '局部纹理', aspect: '目标比例' },
       featureHints: {
@@ -182,7 +192,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
   'class-imbalance': [
     {
       title: 'CASE / 机房告警漏报',
-      incident: '机房告警系统总体准确率看起来不低，但值班员仍反复报告真正的故障没有报警。历史档案中正常日志占绝大多数。',
+      incident: '机房告警系统近期仍会漏掉真正的故障，值班员已经连续遇到未报警事件。现有总体报告无法解释这些漏报。',
       classNames: { cat: '正常日志', bread: '故障日志' },
       featureNames: { warmth: '日志长度', roundness: '突发次数', texture: '错误签名', aspect: '时序比例' },
       featureHints: {
@@ -192,7 +202,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     },
     {
       title: 'CASE / 裂纹质检漏检',
-      incident: '零件质检的总体准确率一直很好看，但现场仍有裂纹件被漏检。历史档案里正常零件远多于裂纹零件。',
+      incident: '零件质检近期仍有裂纹件被漏检。虽然系统报告没有显示全面崩溃，但这些关键错误已经足以触发复查。',
       classNames: { cat: '正常零件', bread: '裂纹零件' },
       featureNames: { warmth: '表面亮度', roundness: '轮廓圆整度', texture: '裂纹纹理', aspect: '边缘比例' },
       featureHints: {
@@ -202,7 +212,7 @@ const ENDLESS_THEMES: Record<EndlessSyndrome, Array<{
     },
     {
       title: 'CASE / 水泵预警漏报',
-      incident: '水泵预警系统总体分很高，维修人员却发现真正的故障周期经常没有报警。日常运行记录占历史档案的大多数。',
+      incident: '水泵预警系统近期漏掉了多次真实故障周期。维修人员要求重新调查，因为单看现有汇总报告无法解释漏报。',
       classNames: { cat: '正常周期', bread: '故障周期' },
       featureNames: { warmth: '平均温度', roundness: '峰值次数', texture: '振动纹理', aspect: '周期比例' },
       featureHints: {
@@ -310,13 +320,17 @@ function generateShift(seed: number) {
     }))
   }
   for (let i = 0; i < 14; i += 1) {
-    // Night deployment reverses the two shortcut sensors. Stable texture/aspect
-    // keeps the same relationship, so evidence-led feature choice can recover.
+    // The new field environment compresses the two historical shortcut sensors
+    // toward each other. Their old relationship becomes much less reliable, but
+    // does not deterministically reverse. This makes a first field failure
+    // compatible with several causal stories; stable texture/aspect keeps the
+    // same relationship so a controlled field-only intervention can still
+    // distinguish the shift explanation later.
     test.push(sample(`test-cat-${i}`, 'test', 'cat', {
-      warmth: jitter(rng, .36, .12), roundness: jitter(rng, .42, .14), ...diagonalFeatures(rng, 'cat', i, .09),
+      warmth: jitter(rng, .55, .14), roundness: jitter(rng, .54, .15), ...diagonalFeatures(rng, 'cat', i, .09),
     }))
     test.push(sample(`test-bread-${i}`, 'test', 'bread', {
-      warmth: jitter(rng, .64, .12), roundness: jitter(rng, .60, .14), ...diagonalFeatures(rng, 'bread', i, .09),
+      warmth: jitter(rng, .45, .14), roundness: jitter(rng, .46, .15), ...diagonalFeatures(rng, 'bread', i, .09),
     }))
   }
   return { train, test }
@@ -462,7 +476,7 @@ function selectDeployedBaseline(
 
   const targetField = syndrome === 'feature-gap' ? .68
     : syndrome === 'overfit-noise' ? .76
-      : syndrome === 'distribution-shift' ? .5
+      : syndrome === 'distribution-shift' ? .62
         : .9
   candidates.sort((a, b) =>
     Math.abs(a.testAccuracy - targetField) - Math.abs(b.testAccuracy - targetField)
@@ -478,6 +492,9 @@ function selectDeployedBaseline(
           && (configuration.testAccuracy < .85 || configuration.minRecall < .75)
         : syndrome === 'class-imbalance'
           ? configuration.testAccuracy >= .83 && configuration.minRecall < .75
+          : syndrome === 'distribution-shift'
+            ? (configuration.testAccuracy < .85 || configuration.minRecall < .75)
+              && bestFieldGain(configuration) >= .12
           : configuration.testAccuracy < .8)
       .sort((a, b) => {
         const aGain = syndrome === 'overfit-noise' ? bestModelGain(a) : bestFieldGain(a)
@@ -515,24 +532,42 @@ export function createEndlessCase(seed: number): EndlessCase {
   const archiveAlerts = data.train
     .filter((item) => item.flags?.noise)
     .map((item) => ({ id: item.id, label: theme.archiveIssue ?? '历史采集质量告警' }))
-  const reportedFacts: Record<EndlessSyndrome, string[]> = {
-    'feature-gap': [
-      `历史档案包含 ${trainCatCount} 条${theme.classNames.cat}与 ${trainBreadCount} 条${theme.classNames.bread}，类别数量没有明显失衡。`,
-      '现场投诉集中在两类互相混淆；目前还不能判断是观察字段还是模型规则的问题。',
-    ],
-    'overfit-noise': [
-      '历史训练记录的分数一直很漂亮，但换到新一批现场数据后表现不稳定。',
-      archiveAlerts.length ? `档案系统标出了 ${archiveAlerts.length} 条采集质量异常记录，可在案件线索中查看。` : '旧档案中存在少量需要复核的采集记录。',
-    ],
-    'distribution-shift': [
-      '这批异常从新的现场采集批次开始；批次元数据包含不同的时段、天气或设备版本。',
-      '现场错误没有只集中在某一个类别；究竟哪些观察字段受到了影响仍未确认。',
-    ],
-    'class-imbalance': [
-      `历史档案构成明显不对称：${theme.classNames.cat} ${trainCatCount} 条，${theme.classNames.bread} ${trainBreadCount} 条。`,
-      '总体分数看起来不差，但现场报告指出其中一类仍在持续漏报。',
-    ],
-  }
+  // Opening reports intentionally describe symptoms, not causes. Precise archive
+  // composition, batch metadata and quality flags are all real evidence, but the
+  // player has to choose to inspect those sources after reproducing the failure.
+  // This keeps the opening brief compatible with several causal stories instead
+  // of turning metadata presence into a syndrome fingerprint.
+  const reportedFacts = [
+    `${theme.classNames.cat} / ${theme.classNames.bread} 的错误已经在最近现场重复出现，值班报告确认并非单个偶发样本。`,
+    '历史档案构成、采集批次与质量记录都可复核；在完成第一条现场基线前，调查局不会替你判断哪一条最可疑。',
+  ]
+  const leadSources: EndlessCaseLead[] = [
+    {
+      id: 'composition',
+      label: '历史档案构成',
+      prompt: '核对两类历史样本各有多少，检查“总体数字”是否可能掩盖覆盖问题。',
+      finding: `历史档案：${theme.classNames.cat} ${trainCatCount} 条；${theme.classNames.bread} ${trainBreadCount} 条。`,
+      result: Math.max(trainCatCount, trainBreadCount) / Math.max(1, Math.min(trainCatCount, trainBreadCount)) >= 3 ? 'signal' : 'clear',
+    },
+    {
+      id: 'batch',
+      label: '采集批次记录',
+      prompt: '对照历史与当前现场的采集条件，确认环境或设备变化是否值得继续追查。',
+      finding: theme.batchContext
+        ? `HISTORY：${theme.batchContext.history}；FIELD：${theme.batchContext.field}。`
+        : '批次编号发生更新，但记录中没有设备、环境或采集规范的实质切换。',
+      result: theme.batchContext ? 'signal' : 'clear',
+    },
+    {
+      id: 'quality',
+      label: '历史质量记录',
+      prompt: '检查历史档案是否存在被采集系统主动标出的可疑记录。',
+      finding: archiveAlerts.length
+        ? `质量系统标出了 ${archiveAlerts.length} 条需要人工复核的历史记录。打开后可查看具体记录。`
+        : '质量系统没有标出需要人工复核的历史记录；目前没有直接的采集异常证据。',
+      result: archiveAlerts.length ? 'signal' : 'clear',
+    },
+  ]
 
   const explanations: Record<EndlessSyndrome, string> = {
     'feature-gap': '当前观察字段没有承载稳定类别信息。换模型只能在贫弱信息上继续加工，优先换特征。',
@@ -558,7 +593,8 @@ export function createEndlessCase(seed: number): EndlessCase {
     baseline,
     title: theme.title,
     incident: theme.incident,
-    reportedFacts: reportedFacts[syndrome],
+    reportedFacts,
+    leadSources,
     archiveAlerts,
     batchContext: theme.batchContext,
     classNames: theme.classNames,

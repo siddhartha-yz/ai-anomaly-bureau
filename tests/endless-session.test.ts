@@ -35,6 +35,7 @@ function session(seed = 6000): EndlessSessionData {
     lastDiagnosisRunCount: 0,
     selectedEvidenceRunIds: [],
     inspectedArchiveIds: [],
+    inspectedCaseLeadIds: [],
     inspectedFieldErrors: [{ runId: 1, sampleId: 'field-002', actual: 'bread', predicted: 'cat' }],
     solved: false,
   }
@@ -75,6 +76,46 @@ describe('endless local session persistence', () => {
     storage.setItem(legacyKey, JSON.stringify({ ...session(), version: 1 }))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
     expect(storage.getItem(legacyKey)).toBeNull()
+  })
+
+  it('migrates v2 Duty history because v3 only adds unopened causal-lead inspection state', () => {
+    const storage = new MemoryStorage()
+    const previousKey = 'aia.endless-session.v2.6001'
+    const { inspectedCaseLeadIds: _newField, ...previous } = session(6001)
+    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 2 }))
+    const migrated = readEndlessSession(storage, 6001)
+    expect(migrated?.version).toBe(3)
+    expect(migrated?.history).toHaveLength(1)
+    expect(migrated?.inspectedCaseLeadIds).toEqual([])
+    expect(storage.getItem(previousKey)).toBeNull()
+    expect(storage.getItem(endlessSessionKey(6001))).not.toBeNull()
+  })
+
+  it('keeps the v2 source intact when canonical v3 migration cannot be written', () => {
+    const backing = new MemoryStorage()
+    const previousKey = 'aia.endless-session.v2.6001'
+    const { inspectedCaseLeadIds: _newField, ...previous } = session(6001)
+    backing.setItem(previousKey, JSON.stringify({ ...previous, version: 2 }))
+    const storage: StorageLike = {
+      getItem: (key) => backing.getItem(key),
+      removeItem: (key) => backing.removeItem(key),
+      setItem: (key, value) => {
+        if (key === endlessSessionKey(6001)) throw new DOMException('quota', 'QuotaExceededError')
+        backing.setItem(key, value)
+      },
+    }
+    expect(readEndlessSession(storage, 6001)).toBeUndefined()
+    expect(backing.getItem(previousKey)).not.toBeNull()
+    expect(backing.getItem(endlessSessionKey(6001))).toBeNull()
+  })
+
+  it('drops v2 distribution-shift history because v3 changed that field world', () => {
+    const storage = new MemoryStorage()
+    const previousKey = 'aia.endless-session.v2.6002'
+    const { inspectedCaseLeadIds: _newField, ...previous } = session(6002)
+    storage.setItem(previousKey, JSON.stringify({ ...previous, version: 2 }))
+    expect(readEndlessSession(storage, 6002)).toBeUndefined()
+    expect(storage.getItem(previousKey)).toBeNull()
   })
 
   it('rejects a forged run with impossible metric ranges', () => {

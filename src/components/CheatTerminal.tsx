@@ -4,6 +4,7 @@ import { acknowledgeBureauInduction, isBureauUnlocked, readBureauProgress, recor
 import { clearEndlessSession } from '../endless/session'
 import { CHEAT_AUTO_RESUME_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
 import { clearStorySession, writeStorySession } from '../game/session'
+import { beginQaSession, clearQaWorkingState, qaSnapshotSummary, readQaSnapshot, restoreQaSession, type QaSnapshot } from '../qa/testBench'
 
 const EXAMPLES = [
   ['CASE001 ERRORS', '跳到第一次现场翻车后的误判调查'],
@@ -14,6 +15,21 @@ const EXAMPLES = [
   ['BUREAU UNLOCK', '本地授予调查局权限并进入办公室'],
   ['TRAINING', `打开训练案件 ${TRAINING_CASE_000.number}`],
   ['DUTY 6003', '以指定 seed 打开一宗全新的值班案件'],
+] as const
+
+const QA_PRESETS = [
+  ['CASE001 START', 'CASE 001 · 从头', '清掉本 seed Story checkpoint，走真实新人入口'],
+  ['CASE001 ERRORS', 'CASE 001 · 误判调查', '直接进入第一次现场翻车后的证据阶段'],
+  ['CASE001 OVERFIT', 'CASE 001 · 过拟合', 'k=1 的合法实验历史已经重建'],
+  ['CASE001 REPAIR', 'CASE 001 · 修复', '备用传感器已通过正式剧情解锁'],
+  ['CASE001 FINAL', 'CASE 001 · 最终审计', '修复方案已经通过正式未知审计'],
+  ['CASE001 CLOSED', 'CASE 001 · 结案', '打开合法 CASE CLOSED 案卷'],
+  ['BUREAU UNLOCK', '调查局 Hub', '创建合法入职事实并打开办公室'],
+  ['TRAINING', 'TRAINING 000', '直接进入训练中心案件'],
+  ['DUTY 6000', 'DUTY · Feature gap', '全新 seed 6000，不恢复旧 Duty session'],
+  ['DUTY 6117', 'DUTY · Overfit', '三段推理代表 seed：区分 ≠ 已修好'],
+  ['DUTY 6006', 'DUTY · Shift', '因果排除代表 seed：先削弱错误解释'],
+  ['DUTY 6003', 'DUTY · Imbalance', '总体分数会掩盖少数类召回'],
 ] as const
 
 function currentSeed() {
@@ -28,9 +44,12 @@ function navigate(search: string) {
 export function CheatTerminal() {
   const [open, setOpen] = useState(false)
   const [code, setCode] = useState('')
-  const [message, setMessage] = useState('输入 HELP 可查看命令。作弊只修改当前浏览器的本地进度。')
+  const [dutySeed, setDutySeed] = useState(() => String(currentSeed()))
+  const [message, setMessage] = useState('输入 HELP 可查看命令。测试命令会先自动保护当前游戏存档。')
   const [error, setError] = useState(false)
+  const [qaSnapshot, setQaSnapshot] = useState<QaSnapshot | undefined>(() => readQaSnapshot(window.localStorage))
   const inputRef = useRef<HTMLInputElement>(null)
+  const explicitQaLauncher = new URLSearchParams(window.location.search).get('qa') === '1'
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -53,11 +72,26 @@ export function CheatTerminal() {
 
   useEffect(() => {
     if (!open) return
+    setQaSnapshot(readQaSnapshot(window.localStorage))
     window.setTimeout(() => inputRef.current?.focus(), 0)
   }, [open])
 
-  const execute = () => {
-    const parsed = parseCheatCode(code)
+  const ensureQaSession = () => {
+    const snapshot = beginQaSession(
+      window.localStorage,
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    )
+    if (!snapshot) {
+      setError(true)
+      setMessage('无法创建 QA 存档快照；为避免覆盖你的正常进度，本次跳转已取消。')
+      return false
+    }
+    setQaSnapshot(snapshot)
+    return true
+  }
+
+  const executeCode = (raw: string) => {
+    const parsed = parseCheatCode(raw)
     if (!parsed.ok) {
       setError(true)
       setMessage(parsed.message)
@@ -133,7 +167,51 @@ export function CheatTerminal() {
     navigate(`?mode=endless&seed=${instruction.seed}`)
   }
 
-  if (!open) return null
+  const execute = () => {
+    const parsed = parseCheatCode(code)
+    if (parsed.ok && parsed.instruction.kind !== 'help' && !ensureQaSession()) return
+    executeCode(code)
+  }
+
+  const executeQaPreset = (raw: string) => {
+    if (!ensureQaSession()) return
+    setCode(raw)
+    executeCode(raw)
+  }
+
+  const restoreQa = () => {
+    const result = restoreQaSession(window.localStorage)
+    if (!result.ok || !result.returnPath) {
+      setError(true)
+      setMessage('原存档恢复失败；QA 快照仍会保留，请不要继续覆盖，稍后可以再次尝试恢复。')
+      return
+    }
+    window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+    setQaSnapshot(undefined)
+    window.location.assign(result.returnPath)
+  }
+
+  const startFreshQaBrowser = () => {
+    if (!ensureQaSession()) return
+    if (!clearQaWorkingState(window.localStorage)) {
+      setError(true)
+      setMessage('无法清空测试沙盒；原存档快照仍安全保留，本次操作已停止。')
+      return
+    }
+    window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+    navigate('?seed=20260809')
+  }
+
+  if (!open) {
+    if (!qaSnapshot && !explicitQaLauncher) return null
+    return (
+      <button type="button" className={`qa-session-badge ${qaSnapshot ? 'active' : 'idle'}`} onClick={() => setOpen(true)} aria-label="打开 QA 测试工作台">
+        <small>{qaSnapshot ? 'QA TEST' : 'QA BENCH'}</small><strong>{qaSnapshot ? 'SAVE SAFE' : 'OPEN'}</strong><span>{qaSnapshot ? '点击恢复 / 跳转' : '测试入口 · 普通玩家隐藏'}</span>
+      </button>
+    )
+  }
+
+  const qaSummary = qaSnapshotSummary(qaSnapshot)
 
   return (
     <div className="cheat-terminal-backdrop" role="presentation" onMouseDown={(event) => {
@@ -144,7 +222,52 @@ export function CheatTerminal() {
           <div><small>FIELD TERMINAL // LOCAL ONLY</small><strong>作弊码终端</strong></div>
           <button type="button" onClick={() => setOpen(false)} aria-label="关闭作弊码终端">×</button>
         </header>
-        <p>这不是另一套 Debug 模式。命令会生成合法正式存档或打开正式模式；刷新、继续调查和后续校验全部走游戏原流程。</p>
+        <p>这不是另一套 Debug 模式。除 HELP 外，测试命令会先自动备份当前游戏存档，再生成合法正式 checkpoint 或打开正式模式；刷新、继续调查和后续校验全部走游戏原流程。</p>
+        <section className={`qa-test-bench ${qaSnapshot ? 'active' : ''}`} aria-label="QA 测试工作台">
+          <div className="qa-test-bench-head">
+            <div><small>QA TEST BENCH</small><strong>{qaSnapshot ? '安全测试会话进行中' : '一键跳转，不污染正常存档'}</strong></div>
+            {qaSummary && <span>{qaSummary.savedKeys} 个正式存档已备份</span>}
+          </div>
+          <p>{qaSnapshot
+            ? `原存档已冻结在本地快照。可以继续跳关、清档、换 seed；结束时会恢复到 ${qaSummary?.returnPath ?? '原页面'}。`
+            : '点击下面任意快速入口会先自动备份当前所有游戏存档，再使用正式 checkpoint / runtime 跳转。测试完可一键恢复。'}</p>
+          <div className="qa-test-bench-actions">
+            {qaSnapshot ? (
+              <button type="button" className="qa-restore" onClick={restoreQa}>↶ 恢复原存档并结束测试</button>
+            ) : (
+              <button type="button" className="qa-protect" onClick={() => {
+                if (ensureQaSession()) {
+                  setError(false)
+                  setMessage('QA 安全快照已建立。现在可以自由测试；右下角会持续显示 SAVE SAFE。')
+                }
+              }}>▣ 先备份当前存档</button>
+            )}
+            <button type="button" className="qa-fresh" onClick={startFreshQaBrowser}>全新用户状态</button>
+          </div>
+          <div className="qa-duty-seed-jump">
+            <label htmlFor="qa-duty-seed"><small>任意 DUTY SEED</small><span>输入程序化案件 seed，不需要记命令格式。</span></label>
+            <input
+              id="qa-duty-seed"
+              type="number"
+              min="1"
+              step="1"
+              value={dutySeed}
+              onChange={(event) => setDutySeed(event.target.value)}
+            />
+            <button
+              type="button"
+              disabled={!Number.isSafeInteger(Number(dutySeed)) || Number(dutySeed) <= 0}
+              onClick={() => executeQaPreset(`DUTY ${Number(dutySeed)}`)}
+            >打开指定 Duty</button>
+          </div>
+          <div className="qa-preset-grid">
+            {QA_PRESETS.map(([value, label, description]) => (
+              <button type="button" key={value} onClick={() => executeQaPreset(value)}>
+                <strong>{label}</strong><small>{description}</small><code>{value}</code>
+              </button>
+            ))}
+          </div>
+        </section>
         <form onSubmit={(event) => { event.preventDefault(); execute() }}>
           <label htmlFor="cheat-code">ACCESS CODE</label>
           <div className="cheat-terminal-input-row">

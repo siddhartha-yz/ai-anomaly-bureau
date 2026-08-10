@@ -9,9 +9,9 @@ import { EndlessAuditPanel, EndlessDiagnosis, EndlessRunLog } from './EndlessEvi
 import { FieldManual } from './FieldManual'
 import { EndlessArchiveEvidence, EndlessLeadBoard, EndlessObjective, objectiveFor } from './EndlessNavigator'
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
-import { createEndlessCase, type EndlessSyndrome } from './generator'
+import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, latestDiscriminatingExperiment, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, latestControlledExperiment, latestDiscriminatingExperiment, type BandPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -51,6 +51,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const [resetArmed, setResetArmed] = useState(false)
   const [selectedArchiveId, setSelectedArchiveId] = useState<string>()
   const [inspectedArchiveIds, setInspectedArchiveIds] = useState<string[]>(restoredSession?.inspectedArchiveIds ?? [])
+  const [inspectedCaseLeadIds, setInspectedCaseLeadIds] = useState<EndlessCaseLeadId[]>(restoredSession?.inspectedCaseLeadIds ?? [])
   const [selectedFieldErrorId, setSelectedFieldErrorId] = useState<string>()
   const [inspectedFieldErrors, setInspectedFieldErrors] = useState<InspectedFieldError[]>(restoredSession?.inspectedFieldErrors ?? [])
 
@@ -105,13 +106,14 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       submittedDiagnosis,
       lastDiagnosisOutcome,
       inspectedArchiveIds,
+      inspectedCaseLeadIds,
       inspectedFieldErrors,
       solved,
     })
   }, [
     seed, features, activeSlot, model, trained, prediction, auditResult, emergencyCredits, history,
     diagnosis, diagnosisAttempts, lastDiagnosisConfigCount, lastDiagnosisRunCount, selectedEvidenceRunIds,
-    submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedFieldErrors, solved,
+    submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedCaseLeadIds, inspectedFieldErrors, solved,
   ])
 
   const resetExperiment = () => {
@@ -182,9 +184,17 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const bestReliable = history.filter((record) => record.reliable).sort((a, b) => b.test - a.test)[0]
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
+  const sourceFalsification = inspectedCaseLeadIds.some((id) => caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear')
+  const interventionFalsification = (['fields', 'model'] as const).some((axis) => {
+    const controlled = latestControlledExperiment(history, axis)
+    return Boolean(controlled && !controlled.comparison.discriminating)
+  })
+  const falsificationReady = sourceFalsification || interventionFalsification
   const diagnosisAvailable = distinctConfigCount >= 2
     && Boolean(discriminatingEvidence)
     && Boolean(bestReliable)
+    && inspectedCaseLeadIds.length > 0
+    && falsificationReady
     && (diagnosisAttempts === 0 || distinctConfigCount > lastDiagnosisConfigCount)
   const citedEvidence = diagnosisEvidenceStatus(history, selectedEvidenceRunIds, lastDiagnosisRunCount)
   const citedDiscrimination = citedEvidence.records.length === 2
@@ -201,6 +211,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     evidenceReady,
     diagnosisLocked,
     credits,
+    inspectedCaseLeadCount: inspectedCaseLeadIds.length,
+    needsFalsification: Boolean(bestReliable && discriminatingEvidence && inspectedCaseLeadIds.length > 0 && !falsificationReady),
   })
   const toggleEvidenceRun = (runId: number) => {
     setSelectedEvidenceRunIds((ids) => {
@@ -266,6 +278,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     setLastDiagnosisOutcome(undefined)
     setSelectedArchiveId(undefined)
     setInspectedArchiveIds([])
+    setInspectedCaseLeadIds([])
     setSelectedFieldErrorId(undefined)
     setInspectedFieldErrors([])
     setSolved(false)
@@ -352,23 +365,12 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       <section className="endless-case-brief">
         <div>
           <span>CASE {String(caseData.caseNo).padStart(4, '0')}</span><h2>{caseData.title}</h2><p>{caseData.incident}</p>
-          <div className="archive-composition">历史档案：{caseData.classNames.cat} {caseData.train.filter((sample) => sample.label === 'cat').length} · {caseData.classNames.bread} {caseData.train.filter((sample) => sample.label === 'bread').length}</div>
           <div className="endless-reported-facts">
             {caseData.reportedFacts.map((fact, index) => <span key={fact}><i>R{index + 1}</i>{fact}</span>)}
           </div>
-          {caseData.archiveAlerts.length > 0 && (
-            <div className="endless-archive-banner">
-              <b>ARCHIVE ALERT × {caseData.archiveAlerts.length}</b>
-              <span>{caseData.archiveAlerts[0].label}。这些记录已在左侧历史样本中用橙色「!」标出；它们是事实，不是自动诊断。</span>
-            </div>
-          )}
-          {caseData.batchContext && (
-            <div className="endless-batch-context" aria-label="历史与现场批次元数据">
-              <span><small>HISTORY BATCH</small><b>{caseData.batchContext.history}</b></span>
-              <i>→</i>
-              <span><small>FIELD BATCH</small><b>{caseData.batchContext.field}</b></span>
-            </div>
-          )}
+          <div className="endless-opening-evidence-seal" aria-label="待复核因果线索">
+            <b>3 SOURCES SEALED</b><span>档案构成 · 采集批次 · 质量记录</span><small>先用部署配置复现事故。第一条 FIELD 结果出现后，再决定先拆哪份证据。</small>
+          </div>
         </div>
         <div className="endless-objective"><strong>结案目标</strong><span>① 找到一个面对现场数据也站得住的方案。② 用多条证据解释系统为什么会坏。</span><small>可靠线：总体 ≥85% · 两类召回都 ≥75%</small><b>审计额度 {credits}</b></div>
       </section>
@@ -385,6 +387,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               ? '.diagnosis-emergency'
               : objective.target === 'train'
                 ? '.objective-action'
+                : objective.target === 'lead-board'
+                  ? '.endless-causal-leads'
                 : objective.target === 'audit'
                   ? '.experiment-console'
                   : objective.target === 'run-log'
@@ -406,6 +410,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               model={model}
               trained={trained}
               audit={auditResult}
+              showArchiveAlerts={inspectedCaseLeadIds.includes('quality')}
               selectedArchiveId={selectedArchiveId}
               selectedFieldErrorId={selectedFieldErrorId}
               onArchiveSelect={(id) => {
@@ -427,7 +432,17 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
             )}
           </div>
           <aside className="endless-console">
-            <EndlessLeadBoard caseData={caseData} history={history} inspectedArchiveIds={inspectedArchiveIds} inspectedFieldErrors={inspectedFieldErrors} />
+            <EndlessLeadBoard
+              caseData={caseData}
+              history={history}
+              inspectedCaseLeadIds={inspectedCaseLeadIds}
+              inspectedArchiveIds={inspectedArchiveIds}
+              inspectedFieldErrors={inspectedFieldErrors}
+              onInspectCaseLead={(id) => {
+                audio.play('evidence')
+                setInspectedCaseLeadIds((ids) => ids.includes(id) ? ids : [...ids, id])
+              }}
+            />
             <EndlessArchiveEvidence caseData={caseData} sampleId={selectedArchiveId} features={features} onClose={() => setSelectedArchiveId(undefined)} />
             <EndlessControls
               caseData={caseData}
@@ -491,6 +506,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 预测命中 {history.filter((record) => record.predictionHit).length} 次</span></article>
               <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
               <article><small>FIELD INSPECTION</small><strong>{inspectedFieldErrors.length} 条误判复核</strong><span>{inspectedFieldErrors.length ? `来自 ${new Set(inspectedFieldErrors.map((item) => item.runId)).size} 次正式审计` : '本次结案没有额外打开现场误判记录'}</span></article>
+              <article><small>CAUSE SOURCES</small><strong>{inspectedCaseLeadIds.length} / {caseData.leadSources.length} 份来源已复核</strong><span>{inspectedCaseLeadIds.length ? inspectedCaseLeadIds.map((id) => caseData.leadSources.find((lead) => lead.id === id)?.label).filter(Boolean).join(' · ') : '未复核额外因果来源'}</span></article>
               <article><small>ARCHIVE</small><strong>{inspectedArchiveIds.length} 条档案复核</strong><span>{caseData.archiveAlerts.length ? `本案共有 ${caseData.archiveAlerts.length} 条质量告警` : '本案无额外质量告警'}</span></article>
             </div>
           )}

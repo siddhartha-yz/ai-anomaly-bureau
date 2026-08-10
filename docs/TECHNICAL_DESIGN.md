@@ -59,7 +59,9 @@ src/
     Metrics.tsx
     ErrorSamples.tsx
     AssistantPanel.tsx
-    CheatTerminal.tsx        # 全局本地作弊码入口；跳转仍落到正式状态
+    CheatTerminal.tsx        # QA Test Bench / 合法 checkpoint 快速入口
+  qa/
+    testBench.ts             # 可逆 aia.* 存档快照、测试沙盒清理与精确恢复
   endless/
     generator.ts             # 四类程序化监督学习故障与传感器通道重排
     observables.ts           # 训练标签 + 无标签现场分布的公开证据
@@ -286,7 +288,7 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 `createEndlessCase()` 现在还生成一个 `baseline: { model, features }`，代表事故发生时真实部署的故障配置。baseline selector 可以在 generator 内部用隐藏 field truth 校验“这套部署确实会坏、且存在 material controlled intervention”，因为这是**关卡作者 / 生成器约束**，不是玩家推理接口；`EndlessCasePreview`、Hub、Sensor Deck 与正式导航都不会暴露这个搜索过程、最佳 pair 或隐藏 audit 结果。新局因此不再固定从 `warmth + roundness + linear` 开始，而是先复现一宗真实事故。
 
-`overfit-noise` 的 field probe 数量也随本轮提高，使 `k=1` 记忆局部矛盾记录时能稳定产生现场后果；平滑模型仍保留恢复空间。由于同 seed 的程序化现场数据语义发生了变化，Duty session 升为 v2，旧 v1 run history 不做语义错误的强行迁移。
+`overfit-noise` 的 field probes 会在四维上靠近被错误标记的历史记录，同时附近保留多数正确邻域，使 `k=1` 真实记住局部偶然点、`k=5` 有机会被邻域多数拉回。`distribution-shift` 则不再把历史捷径在现场直接反转，而是把它们压缩到高度重叠的区间：第一次 FIELD 失败因此可以与 overfit 的“训练近满分 / 现场中度下降”重叠，病因不能再只靠一次分数模板识别；稳定字段关系仍保持，因此 fields-only 实验依然能恢复。
 
 正式模式前有两层桥接，但它们不改变 generator / model：
 
@@ -295,24 +297,29 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 正式 `EndlessMode` 只保留 answer-neutral 导航：`objectiveFor()` 根据训练、审计、不同配置数、诊断锁和剩余额度返回下一动作目标。`NEXT OBJECTIVE` sticky 在视口顶部，并能定位到实际可操作组件；例如诊断锁且额度为 0 时会直接定位诊断框里的补充审计按钮，而不是把玩家带到实验日志。
 
-正式案件的 syndrome 不直接写进 incident：
+正式案件的 syndrome 不直接写进 incident，而且 cause-specific 原始事实也不再自动出现在开局 UI。`generator.ts` 为每宗案生成三份 `leadSources`：
 
-- `overfit-noise` 的四条故意矛盾训练记录携带 `flags.noise`，并生成可点击 `archiveAlerts`；UI 只显示采集质量事实，不自动解释为过拟合。
-- `distribution-shift` 主题提供 `batchContext.history / field` 原始批次元数据；玩家同时可读取无标签现场 drift。
-- `class-imbalance` 由训练样本真实类别比例产生，UI 显示档案构成与分类别 recall。
-- `feature-gap` 通过同一模型在不同字段组合上的真实实验差异暴露。
+- `composition / H-COVERAGE`：精确历史类别构成；类别比例 ≥3 时 finding 为 `signal`，否则为 `clear`。
+- `batch / H-CONTEXT`：历史 / 现场采集条件；真正的 shift 案返回具体 `batchContext` 并标记 `signal`，其他案件返回“没有实质切换”的 `clear`。
+- `quality / H-RECORDS`：历史质量系统是否标记异常记录；overfit 的 `archiveAlerts` 只有玩家打开这份来源后才在散点图出现橙色可点击 `!`，没有告警则返回 `clear`。
+
+baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家主动决定先核验哪一条 causal story；`signal` 只是支持继续调查，`clear` 才承担“杀掉一个竞争解释”的反证作用。finding 不包含 syndrome 名称。
 
 诊断不再只要求“两个不同配置”。`discriminatingExperiment()` 只有在两条相邻正式记录属于 **fields-only 或 model-only**，且 `FIELD` 或最低类别召回的绝对变化达到 **12 个百分点**时，才认为它们真正区分了竞争解释；性能显著下降和显著改善都属于信息，因为 falsification 本来就可能通过“只改一个因素后结果崩掉”完成。repeat 只验证稳定性，mixed change 无法归因，都不能解锁病因。
 
 `CASE_LEADS.LOG` 在第一条 baseline 后显示两条 syndrome-neutral 假设：`H-FIELDS / H-MODEL`。每个轴分别记住最近一次受控实验：未测试为 `OPEN`，material change 为 `SUPPORTED`，实际测试过但变化 <12pt 为 `WEAKENED`；两个轴都可能被支持，此时 UI 明确提示单一主因解释不足。这个状态由玩家自己的 run history 计算，不读取 `caseData.syndrome`。
 
-病因名称采用 progressive disclosure：`diagnosisAvailable` 现在同时要求至少两个不同配置、存在 fresh discriminating experiment、已经找到 `accuracy >= .85 && min recall >= .75` 的可靠方案，并满足错误诊断后的 freshness 守卫。满足前即使 DOM 已有多条实验记录，也不渲染 syndrome 选项。玩家随后仍必须从 `EXPERIMENTS.LOG` 引用恰好两条能构成 material single-variable comparison 的记录；错误诊断后下一份证据还必须包含 `id > lastDiagnosisRunCount` 的新 run。这样“能解释事故”和“已经修好系统”都成立后，才进入命名病因阶段。
+病因名称采用更严格的 progressive disclosure：`diagnosisAvailable` 同时要求至少两个不同配置、存在 fresh material single-variable experiment、已经找到 `accuracy >= .85 && min recall >= .75` 的可靠方案、至少主动复核一份 causal source，并满足 **falsificationReady**。后者只有两种来源：① 已打开 source 的 `result === clear`，客观排除了一个因果故事；② fields-only / model-only 轴被真正测试但变化 <12pt，形成 `WEAKENED` null result。只有支持证据而没有任何反证时，`NEXT OBJECTIVE` 会停在 `CAUSE / FALSIFY`，提示“方案已经能工作，但你还没有排除竞争解释”，syndrome 选项仍完全不渲染。
+
+玩家随后仍必须从 `EXPERIMENTS.LOG` 引用恰好两条能构成 material single-variable comparison 的记录；错误诊断后下一份证据还必须包含 `id > lastDiagnosisRunCount` 的新 run。结案报告额外封存 `CAUSE SOURCES`，使最终案卷同时回答“什么支持我的解释”和“什么排除了替代解释”。
 
 `EXPERIMENTS.LOG` 通过 `experimentDelta()` 标记 baseline、复现、只换字段、只换模型、混合改动；`experimentPlanDelta()` 在下一次训练前对当前配置做同一套分类。两条引用记录用 `compareExperimentRecords()` 生成 TRAIN / FIELD / min recall / error 的纯数值差分，`discriminatingExperiment()` 在其上只判断“这个单变量实验有没有让世界明显变化”，不推断 syndrome。结案评分继续奖励单变量对照、轻微惩罚 mixed change，结案报告封存最终引用的 E 记录和已经检查的 field/archive 证据。
 
 正式审计返回的 `mistakes` 在揭示之后可以被玩家主动检查：`EndlessAuditPanel` 使用按钮选择错误，`EndlessPlot` 只对已返回的 public `field-*` 错误点增加可视定位环，`CASE_LEADS.LOG` 仅记录玩家亲手打开的错误。这个流程不会在审计前创建额外测试标签入口。
 
-`session.ts` 使用 `aia.endless-session.v2.<seed>` 保存版本化本地调查状态。存档只包含玩家已经拥有的配置、audit history、诊断状态、证据引用和已检查错误，不保存 generator 内部 test IDs / syndrome answer。V2 对应本轮新的 deployed baseline / overfit field probe 语义；旧 `aia.endless-session.v1.<seed>` 历史指标来自不同现场数据，因此 reader 会明确清理而不是把旧 E 记录嫁接到新世界。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；损坏 / 其他旧版本 payload 会被删除。剩余审计额度不单独持久化，而由 `5 + emergencyCredits - history.length` 重建，因此刷新不会返还额度。入口显式显示 resumable case；新案 / 当前案重置均有明确玩家动作。
+`session.ts` 当前使用 `aia.endless-session.v3.<seed>` 保存版本化本地调查状态，并新增 `inspectedCaseLeadIds`。存档仍只包含玩家已经拥有的配置、audit history、诊断/引用、已打开 causal source 与已检查错误，不保存 generator 内部 test IDs / syndrome answer。
+
+版本迁移按数据语义处理，而不是机械改 version：v1 对应更早的 generator world，明确清理；v2 的非 shift 案件模型/现场数据未变，可迁到 v3，并把新 causal-source 状态初始化为空。迁移时必须**先成功写入 canonical v3，再删除唯一 v2 原件**；若 localStorage quota / SecurityError 让新 key 写入失败，v2 保留以便下次重试。distribution-shift 的现场生成在 v3 改成“捷径压缩而非反转”，旧 v2 shift run metrics 已对应另一套现场世界，因此明确作废，禁止把旧 E 记录嫁接到新数据。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；剩余审计额度仍由 `5 + emergencyCredits - history.length` 重建，因此刷新不会退款。
 
 零基础指标说明与案件解释分离：正式审计和 `FieldManual` 只定义 `TRAIN`、`FIELD`、分类别 recall 的字面语义，不根据当前结果生成 syndrome 建议。`FieldManual` 作为 `aria-modal` 会把焦点移入对话框、约束 Tab、支持 Escape，并在关闭后恢复到原触发按钮；SVG 档案异常支持 Enter / Space，Space 会 `preventDefault()` 以符合 button 语义。
 
@@ -350,16 +357,17 @@ type BehaviorEvent = {
 ```
 不写姓名、账号、邮箱、IP 等个人标识；sessionId 为本地随机短 ID。Story localStorage 中保存的是同一份匿名行为日志，用于跨刷新连续性，显式清档 / 重新调查会同时删除并生成下一局新 session。
 
-## 测试作弊码
-项目不再维护 `?debug=1` 特权模式或独立 DebugPanel。`CheatTerminal` 作为全局覆盖层，仅负责把测试意图转换成**正式可恢复状态**：
+## QA Test Bench / 测试作弊码
+项目不再维护 `?debug=1` 特权模式或独立 DebugPanel。`CheatTerminal` 现在外层是一个可逆的 **QA Test Bench**，内层仍把测试意图转换成正式可恢复状态：
 
-- `CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED` 使用真实 reducer、模型训练、审计和实验记录逻辑构造版本化 Story checkpoint；
-- `BUREAU UNLOCK` 通过正式 `BureauProgress` 写入函数授予本地测试权限；
-- `TRAINING` 打开正式 Boot Case 000；
-- `DUTY <seed>` 清理该 seed 的旧 Endless session 后进入正式值班案件；
-- 命令执行后通过正常路由重载，不在 React 内存里注入一个“作弊 state”。
+- 普通 URL 不显示测试入口；显式 `?qa=1` 才在右下角显示 `QA BENCH / OPEN`，也可继续用 Backquote / Ctrl+Shift+K。
+- 第一次执行任何会改状态的命令（除 `HELP`）时，`qa/testBench.ts` 会把当前全部 `aia.*` localStorage key（不含自身 backup）保存到 `aia.qa-backup.v1`，同时记录测试开始 URL。第二次跳转复用原快照，绝不把测试中的脏状态覆盖成“原存档”。
+- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED、Bureau、Training、四类代表 Duty 卡片，以及“任意 Duty seed”数字输入；不要求测试者记命令。
+- 测试会话中右下角持续显示 `QA TEST / SAVE SAFE`；“全新用户状态”只有在有效 backup 存在时才允许清掉当前 `aia.*` working state。
+- “恢复原存档并结束测试”先删除测试产生的游戏 key，再逐字恢复原 entries，最后才删除 backup 并返回原 URL；若恢复写入失败，backup 保留以便重试。
+- `CASE001 ...` 仍使用真实 reducer、模型训练、审计和实验记录构造版本化 Story checkpoint；`BUREAU UNLOCK` 仍走正式 `BureauProgress`；`TRAINING` 打开 Training 000；`DUTY <seed>` 清理该测试 seed 的 Endless session 后进入正式案件。命令执行后通过正常路由重载，不在 React 内存里注入一套作弊 state。
 
-Story 作弊 checkpoint 必须通过同一个 `writeStorySession()` / `readStorySession()` 关系校验。这样作弊系统反而会暴露真实恢复问题：例如本轮就发现并修复了 `iterate` 在过拟合前后重复使用时，旧 validator 误拒绝合法 post-overfit checkpoint 的问题。
+因此 Test Bench 解决的是**测试导航与存档隔离**，不是新增平行游戏逻辑。Story 作弊 checkpoint 仍必须通过同一个 `writeStorySession()` / `readStorySession()` validator，Duty 跳转仍运行真实 generator/audit/session。
 
 六类自动人格路线继续存在于 `game/routes.ts`，但只作为 Vitest 的纯模拟测试，不出现在玩家 UI。
 

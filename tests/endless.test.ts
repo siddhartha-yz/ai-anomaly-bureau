@@ -99,7 +99,10 @@ describe('supervised endless case generator', () => {
     const shiftedShortcut = solutionFor(shifted, 'linear', keyWith(shifted, '画面亮度'), keyWith(shifted, '轮廓面积'))
     const stableFeatures = solutionFor(shifted, 'linear', keyWith(shifted, '局部纹理'), keyWith(shifted, '目标比例'))
     expect(shiftedShortcut.trainAccuracy).toBeGreaterThan(0.9)
-    expect(stableFeatures.testAccuracy - shiftedShortcut.testAccuracy).toBeGreaterThan(0.25)
+    // Shift no longer has to catastrophically reverse an old shortcut on the
+    // first audit: a ~15pt+ field-only recovery is enough to be experimentally
+    // discriminating while keeping the initial failure compatible with overfit.
+    expect(stableFeatures.testAccuracy - shiftedShortcut.testAccuracy).toBeGreaterThan(0.15)
 
     const imbalanced = createEndlessCase(6003)
     const deceptive = enumerateEndlessSolutions(imbalanced).find((item) => item.testAccuracy >= .9 && !item.reliable)

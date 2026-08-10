@@ -6,12 +6,13 @@ import type { EndlessCase } from './generator'
 
 export type EndlessAudit = ReturnType<EndlessCase['audit']>
 
-export function EndlessPlot({ caseData, features, model, trained, audit, selectedArchiveId, selectedFieldErrorId, onArchiveSelect }: {
+export function EndlessPlot({ caseData, features, model, trained, audit, showArchiveAlerts = false, selectedArchiveId, selectedFieldErrorId, onArchiveSelect }: {
   caseData: EndlessCase
   features: [FeatureKey, FeatureKey]
   model: ModelId
   trained: boolean
   audit?: EndlessAudit
+  showArchiveAlerts?: boolean
   selectedArchiveId?: string
   selectedFieldErrorId?: string
   onArchiveSelect?: (id: string) => void
@@ -43,24 +44,24 @@ export function EndlessPlot({ caseData, features, model, trained, audit, selecte
         {trainPoints.map((point) => (
           <g
             key={point.id}
-            className={`${point.source.flags?.noise ? 'endless-archive-anomaly' : ''} ${selectedArchiveId === point.id ? 'selected' : ''}`}
-            role={point.source.flags?.noise ? 'button' : undefined}
-            tabIndex={point.source.flags?.noise ? 0 : undefined}
-            aria-label={point.source.flags?.noise ? `查看档案异常 ${point.id}` : undefined}
-            onClick={point.source.flags?.noise ? () => onArchiveSelect?.(point.id) : undefined}
-            onKeyDown={point.source.flags?.noise ? (event) => {
+            className={`${showArchiveAlerts && point.source.flags?.noise ? 'endless-archive-anomaly' : ''} ${selectedArchiveId === point.id ? 'selected' : ''}`}
+            role={showArchiveAlerts && point.source.flags?.noise ? 'button' : undefined}
+            tabIndex={showArchiveAlerts && point.source.flags?.noise ? 0 : undefined}
+            aria-label={showArchiveAlerts && point.source.flags?.noise ? `查看档案异常 ${point.id}` : undefined}
+            onClick={showArchiveAlerts && point.source.flags?.noise ? () => onArchiveSelect?.(point.id) : undefined}
+            onKeyDown={showArchiveAlerts && point.source.flags?.noise ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
                 onArchiveSelect?.(point.id)
               }
             } : undefined}
           >
-            {point.source.flags?.noise && <title>历史档案采集质量告警：{point.id}</title>}
-            {point.source.flags?.noise && <rect x={x(point.x) - 14} y={y(point.y) - 14} width="28" height="28" className="endless-archive-hitbox" />}
+            {showArchiveAlerts && point.source.flags?.noise && <title>历史档案采集质量告警：{point.id}</title>}
+            {showArchiveAlerts && point.source.flags?.noise && <rect x={x(point.x) - 14} y={y(point.y) - 14} width="28" height="28" className="endless-archive-hitbox" />}
             {point.label === 'cat'
               ? <rect x={x(point.x) - 5} y={y(point.y) - 5} width="10" height="10" className="endless-train-a" />
               : <path d={`M ${x(point.x)} ${y(point.y)-7} L ${x(point.x)+7} ${y(point.y)+6} L ${x(point.x)-7} ${y(point.y)+6} Z`} className="endless-train-b" />}
-            {point.source.flags?.noise && (
+            {showArchiveAlerts && point.source.flags?.noise && (
               <>
                 <rect x={x(point.x) - 10} y={y(point.y) - 10} width="20" height="20" className="endless-archive-anomaly-frame" />
                 <text x={x(point.x) + 9} y={y(point.y) - 9} className="endless-archive-anomaly-mark">!</text>
@@ -90,7 +91,7 @@ export function EndlessPlot({ caseData, features, model, trained, audit, selecte
         <span><i className="shape-a" /> {caseData.classNames.cat}</span>
         <span><i className="shape-b" /> {caseData.classNames.bread}</span>
         {audit && <span><i className="shape-field" /> 现场未知样本（按模型判断着色）</span>}
-        {caseData.archiveAlerts.length > 0 && <span><i className="shape-archive-alert">!</i> 历史档案采集质量告警</span>}
+        {showArchiveAlerts && caseData.archiveAlerts.length > 0 && <span><i className="shape-archive-alert">!</i> 历史档案采集质量告警</span>}
       </div>
     </section>
   )

@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：21 个测试文件、103 个测试全部通过。
-- Vite production build：通过；本轮冻结构建为 `assets/index-d8imknCr.js` + `assets/index-DyIuyVLf.css`（生产发布后再记录远端哈希）。
-- Playwright：26 条 Chromium E2E 全部通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、Duty 竞争假设 / falsification / syndrome 延迟揭示、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：23 个测试文件、112 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CZZF0Q_G.js` + `assets/index-H5bxzfje.css`（生产发布后再记录远端哈希）。
+- Playwright：29 条 Chromium E2E **首轮全部通过**，覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -67,13 +67,14 @@ Vitest 当前覆盖：
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例；每宗新案还必须生成一个真实不可靠的 deployed baseline，而不是从固定默认配置开始。
 - Duty hypothesis-depth：`duty-hypothesis-depth.test.ts` 在 160 个连续 seed 上逐案检查 deployed baseline 不可靠、存在 ≥12pt 的 syndrome-appropriate 单变量干预；要求目标干预轴相对竞争轴明显占优的比例 ≥90%，overfit 的自然 `k=1 → k=5` 对照具有 ≥95% 的 material-discrimination 覆盖率。
-- 额外 800-seed 只读分析中，800/800 deployed baseline 均不可靠，800/800 都存在 ≥12pt 的目标单变量干预；791/800（98.9%）案件中目标干预轴还比竞争轴至少多 8pt，overfit 自身为 191/200。随后又独立压力扫描 2,000 个 seed（四类各 500）：2,000/2,000 baseline 均不可靠，2,000/2,000 都存在 syndrome-appropriate ≥12pt 单变量干预，没有发现 fallback 退化案。
-- 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。Formal Sensor Deck 不再同时显示所有字段的 `旧差异 X/5 / 现场变化 Y/5` 答案排行。
+- 最终再次独立压力扫描 2,000 个 seed（四类各 500）：**2,000/2,000 deployed baseline 均不可靠，2,000/2,000 都存在 syndrome-appropriate ≥12pt 单变量干预**。softened shift 初版曾抓到唯一 seed 11626 fallback 到可靠默认配置；最终修成只允许真实失败且仍存在 material field-only recovery 的 fallback 后，2,000-seed 复扫为 0 反例。
+- `duty-causal-ambiguity.test.ts` 新增 syndrome-level obviousness 回归：240 个 opening 都不允许自动出现精确类别构成、batch history/field、质量告警 label 或 syndrome 词；800-seed first-audit 测试要求 overfit 与 distribution-shift 高度落在同一个 `[53%, 85%)` 不可靠 FIELD 区间，且两类 mean FIELD 差 <8pt。最终 200+200 分布实测：overfit median 75%、shift median 71.4%，单看一次 “TRAIN≈100 / FIELD 中度失败” 已不足以命名病因。
+- 无尽案件 cause-specific 原始事实全部改成 player-opened evidence：baseline 前 `H-COVERAGE / H-CONTEXT / H-RECORDS` 都是 SEALED；玩家复现事故后才可主动打开精确档案构成、历史/现场批次或质量记录。overfit 的橙色 archive anomaly 也只有打开 H-RECORDS 后才出现。Formal Sensor Deck 继续不显示四字段 `旧差异 X/5 / 现场变化 Y/5` 答案排行。
 - 无尽实验设计：同一配置重复审计识别为 replication；只换字段 / 只换模型 / 混合改动均有确定分类。只有 fields-only / model-only 且 FIELD 或最低 recall 绝对变化 ≥12pt 才是 discriminating evidence；显著改善和显著恶化都可以减少不确定性，repeat / mixed 不能。
 - 竞争假设状态：`H-FIELDS / H-MODEL` 各自只读取玩家 run history；未测试为 OPEN，material controlled change 为 SUPPORTED，真正测试过但变化不足 12pt 为 WEAKENED。两个轴可以同时 SUPPORTED，此时 UI 明确提示单一主因解释不足。
-- 诊断证据包：只有已有 material discriminating experiment 且存在可靠方案时 syndrome 选项才渲染；引用的两条 run 自身也必须形成有效单变量区分证据。错误诊断后下一份报告必须包含 `lastDiagnosisRunCount` 之后的新 material controlled evidence，旧 E 记录不能反复用于轮猜。
+- 诊断 gate 现在要求 **reliable solution + material discriminating experiment + 至少一份主动 causal-source review + falsification**。falsification 可以是 source `clear`（例如质量记录无异常 / 批次无实质切换），也可以是真正测试过但变化 <12pt 的 fields-only/model-only null result。只有支持证据、没有排除任何替代解释时，`NEXT OBJECTIVE` 会停在 `CAUSE / FALSIFY`，syndrome 选项仍不渲染。引用的两条 run 自身也必须构成有效单变量区分证据；错误诊断后仍要求 fresh material controlled evidence。
 - 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome；`discriminatingExperiment()` 只回答“这个受控实验有没有让世界明显变化”。
-- 无尽 session：当前为 `aia.endless-session.v2.<seed>`。版本化 seed-local payload 可往返恢复，损坏 / 越界指标 / 不存在的 run 引用 / audit 配置冲突都会被拒绝；由于本轮 overfit field probes / baseline 语义改变，旧 v1 history 会明确清理而不是与新现场数据混用。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
+- 无尽 session：当前为 `aia.endless-session.v3.<seed>`，新增 `inspectedCaseLeadIds`。v2 非 shift 案可安全迁移，并且测试要求**先成功写 v3 再删除 v2**；模拟 `QuotaExceededError` 时 v2 原件必须保留。v3 改变了 shift field world，因此旧 v2 shift history 明确作废；v1 继续不迁移。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
@@ -84,7 +85,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 26 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 **29 条**真实 Chromium 路线；本轮冻结源码完整执行 29/29，首轮全部通过。
 
 调查局宏观框架单独验证：
 
@@ -126,18 +127,19 @@ Vitest 当前覆盖：
 - `FormalCaseResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
 - localStorage 故障路线会故意让 Story key 的 `setItem` 抛 `QuotaExceededError`：游戏保持可操作并显示 `LOCAL SAVE FAILED`；恢复 Storage 后点击“重试本地保存”，真实写入成功且警告消失。
 
-作弊码路线会故意从历史 `?debug=1` query 打开页面，先确认它不再提供特权 UI，再用 `CASE001 OVERFIT` 构造真实两次审计的合法 Story checkpoint；进入正式 `overfit_reveal` 后再次刷新，必须回到通用 `FormalCaseResume` 网关。另一条浏览器路线验证 `BUREAU UNLOCK → TRAINING → DUTY 6003` 都进入正式模式。
+作弊码路线仍故意从历史 `?debug=1` query 启动并用 `CASE001 OVERFIT` 构造合法 Story checkpoint，但状态修改命令现在还必须自动创建 `aia.qa-backup.v1` 并显示 `QA TEST / SAVE SAFE`。新增 QA Test Bench 浏览器路线先写入真实 Bureau + Story 正常存档，再跨 `CASE 001 OVERFIT → DUTY 6006`，最后一键恢复：要求原 URL 精确返回、原 `aia.*` entries 逐字相等、测试 Duty session 与 backup 都消失。另一条路线确认普通 URL 完全不显示 QA 按钮，`?qa=1` 才显示 `QA BENCH / OPEN`，并实际用“任意 DUTY SEED”输入 7421 打开正式案件。
 
 无尽 onboarding / 证据路线现在验证：
 
 - 正常产品流程由调查局值班室接案后进入模式说明；显式 query 仍可用于开发复现，但不会绕过新人入职去制造长期 Duty 进度。
 - Boot Case 000 真实完成“建立基线 → 只换字段做对照 → 从日志认出变量 → 三类证据阅读练习 → 诊断草稿 → 正式提交”；所有分数来自真实 generator / model / audit。
 - Training 000 完成后的 canonical 长期事实只写入 `aia.bureau-progress.v2.trainingCases`；历史 `aia.boot-case-000.v2` 只作为旧存档迁移输入，新完成路线明确断言不会再写这个副本。正式模式仍可 query 直达，训练案件可重玩。
-- 正式案件首屏只描述症状，不写出 syndrome；Sensor Deck 不再给四字段全局 0–5 答案分数；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
-- 第一条正式审计后才出现 `H-FIELDS / H-MODEL` 两条竞争干预假设；浏览器路线验证它们从 OPEN 出发，repeat 保持 OPEN，真正的受控实验才产生 SUPPORTED / WEAKENED。
-- overfit seed 6117 浏览器路线验证三段节奏：E01 `KNN k=1` 真实复现 TRAIN 100% / FIELD 71.9% / 最低召回 68.8%；E02 保持字段只换成 k=5 后 FIELD / 最低召回均为 81.3%，模型轴已经形成 ≥12pt 区分证据但系统仍没过 85% 可靠线，syndrome 名称仍不渲染；E03 保持 k=5 再做 fields-only 修复到 FIELD / 两类召回 100% 后才开放引用证据与病因命名。
-- falsification seed 6006 浏览器路线验证：E01 linear baseline FIELD 54%；E02 保持字段只换到 k=5 后 FIELD 50%、最低召回不变，变化不足 12pt，因此 H-MODEL 被 WEAKENED；E03 保持 k=5 只换字段后 FIELD / 两类召回均到 100%，H-FIELDS SUPPORTED、H-MODEL 继续 WEAKENED，并进入诊断阶段。这是本轮“聪明实验杀死一个原本合理错误解释”的直接回归。
-- 过拟合类历史档案的质量告警在散点图里为可点击橙色 `!`；只有玩家亲手打开后才进入 `CASE_LEADS.LOG`。
+- 正式案件首屏只描述症状，不写 syndrome，也不自动显示精确类别构成 / 批次详情 / 质量告警；Sensor Deck 同样没有四字段全局 0–5 答案分数。第一次 baseline 后才解封 `H-COVERAGE / H-CONTEXT / H-RECORDS` 三条竞争原因，玩家必须主动选一条复核。
+- `H-FIELDS / H-MODEL` 继续作为干预层竞争假设；浏览器路线验证它们从 OPEN 出发，repeat 保持 OPEN，真正的受控实验才产生 SUPPORTED / WEAKENED。即使玩家绕过 `NEXT OBJECTIVE` 直接做出可靠修复，只要没复核原因来源，四个 syndrome 名称仍然不渲染。
+- overfit seed 6117：E01 `KNN k=1` TRAIN 100% / FIELD 72%；玩家主动打开 H-RECORDS 才看到 4 条质量记录。E02 只换 k=5 后 FIELD 81%，模型轴得到支持但仍不可靠；E03 再 fields-only 修复到 FIELD 100%。**此时仍不能诊断**，因为只有支持没有反证；再打开 H-CONTEXT 得到“没有设备、环境或采集规范的实质切换”，杀掉 context story 后才首次显示 syndrome 选项。
+- shift seed 6006：E01 FIELD 71%；先开 H-RECORDS 得到“无质量异常”，排除 records story；E02 保持字段只换 k=5 后 FIELD 75%、关键变化 <12pt，因此 H-MODEL = WEAKENED；再开 H-CONTEXT 才看到夜场 / 灯光 / 摄像距离变化；E03 fields-only 后 FIELD 100%、H-FIELDS = SUPPORTED。这里同时存在 source falsification + intervention falsification。
+- imbalance seed 6003：开局看不到 40:4；E01 总体 90% 但故障 recall 50%。只有玩家主动开 H-COVERAGE 才看到正常 40 / 故障 4；fields-only 修复到 100% 后仍不能命名病因，因为“类别偏斜”只是支持。再开 H-RECORDS 得到没有采集质量异常，排除 records story 后才开放诊断。
+- 过拟合类历史档案的橙色 `!` 也不再是首屏指纹；只有玩家主动打开 H-RECORDS 后才显示并允许进一步检查具体异常记录。
 - 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡；`TRAIN / FIELD / 召回` 仅有字面指标词典。
 - 正式审计返回的错误卡可点击，选中后对应 public `field-*` 点会滚入 `FIELD_MATRIX` 并高亮；只有亲手检查的错误才进入 `CASE_LEADS.LOG`。
 - `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；下一次训练前先显示当前配置相对上一条记录的变化类型。
@@ -151,7 +153,7 @@ Vitest 当前覆盖：
 - CASE RESOLVED 后不再显示 stale `NEXT OBJECTIVE`；结案案卷封存最终配置、引用 E 记录、实验设计、已检查现场误判与档案复核。
 - 1280×720 以及常规桌面 viewport 验证 intro / Boot / 正式模式没有横向爆版，`定位下一步操作` 可将关键 CTA 带入视野。
 - 额外 1280×720 压力路线会真正完成两次正式审计、引用 E01/E02 并展开 `EVIDENCE_COMPARE`，再次检查无横向溢出且诊断区仍可由 sticky 任务条定位。
-- distribution-shift 路线验证 `HISTORY BATCH / FIELD BATCH` 元数据可见，但首屏不出现“分布漂移”答案词。
+- distribution-shift 路线验证 batch 元数据**首屏不可见**；baseline 后玩家主动打开 H-CONTEXT 才看到 `HISTORY / FIELD` 具体事实，而且 finding 仍不出现“分布漂移”答案词。
 
 额度恢复路线会连续耗尽 5 次正式未知审计，确认额外审计入口出现、恢复 1 次可执行额度，并且这类补救会进入结案评级扣分；有限预算因此制造决策成本，但不会造成不可恢复死局。
 
@@ -169,9 +171,9 @@ E2E 使用 Playwright 的真实可操作性检查；如果 overlay、NPC、toolt
 无尽模式不是只测试“有没有解”，还测试“思考是否真的有收益”。当前批量基线使用 90 个程序化 seed，每个案件运行 24 次、总预算 5-audit 的 random-clicker；evidence-policy 与 random-clicker 都从同一个真实 deployed failure baseline 起步：
 
 - evidence-policy 结案率 **100%**；
-- random-clicker 结案率约 **13.2%**；
+- random-clicker 结案率约 **15.1%**；
 - evidence-policy 平均最佳未知表现 **100%**；
-- random-clicker 平均最佳未知表现约 **88.1%**；
+- random-clicker 平均最佳未知表现约 **92.2%**；
 - evidence-policy **90/90** 都取得 material single-variable discriminating evidence；
 - evidence-policy 平均正式审计 **2.02 次**：88/90 用 2 次完成，2/90 需要第 3 次受控修复。
 
@@ -294,7 +296,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 没有建立大规模视觉 snapshot 回归；视觉仍以真实截图人工检查为主。
 - GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
 - 外部中文像素字体网络不可用时会回退到系统 CJK 字体，功能不受影响，但视觉会变化。
-- 本轮已经显著提高了 **intervention-axis ambiguity**，但还没有完全解决 **syndrome-level ambiguity**：熟悉四种故障名称的玩家仍可能从 `HISTORY/FIELD` 批次元数据提前猜到 distribution shift，或从 `40:4` 的历史类别构成提前猜到 class imbalance。现在他们仍必须用实验确认“什么干预真正改变世界”，且 syndrome 名称会延迟显示，但下一轮最值得解决的是让开局公开事实本身同时支持至少两种 causal story，而不是继续增加模型或内容量。
+- 本轮已经解决了最直接的 **opening syndrome fingerprint**：精确 batch / 40:4 / quality alert 都从首屏撤下，并要求 support + falsification 才能命名病因。但更深一层的风险仍在：三份 positive causal finding 目前和 syndrome 的对应关系仍偏整齐——`H-RECORDS signal` 强烈指向 overfit、`H-CONTEXT signal` 强烈指向 shift、`H-COVERAGE signal` 强烈指向 imbalance。熟悉系统的重复玩家可能学会“先拆一份资料夹，看哪份亮 signal”而不是继续建模多个 causal story。下一轮最值得做的是让**同一 positive fact 也能出现在多个 syndrome 中**，再依靠其与干预结果 / 错误样本结构的组合完成归因，而不是增加新模型或更多病名。
 
 ## 下一步真实玩家测试重点
 

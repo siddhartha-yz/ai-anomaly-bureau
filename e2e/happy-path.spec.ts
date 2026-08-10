@@ -7,6 +7,7 @@ import { createStoryCheatSession } from '../src/game/cheats'
 import type { BehaviorLog } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
 import { STORY_SESSION_VERSION, storyAuditCredits, storySessionKey, writeStorySession, type StorySessionData } from '../src/game/session'
+import { QA_BACKUP_KEY } from '../src/qa/testBench'
 
 function serializeStoryCheckpoint(checkpoint: StorySessionData) {
   let payload: string | undefined
@@ -68,6 +69,10 @@ async function citeEndlessRuns(page: Page, ...runNumbers: number[]) {
   }
 }
 
+async function inspectCausalLead(page: Page, name: RegExp) {
+  await page.getByLabel('因果线索来源').getByRole('button', { name }).click()
+}
+
 async function assertNoOverlap(page: Page, first: string, second: string) {
   const a = await page.locator(first).boundingBox()
   const b = await page.locator(second).boundingBox()
@@ -104,6 +109,8 @@ test('cheat terminal jumps into a real Story checkpoint instead of a debug-only 
   expect(checkpoint.experimentLog).toHaveLength(2)
   expect(checkpoint.state.hasSeenOverfit).toBe(true)
   expect(storyAuditCredits(checkpoint)).toBe(3)
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), QA_BACKUP_KEY)).not.toBeNull()
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toContainText('SAVE SAFE')
 
   // The cheat produced a normal persisted case: a refresh uses the ordinary resume gateway.
   await page.reload()
@@ -135,7 +142,86 @@ test('cheat terminal opens Bureau, Training, and seeded Duty through official mo
   await terminal.getByLabel('ACCESS CODE').fill('DUTY 6003')
   await terminal.getByRole('button', { name: '执行' }).click()
   await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
-  await expect(page.getByText(/正常日志 40 · 故障日志 4/)).toBeVisible()
+  await expect(page.getByLabel('待复核因果线索')).toContainText('3 SOURCES SEALED')
+  await expect(page.locator('.endless-case-brief')).not.toContainText(/正常日志 40|故障日志 4/)
+})
+
+test('QA Test Bench protects normal saves across Story and Duty jumps, then restores them exactly', async ({ page }) => {
+  const normalProgress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 100)
+  normalProgress.inductionAcknowledged = true
+  const normalStory = serializeStoryCheckpoint(createStoryCheatSession('closed', 20260809))
+  await page.goto('?mode=hub&seed=20260809')
+  await page.evaluate(([progressKey, progressValue, storyKey, storyValue]) => {
+    window.localStorage.setItem(progressKey, progressValue)
+    window.localStorage.setItem(storyKey, storyValue)
+  }, [BUREAU_PROGRESS_KEY, JSON.stringify(normalProgress), storySessionKey(20260809), normalStory])
+  await page.reload()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+
+  const originalUrl = page.url()
+  const originalStorage = await page.evaluate(() => Object.fromEntries(
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('aia.') && key !== 'aia.qa-backup.v1')
+      .sort()
+      .map((key) => [key, window.localStorage.getItem(key)]),
+  ))
+  expect(Object.keys(originalStorage)).toContain(BUREAU_PROGRESS_KEY)
+  expect(Object.keys(originalStorage)).toContain(storySessionKey(20260809))
+
+  await page.keyboard.press('Control+Shift+K')
+  let terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('QA 测试工作台').getByRole('button', { name: /CASE 001 · 过拟合/ }).click()
+  await waitForStage(page, 'overfit_reveal')
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toContainText('SAVE SAFE')
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), QA_BACKUP_KEY)).not.toBeNull()
+
+  const qaStoryRaw = await page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))
+  expect((JSON.parse(qaStoryRaw!) as StorySessionData).state.stage).toBe('overfit_reveal')
+
+  await page.getByRole('button', { name: '打开 QA 测试工作台' }).click()
+  terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('QA 测试工作台').getByRole('button', { name: /DUTY · Shift/ }).click()
+  await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
+  await expect(page.getByText('SEED 6006')).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toBeVisible()
+
+  await page.getByRole('button', { name: '打开 QA 测试工作台' }).click()
+  terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await expect(terminal.getByLabel('QA 测试工作台')).toContainText(/正式存档已备份/)
+  await terminal.getByRole('button', { name: /恢复原存档并结束测试/ }).click()
+  await expect(page).toHaveURL(originalUrl)
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+
+  const restoredStorage = await page.evaluate(() => Object.fromEntries(
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith('aia.') && key !== 'aia.qa-backup.v1')
+      .sort()
+      .map((key) => [key, window.localStorage.getItem(key)]),
+  ))
+  expect(restoredStorage).toEqual(originalStorage)
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), QA_BACKUP_KEY)).toBeNull()
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), endlessSessionKey(6006))).toBeNull()
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toHaveCount(0)
+})
+
+test('qa=1 exposes a visible Test Bench launcher while normal player URLs remain clean', async ({ page }) => {
+  await page.goto('?seed=20260809')
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toHaveCount(0)
+
+  await page.goto('?seed=20260809&qa=1')
+  const launcher = page.getByRole('button', { name: '打开 QA 测试工作台' })
+  await expect(launcher).toBeVisible()
+  await expect(launcher).toContainText('QA BENCH')
+  await expect(launcher).toContainText('OPEN')
+  await launcher.click()
+  const terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await expect(terminal.getByLabel('QA 测试工作台')).toBeVisible()
+  await expect(terminal).toContainText('一键跳转，不污染正常存档')
+  await terminal.getByLabel('任意 DUTY SEED').fill('7421')
+  await terminal.getByRole('button', { name: '打开指定 Duty' }).click()
+  await expect(page).toHaveURL(/mode=endless&seed=7421/)
+  await expect(page.getByText('SEED 7421')).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开 QA 测试工作台' })).toContainText('SAVE SAFE')
 })
 
 test('Bureau Hub turns solved content into one persistent investigation workspace', async ({ page }) => {
@@ -450,34 +536,26 @@ test('Boot Case 000 teaches comparison before unlocking formal endless play', as
   await expect(bureauDepartment(page, /值班室/)).toBeDisabled()
 })
 
-test('formal endless mode exposes facts and next actions without revealing the diagnosis', async ({ page }) => {
+test('formal endless mode seals cause fingerprints until the player reproduces the incident and opens a lead', async ({ page }) => {
   await page.goto('?mode=endless&seed=20260809')
   await expect(page.getByText(/温室最近出现大量病害误报/)).toBeVisible()
   await expect(page.getByText(/把几次脏镜头造成的异常当成了规律/)).toHaveCount(0)
-  await expect(page.locator('.endless-reported-facts')).toContainText('档案系统标出了 4 条采集质量异常记录')
-  await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(4)
+  await expect(page.getByLabel('待复核因果线索')).toContainText('3 SOURCES SEALED')
+  await expect(page.locator('.endless-case-brief')).not.toContainText(/4 条|镜头污染|HISTORY|FIELD BATCH/)
+  await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(0)
+  const causalLeads = page.getByLabel('因果线索来源')
+  await expect(causalLeads.getByRole('button')).toHaveCount(3)
+  for (const button of await causalLeads.getByRole('button').all()) await expect(button).toBeDisabled()
+
   await expect(page.locator('.endless-console .objective-focus')).toHaveCount(0)
   await expect(page.locator('.endless-console .endless-primary.objective-action')).toHaveText('训练当前方案')
-  await expect(page.locator('.endless-lead-board')).toContainText(/亲手查看过的事实会记录在这里/)
   await page.getByRole('button', { name: '定位下一步操作' }).click()
   await expect(page.locator('.endless-primary.objective-action')).toBeInViewport()
-  // Formal mode exposes measurements, but removes the answer-like feature prose used during development.
+  // Formal mode exposes the raw matrix but does not pre-rank sensors for the player.
   await expect(page.locator('.endless-feature-list button small')).toHaveCount(0)
   await expect(page.locator('.endless-feature-list')).not.toContainText(/旧差异|现场变化|[0-5]\/5/)
   await expect(page.locator('.sensor-evidence-help')).toContainText(/不会预先替字段打分/)
-  const archiveAlert = page.getByRole('button', { name: /查看档案异常 archive-flag-01/ })
-  await archiveAlert.focus()
-  await page.evaluate(() => {
-    window.addEventListener('keydown', (event) => {
-      if (event.key === ' ') window.sessionStorage.setItem('archive-space-prevented', String(event.defaultPrevented))
-    }, { once: true })
-  })
-  await page.keyboard.press('Space')
-  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('archive-space-prevented'))).toBe('true')
-  await expect(page.getByLabel('历史档案异常记录')).toContainText(/镜头污染/)
-  await expect(page.getByLabel('历史档案异常记录')).toContainText(/需要用实验验证/)
-  await expect(page.locator('.endless-lead-board')).toContainText(/已打开档案质量告警 1\/4/)
-  await page.getByLabel('历史档案异常记录').getByRole('button', { name: '×' }).click()
+
   const manualOpener = page.getByRole('button', { name: '调查手册' })
   await manualOpener.click()
   await expect(page.getByRole('heading', { name: '调查手册' })).toBeVisible()
@@ -491,7 +569,6 @@ test('formal endless mode exposes facts and next actions without revealing the d
   await expect(page.getByText(/这不是答案表/)).toBeVisible()
   await expect(page.getByLabel('指标词典')).toContainText('真实属于这一类的样本里，有多少被模型正确找出来')
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('heading', { name: '调查手册' })).toHaveCount(0)
   await expect(manualOpener).toBeFocused()
   await expect(page.getByText('先建立第一条基线记录')).toBeVisible()
   await qaShot(page, '54-endless-purpose')
@@ -499,22 +576,41 @@ test('formal endless mode exposes facts and next actions without revealing the d
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await expect(page.getByText('先预测，再花审计额度验证')).toBeVisible()
   await qaShot(page, '55-endless-predict')
-  await page.getByRole('button', { name: /<60% 翻车/ }).click()
+  await page.locator('.endless-band-picks button').first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
-  await expect(page.getByText('让两个解释真正分叉')).toBeVisible()
+  await expect(page.getByLabel('当前调查目标')).toContainText('先决定查哪一种原因')
   await expect(page.getByLabel('竞争假设')).toContainText('H-FIELDS')
   await expect(page.getByLabel('竞争假设')).toContainText('H-MODEL')
   await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
   await expect(page.locator('.endless-lead-board')).toContainText('正式审计 #1')
+  for (const button of await causalLeads.getByRole('button').all()) await expect(button).toBeEnabled()
+
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(causalLeads).toContainText('质量系统标出了 4 条需要人工复核的历史记录')
+  await expect(page.getByLabel('当前调查目标')).toContainText('让两个解释真正分叉')
+  await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(4)
+  const archiveAlert = page.getByRole('button', { name: /查看档案异常 archive-flag-01/ })
+  await archiveAlert.focus()
+  await page.evaluate(() => {
+    window.addEventListener('keydown', (event) => {
+      if (event.key === ' ') window.sessionStorage.setItem('archive-space-prevented', String(event.defaultPrevented))
+    }, { once: true })
+  })
+  await page.keyboard.press('Space')
+  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem('archive-space-prevented'))).toBe('true')
+  await expect(page.getByLabel('历史档案异常记录')).toContainText(/镜头污染/)
+  await expect(page.getByLabel('历史档案异常记录')).toContainText(/需要用实验验证/)
+  await expect(page.locator('.endless-lead-board')).toContainText(/已打开档案质量告警 1\/4/)
+  await page.getByLabel('历史档案异常记录').getByRole('button', { name: '×' }).click()
   await qaShot(page, '56-endless-compare')
 })
 
 test('formal endless case briefs expose symptoms without spelling out any diagnosis', async ({ page }) => {
   const cases = [
     { seed: 6000, diagnosis: '观察特征没有抓住真正差异', symptom: /报名邮件|垃圾箱/, shot: '55-feature-gap-brief' },
-    { seed: 6001, diagnosis: '模型把训练噪声和偶然点记得太死', symptom: /历史样品|缺陷|传感器|质检/, shot: '56-noise-brief' },
-    { seed: 6002, diagnosis: '训练环境与现场环境发生了分布变化', symptom: /白天|夜间|现场|历史/, shot: '57-shift-brief' },
-    { seed: 6003, diagnosis: '多数类把总体准确率撑高，少数类却一直漏掉', symptom: /总体准确率|故障|正常日志/, shot: '58-imbalance-brief' },
+    { seed: 6001, diagnosis: '模型把训练噪声和偶然点记得太死', symptom: /芯片|缺陷|质检/, shot: '56-noise-brief' },
+    { seed: 6002, diagnosis: '训练环境与现场环境发生了分布变化', symptom: /闸机|授权|异常通行/, shot: '57-shift-brief' },
+    { seed: 6003, diagnosis: '多数类把总体准确率撑高，少数类却一直漏掉', symptom: /机房|故障|报警|漏掉/, shot: '58-imbalance-brief' },
   ]
 
   for (const item of cases) {
@@ -522,10 +618,36 @@ test('formal endless case briefs expose symptoms without spelling out any diagno
     const brief = page.locator('.endless-case-brief')
     await expect(brief).toContainText(item.symptom)
     await expect(brief).not.toContainText(item.diagnosis)
+    await expect(brief).toContainText('3 SOURCES SEALED')
+    await expect(brief).not.toContainText(/40 条|4 条|HISTORY：|FIELD：|Camera-[AB]|质量系统标出了/)
     await expect(page.getByLabel('当前调查目标')).toContainText('基线')
     await expect(page.locator('.objective-action')).toHaveCount(1)
     await qaShot(page, item.shot)
   }
+})
+
+test('Duty experiments alone cannot reveal syndrome names until one causal source is actively reviewed', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6000')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+
+  // Deliberately ignore the highlighted CAUSE SOURCES step and perform the
+  // strong fields-only repair anyway. The model can become reliable, but the
+  // report must still refuse to name a syndrome without a source review.
+  await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').last().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
+  await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+  await expect(page.getByLabel('当前调查目标')).toContainText('先决定查哪一种原因')
+  await expect(page.getByText('观察特征没有抓住真正差异')).toHaveCount(0)
+
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
+  await expect(page.locator('.endless-diagnosis')).toBeVisible()
+  await expect(page.getByText('观察特征没有抓住真正差异')).toBeVisible()
 })
 
 test('overfit Duty separates hypothesis discovery from reliable repair before naming the syndrome', async ({ page }) => {
@@ -538,6 +660,8 @@ test('overfit Duty separates hypothesis discovery from reliable repair before na
   await expect(page.locator('.endless-audit-result')).toContainText('TRAIN')
   await expect(page.locator('.endless-audit-result')).toContainText('FIELD AUDIT')
   await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/4 条需要人工复核/)
 
   // Smoothing k=1 → k=5 while keeping fields fixed kills one plausible
   // explanation, but it does not yet produce a reliable system.
@@ -554,14 +678,23 @@ test('overfit Duty separates hypothesis discovery from reliable repair before na
   await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
   await expect(page.getByText('模型把训练噪声和偶然点记得太死')).toHaveCount(0)
 
-  // A third controlled run repairs the system; only now are diagnosis names
-  // disclosed and evidence citation becomes the next task.
+  // A third controlled run repairs the system, but positive evidence alone is
+  // still insufficient: quality flags + better metrics have not yet killed a
+  // competing environmental explanation.
   await chooseEndlessFeatures(page, '引脚比例', '纹理波动')
   await expect(page.getByLabel('当前实验计划对照')).toContainText('只换字段')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.locator('.endless-band-picks button').first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
+  await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+  await expect(page.getByLabel('当前调查目标')).toContainText('还没有排除竞争解释')
+  await expect(page.getByText('模型把训练噪声和偶然点记得太死')).toHaveCount(0)
+
+  // A second cause-source check provides the missing falsification: the field
+  // batch did not materially change, so the context-shift story loses support.
+  await inspectCausalLead(page, /采集批次记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有设备、环境或采集规范的实质切换/)
   await expect(page.locator('.endless-diagnosis')).toBeVisible()
   await expect(page.getByText('模型把训练噪声和偶然点记得太死')).toBeVisible()
   await expect(page.getByLabel('当前调查目标')).toContainText('引用两条证据')
@@ -579,6 +712,10 @@ test('Duty can falsify a plausible model explanation before repairing the field 
   const modelHypothesis = page.getByLabel('竞争假设').locator('article').filter({ hasText: 'H-MODEL' })
   await expect(fieldHypothesis).toContainText('OPEN')
   await expect(modelHypothesis).toContainText('OPEN')
+  // Start with a plausible but wrong causal story: maybe bad historical capture.
+  // A clean quality log removes that story without exposing the actual syndrome.
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
 
   // Hold fields fixed and change only the rule. The field result barely moves,
   // so the model-only prediction fails and H-MODEL is explicitly weakened.
@@ -591,6 +728,9 @@ test('Duty can falsify a plausible model explanation before repairing the field 
   await expect(fieldHypothesis).toContainText('OPEN')
   await expect(page.getByLabel('竞争假设')).toContainText(/模型-only|H-MODEL.*削弱|H-MODEL 的单变量预测/)
   await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+
+  await inspectCausalLead(page, /采集批次记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/HISTORY：.*FIELD：/)
 
   // Now keep k=5 fixed and change only the fields. The incident disappears,
   // supporting H-FIELDS and opening the diagnosis phase only after a reliable fix.
@@ -613,6 +753,7 @@ test('repeating the same endless configuration is replication, not new diagnosti
     await page.getByRole('button', { name: '训练当前方案' }).click()
     await page.getByRole('button', { name: /<60% 翻车|60–84% 勉强|≥85% 稳定/ }).first().click()
     await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+    if (repeat === 0) await inspectCausalLead(page, /历史质量记录/)
   }
 
   await expect(page.locator('.endless-run-log article')).toHaveCount(2)
@@ -693,6 +834,7 @@ test('wrong endless diagnosis remains locked across refresh until fresh evidence
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.locator('.endless-band-picks button').first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await inspectCausalLead(page, /历史档案构成/)
   await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.locator('.endless-band-picks button').first().click()
@@ -822,6 +964,7 @@ test('endless cited-evidence workspace stays usable on a 1280x720 laptop viewpor
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await inspectCausalLead(page, /历史档案构成/)
   await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定/ }).click()
@@ -840,14 +983,18 @@ test('endless cited-evidence workspace stays usable on a 1280x720 laptop viewpor
   await qaShot(page, '36-endless-cited-evidence-1280')
 })
 
-test('distribution-shift cases expose batch metadata as facts without naming the diagnosis', async ({ page }) => {
+test('distribution-shift batch metadata is a player-opened fact, not an opening syndrome fingerprint', async ({ page }) => {
   await page.goto('?mode=endless&seed=6002')
-  const metadata = page.getByLabel('历史与现场批次元数据')
-  await expect(metadata).toBeVisible()
-  await expect(metadata).toContainText('HISTORY BATCH')
-  await expect(metadata).toContainText('FIELD BATCH')
-  await expect(metadata).not.toContainText(/分布漂移/)
-  await expect(page.locator('.endless-case-brief')).not.toContainText(/分布漂移/)
+  await expect(page.locator('.endless-case-brief')).not.toContainText(/分布漂移|白天|夜间|Camera-[AB]/)
+  await expect(page.getByLabel('因果线索来源')).toContainText('采集批次记录')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await inspectCausalLead(page, /采集批次记录/)
+  const leads = page.getByLabel('因果线索来源')
+  await expect(leads).toContainText('HISTORY：')
+  await expect(leads).toContainText('FIELD：')
+  await expect(leads).not.toContainText(/分布漂移/)
 })
 
 test('zero-background player can investigate the incident and reach CASE CLOSED', async ({ page }) => {
@@ -1160,6 +1307,8 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-run-log article')).toHaveCount(1)
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
   await expect(page.getByLabel('指标读法')).toContainText('某一类真实样本中，被模型正确识别出来的比例')
   await expect(page.getByLabel('当前实验计划对照')).toContainText('复现实验')
   await qaShot(page, '31-endless-first-audit')
@@ -1256,6 +1405,8 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('只换字段')
   await expect(closureReport).toContainText('FIELD INSPECTION')
   await expect(closureReport).toContainText('1 条误判复核')
+  await expect(closureReport).toContainText('CAUSE SOURCES')
+  await expect(closureReport).toContainText('历史质量记录')
   await expect(page.getByText(/实验设计：2 次单变量对照/)).toBeVisible()
 
   // Resolution now flows back into the Bureau meta layer: this duty case becomes archive evidence rather than an isolated sandbox result.
@@ -1288,6 +1439,7 @@ test('endless audit budget has a costly recovery path instead of a dead end', as
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
+  await inspectCausalLead(page, /历史档案构成/)
   await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await page.getByRole('button', { name: '训练当前方案' }).click()
@@ -1317,7 +1469,7 @@ test('endless audit budget has a costly recovery path instead of a dead end', as
 
 test('endless mode rejects high overall accuracy when a minority class is still missed', async ({ page }) => {
   await page.goto('?mode=endless&seed=6003')
-  await expect(page.getByText(/正常日志 40 · 故障日志 4/)).toBeVisible()
+  await expect(page.locator('.endless-case-brief')).not.toContainText(/正常日志 40|故障日志 4/)
   await qaShot(page, '40-imbalance-start')
 
   // The deployed baseline already looks healthy by overall accuracy while still
@@ -1328,6 +1480,8 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
   await expect(page.locator('.endless-reliability-check')).toContainText('故障日志召回 FAIL')
   await expect(page.locator('.endless-audit-result .metric-danger')).toHaveCount(1)
+  await inspectCausalLead(page, /历史档案构成/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/正常日志 40 条.*故障日志 4 条/)
   await qaShot(page, '41-imbalance-deceptive-score')
 
   // Keep the deployed model fixed and change only the observation fields. This
@@ -1340,6 +1494,14 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
   await expect(page.locator('.endless-reliability-check')).toContainText('正常日志召回 PASS')
   await expect(page.locator('.endless-reliability-check')).toContainText('故障日志召回 PASS')
+
+  // A skewed archive is supporting evidence, not falsification. Before naming
+  // the syndrome, rule out at least one competing causal story.
+  await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
+  await expect(page.getByLabel('当前调查目标')).toContainText('还没有排除竞争解释')
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
+  await expect(page.locator('.endless-diagnosis')).toBeVisible()
 
   await citeEndlessRuns(page, 1, 2)
   await page.getByRole('button', { name: /多数类把总体准确率撑高/ }).click()
