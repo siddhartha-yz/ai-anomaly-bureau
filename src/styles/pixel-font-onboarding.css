@@ -32,12 +32,6 @@ body,
   -webkit-font-smoothing: none;
 }
 
-/* Keep developer tooling utilitarian. */
-.debug-panel,
-.debug-panel * {
-  font-family: ui-monospace, Consolas, monospace !important;
-}
-
 /* Real pixel typography replaces the fake boxed-character poster treatment. */
 .entry-brand { max-width: min(820px, 58vw); }
 .entry-pixel-title {

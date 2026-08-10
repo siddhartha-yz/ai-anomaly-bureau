@@ -59,21 +59,64 @@ async function assertNoOverlap(page: Page, first: string, second: string) {
   expect(overlapX * overlapY).toBe(0)
 }
 
-test('debug mode keeps the fast engineering controls available', async ({ page }) => {
-  await page.goto('?debug=1&seed=20260809')
-  await expect(page.getByLabel('开发者测试模式')).toBeVisible()
-  await expect(page.locator('.pixel-command-dock .action-button.primary')).toBeVisible()
+test('cheat terminal jumps into a real Story checkpoint instead of a debug-only UI', async ({ page }) => {
+  const seed = 20260809
+  const storyKey = storySessionKey(seed)
+  // Legacy ?debug=1 is intentionally inert: it must still show the formal Story entry.
+  await page.goto(`?debug=1&seed=${seed}`)
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect(page.getByLabel('开发者测试模式')).toHaveCount(0)
+  await page.keyboard.press('Backquote')
+  const terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await expect(terminal).toBeVisible()
+  await terminal.getByLabel('ACCESS CODE').fill('CASE001 OVERFIT')
+  await terminal.getByRole('button', { name: '执行' }).click()
 
-  const stageSelect = page.getByLabel('开发者测试模式').locator('select').nth(0)
-  await stageSelect.selectOption('choose_features')
-  await waitForStage(page, 'choose_features')
-  await expect(page.locator('.pixel-control')).toBeVisible()
-  await expect(page.locator('.pixel-command-dock .action-button.primary')).toBeVisible()
-
-  await stageSelect.selectOption('overfit_reveal')
   await waitForStage(page, 'overfit_reveal')
-  await expect(page.locator('.pixel-command-dock .action-button.primary')).toBeVisible()
-  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))).toBeNull()
+  await expect(page.getByText('先从案件记录里指出异常')).toBeVisible()
+  await expect(page.locator('.case-attempt')).toHaveCount(2)
+  await expect(page.locator('.case-attempt').last()).toContainText('K近邻 · k=1')
+  await expect(page.getByLabel('开发者测试模式')).toHaveCount(0)
+
+  const checkpointRaw = await page.evaluate((key) => window.localStorage.getItem(key), storyKey)
+  expect(checkpointRaw).not.toBeNull()
+  const checkpoint = JSON.parse(checkpointRaw!) as StorySessionData
+  expect(checkpoint.state.stage).toBe('overfit_reveal')
+  expect(checkpoint.experimentLog).toHaveLength(2)
+  expect(checkpoint.state.hasSeenOverfit).toBe(true)
+  expect(storyAuditCredits(checkpoint)).toBe(3)
+
+  // The cheat produced a normal persisted case: a refresh uses the ordinary resume gateway.
+  await page.reload()
+  const resume = page.getByLabel('已保存剧情案件')
+  await expect(resume).toContainText('UNFINISHED CASE SAVED')
+  await expect(resume.getByLabel('剧情案件存档摘要')).toContainText('发现陷阱')
+})
+
+test('cheat terminal opens Bureau, Training, and seeded Duty through official modes', async ({ page }) => {
+  await page.goto('?seed=20260809')
+  await page.keyboard.press('Control+Shift+K')
+  let terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('ACCESS CODE').fill('BUREAU UNLOCK')
+  await terminal.getByRole('button', { name: '执行' }).click()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  await expect(page.getByLabel('正式调查员权限已开放')).toHaveCount(0)
+  await expect(page.getByText('A · 100/100')).toBeVisible()
+  const closedStoryRaw = await page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))
+  expect(JSON.parse(closedStoryRaw!) as StorySessionData).toMatchObject({ state: { stage: 'complete' } })
+
+  await page.keyboard.press('Backquote')
+  terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('ACCESS CODE').fill('TRAINING')
+  await terminal.getByRole('button', { name: '执行' }).click()
+  await expect(page.getByRole('heading', { name: /训练案件 000/ })).toBeVisible()
+
+  await page.keyboard.press('Backquote')
+  terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('ACCESS CODE').fill('DUTY 6003')
+  await terminal.getByRole('button', { name: '执行' }).click()
+  await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
+  await expect(page.getByText(/正常日志 40 · 故障日志 4/)).toBeVisible()
 })
 
 test('Bureau Hub turns solved content into one persistent investigation workspace', async ({ page }) => {
@@ -165,7 +208,7 @@ test('Story resume gateway preserves or explicitly discards a saved case', async
   const checkpoint: StorySessionData = {
     version: STORY_SESSION_VERSION,
     seed,
-    state: { ...createInitialGameState(seed, false, 1), stage: 'inspect_data' },
+    state: { ...createInitialGameState(seed, 1), stage: 'inspect_data' },
     entryPhase: 'game',
     sensorReads: [],
     repairSensorReads: [],
@@ -217,7 +260,7 @@ test('Story warns when local checkpoint writes fail and clears the warning after
   const checkpoint: StorySessionData = {
     version: STORY_SESSION_VERSION,
     seed,
-    state: { ...createInitialGameState(seed, false, 1), stage: 'inspect_data' },
+    state: { ...createInitialGameState(seed, 1), stage: 'inspect_data' },
     entryPhase: 'game',
     sensorReads: [],
     repairSensorReads: [],

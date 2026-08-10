@@ -223,14 +223,13 @@ BUREAU HUB
   └─ 值班室 → Duty queue → Endless
 ```
 
-开发 / 复现 query 可以绕过正常权限：
+开发 / 复现 query 可以直接打开特定正式模式：
 
-- `?debug=1`
 - `?mode=endless&seed=...`
 - `?mode=boot`
 - `?mode=hub`
 
-但 query 直达不应该凭空给予玩家正常 meta progression。
+但 query 直达不应该凭空给予玩家正常 meta progression。Story 的快速阶段测试改由全局作弊码终端完成；作弊码构造合法正式 checkpoint，而不是另起一套特权状态机。
 
 ## 9. V1 明确不做的 meta 系统
 

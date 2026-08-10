@@ -83,7 +83,7 @@
 - **诊断真的引用证据。** 两个配置并不会自动解锁病因按钮；玩家必须明确引用两条实验记录，错误诊断后下一份报告还必须包含新增审计。
 - **调查进度不会被 F5 洗掉。** 正式审计历史、额度、诊断锁与已检查证据按 seed 保存在本地；刷新恢复而不是重新发 5 次额度。
 - **剧情长局也不会被 F5 清空。** Story Case 会恢复 reducer、微阶段、实验预注册、已调查误判与有限审计预算；checkpoint 会交叉核对阶段顺序、训练 / 审计 / CASE_NOTES / 额度关系，右上角小型 `RESET` 需要二次确认才真正清档。
-- **真人测试日志能跨刷新连续。** 匿名行为日志沿用同一 sessionId，并显式记录 `SESSION_RESTORED`；普通玩家在 CASE CLOSED 就能导出完整 JSON，不必进入 debug。
+- **真人测试日志能跨刷新连续。** 匿名行为日志沿用同一 sessionId，并显式记录 `SESSION_RESTORED`；普通玩家在 CASE CLOSED 就能直接导出完整 JSON，无需任何测试工具。
 - **评价不只看总分。** 无尽模式还看两类召回，能制造“93% Accuracy 仍然不能上线”的类别不平衡案件。
 - **先体验，再命名概念。** 玩家先遇到“旧题会、新题崩”，之后游戏才告诉你这叫泛化与过拟合。
 - **自动测试游戏深度。** 程序会比较 evidence-policy 与 random-clicker；当前平衡门槛要求证据策略结案率显著高于 5 次随机穷举。
@@ -124,7 +124,7 @@
 - reducer 状态机负责教学守卫与阶段推进
 - 程序化 Web Audio 8-bit BGM / 音效
 - Vitest：ML 核心、隐藏测试边界、状态机、调查评级、无尽案件生成与 random-clicker 平衡基线
-- Playwright：剧情完整路线、Story 检查点 / 显式恢复 / 预注册恢复 / 结案导出、debug 工程路线、Boot Case 000、无尽证据引用 / 对照、可调查现场误判、session 恢复、错误诊断刷新锁、键盘 modal、窄屏桌面、额度恢复、分布变化、类别不平衡等真实浏览器路线
+- Playwright：剧情完整路线、Story 检查点 / 显式恢复 / 预注册恢复 / 结案导出、作弊码正式检查点、Boot Case 000、无尽证据引用 / 对照、可调查现场误判、session 恢复、错误诊断刷新锁、键盘 modal、窄屏桌面、额度恢复、分布变化、类别不平衡等真实浏览器路线
 - GitHub Actions：lint + typecheck + unit test + build + E2E
 - GitHub Pages：`main` 更新后自动构建部署，并用同一条 Playwright 流程验证生产站点
 
@@ -145,13 +145,22 @@ npm run dev
 http://localhost:5173/?mode=endless&seed=6000
 ```
 
-开发者模式：
+### 测试作弊码
+
+项目不再维护一套与正式游戏平行的 Debug UI。测试时在任意正式页面按 **`**（Backquote）或 **Ctrl+Shift+K** 打开本地作弊码终端；命令会生成合法正式存档或进入正式模式，后续刷新、审计额度和状态校验仍走正常逻辑。常用命令：
 
 ```text
-http://localhost:5173/?debug=1&seed=20260809
+CASE001 ERRORS
+CASE001 OVERFIT
+CASE001 REPAIR
+CASE001 FINAL
+CASE001 CLOSED
+BUREAU UNLOCK
+TRAINING
+DUTY 6003
 ```
 
-Debug 模式提供阶段跳转、隐藏标签、模型参数、决策网格、六类自动路线与匿名行为日志导出。普通玩家不会看到隐藏数据，但完成 Story Case 后也可主动导出本局的匿名行为日志用于真人测试反馈。
+例如 `CASE001 OVERFIT` 会真实重建前两次训练 / 审计与 `CASE_NOTES.LOG`，再进入正式 `overfit_reveal`，而不是把 stage 字符串硬改过去。历史 `?debug=1` query 已无特殊权限，也不会显示隐藏测试真值。普通玩家在 CASE CLOSED 仍可主动导出本局匿名行为日志用于真人测试反馈。
 
 ## 验证
 
@@ -163,7 +172,7 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright E2E 会在真实 Chromium 中完成剧情整案：Cold Open → 图上抓异常旧样本 → 读取传感器 → 读 `PROBE ?` 决策边界 → 先预测再审计 → 错误上线后果 → 两条误判证据 → 指认反常实验 → k=1 过拟合 → 备用传感器修复 → 最终判断 → `CASE CLOSED`。此外还覆盖 debug 工程模式、无尽模式证据诊断，以及“总体高分但少数类召回失败”的类别不平衡路线。
+Playwright E2E 会在真实 Chromium 中完成剧情整案：Cold Open → 图上抓异常旧样本 → 读取传感器 → 读 `PROBE ?` 决策边界 → 先预测再审计 → 错误上线后果 → 两条误判证据 → 指认反常实验 → k=1 过拟合 → 备用传感器修复 → 最终判断 → `CASE CLOSED`。此外还覆盖作弊码生成正式检查点、无尽模式证据诊断，以及“总体高分但少数类召回失败”的类别不平衡路线。
 
 详细结果见 [`docs/VALIDATION.md`](docs/VALIDATION.md)。
 
@@ -171,7 +180,7 @@ Playwright E2E 会在真实 Chromium 中完成剧情整案：Cold Open → 图�
 
 - [`docs/PRODUCT_DESIGN.md`](docs/PRODUCT_DESIGN.md) — 产品与教学目标
 - [`docs/GAME_ARCHITECTURE.md`](docs/GAME_ARCHITECTURE.md) — 调查局 Hub、四层循环、meta progression 与新内容接入规则
-- [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md) — ML、状态机、Debug 与测试设计
+- [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md) — ML、状态机、作弊码与测试设计
 - [`docs/VALIDATION.md`](docs/VALIDATION.md) — 固定 seed 指标、浏览器验证与发布验收
 
 ## V1 的克制范围

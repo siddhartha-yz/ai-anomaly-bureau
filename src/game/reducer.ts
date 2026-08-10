@@ -1,10 +1,9 @@
 import { INITIAL_FEATURES, LEVEL_META } from '../content/level1'
 import type { GameAction, GameState, Stage } from './types'
 
-export function createInitialGameState(seed = 20260809, debug = false, now = Date.now()): GameState {
+export function createInitialGameState(seed = 20260809, now = Date.now()): GameState {
   return {
     seed,
-    debug,
     stage: 'briefing',
     selectedFeatures: [...INITIAL_FEATURES],
     selectedModel: 'linear',
@@ -30,19 +29,6 @@ function nextHintLevel(state: GameState): 1 | 2 | 3 {
 
 function resetResultState(state: GameState): GameState {
   return { ...state, training: undefined, audit: undefined, viewedMistakes: [] }
-}
-
-function resetStageForDebug(state: GameState): GameState {
-  const common = { ...state, retryCount: 0, failureStreak: 0, hintLevel: 0 as const, diagnostics: [] as string[] }
-  if (state.stage === 'inspect_errors') return { ...common, viewedMistakes: [] }
-  if (state.stage === 'first_success' || state.stage === 'hidden_test') {
-    return { ...common, audit: undefined, viewedMistakes: [] }
-  }
-  if (state.stage === 'transfer_question') {
-    return { ...common, transferAnswer: undefined, transferCorrect: undefined }
-  }
-  if (state.stage === 'overfit_reveal' || state.stage === 'final_audit') return common
-  return resetResultState(common)
 }
 
 export function isFinalAuditPass(state: GameState): boolean {
@@ -106,9 +92,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'TRAIN_RESULT': {
       const attempts = state.attempts + 1
-      if (state.debug && state.stage !== 'train' && state.stage !== 'iterate') {
-        return { ...state, training: action.result, attempts }
-      }
       if (state.stage === 'train') {
         const success = action.result.accuracy >= 0.8
         return {
@@ -185,7 +168,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'VIEW_MISTAKE':
-      if (state.stage !== 'inspect_errors' && !state.debug) {
+      if (state.stage !== 'inspect_errors') {
         return diagnostic(state, 'mistake investigation ignored outside inspect_errors')
       }
       if (!state.audit?.mistakes.some((mistake) => mistake.id === action.id)) {
@@ -201,17 +184,5 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ANSWER_TRANSFER':
       if (state.stage !== 'transfer_question') return diagnostic(state, 'transfer answer ignored')
       return { ...state, transferAnswer: action.id, transferCorrect: action.correct }
-
-    case 'DEBUG_JUMP':
-      if (!state.debug) return diagnostic(state, 'debug jump rejected outside debug mode')
-      return { ...state, stage: action.stage, diagnostics: [] }
-
-    case 'DEBUG_RESET_STAGE':
-      if (!state.debug) return diagnostic(state, 'debug reset rejected outside debug mode')
-      return resetStageForDebug(state)
-
-    case 'DEBUG_LOAD_STATE':
-      if (!state.debug) return diagnostic(state, 'debug state load rejected outside debug mode')
-      return { ...action.state, debug: true }
   }
 }

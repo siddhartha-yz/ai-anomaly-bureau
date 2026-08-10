@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：13 个测试文件、74 个测试全部通过。
+- Vitest：14 个测试文件、81 个测试全部通过。
 - Vite production build：通过。
-- Playwright：22 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、debug 工程模式、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
+- Playwright：23 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -55,11 +55,11 @@ Vitest 当前覆盖：
 - k=1 过拟合陷阱真实存在。
 - 两个不同错误样本的证据守卫。
 - 三级提示上限。
-- 普通模式拒绝 debug 跳关。
+- Story reducer 不存在 jump/load 特权动作；作弊码必须生成可被正式 session validator 接受的完整 checkpoint。
 - 六类开发者测试人格均在有限步骤内完成关卡，并经历过拟合与多次未知审计。
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
-- Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID、mistake flags 与 debug model params 不进入序列化结果。
+- Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID 与 mistake flags 不进入序列化结果，Story `TrainingResult` 也不携带 fitted model 参数。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
 - Bureau meta progression：`aia.bureau-progress.v1` 只保存长期结案 / 知识事实；CASE 001 首次结案后才开放 Hub 与 Duty，重复 Duty seed 不会重复制造进度，晋级按不同 syndrome 的经验广度计算；值班工单队列会跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。
 - Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
@@ -77,7 +77,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 22 条真实 Chromium 路线。
+`e2e/happy-path.spec.ts` 当前包含 23 条真实 Chromium 路线。
 
 调查局宏观框架单独验证：
 
@@ -117,7 +117,7 @@ Vitest 当前覆盖：
 - `StoryResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
 - localStorage 故障路线会故意让 Story key 的 `setItem` 抛 `QuotaExceededError`：游戏保持可操作并显示 `LOCAL SAVE FAILED`；恢复 Storage 后点击“重试本地保存”，真实写入成功且警告消失。
 
-工程模式路线会直接打开 `?debug=1`，验证 DebugPanel、阶段跳转和快速主操作仍可用，不受普通玩家 micro-beat 门槛影响。
+作弊码路线会故意从历史 `?debug=1` query 打开页面，先确认它不再提供特权 UI，再用 `CASE001 OVERFIT` 构造真实两次审计的合法 Story checkpoint；进入正式 `overfit_reveal` 后再次刷新，必须回到普通 `StoryResume` 网关。另一条浏览器路线验证 `BUREAU UNLOCK → TRAINING → DUTY 6003` 都进入正式模式。
 
 无尽 onboarding / 证据路线现在验证：
 

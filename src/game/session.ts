@@ -94,7 +94,7 @@ function isRawFeatures(value: unknown): value is RawFeatures {
 
 function isTrainingResult(value: unknown): value is TrainingResult {
   if (!value || typeof value !== 'object') return false
-  const item = value as Partial<TrainingResult>
+  const item = value as Partial<TrainingResult> & { params?: unknown }
   return isRate(item.accuracy)
     && isNonNegativeInteger(item.errorCount)
     && isFiniteNumber(item.complexity)
@@ -242,7 +242,6 @@ function isGameState(value: unknown, seed: number): value is GameState {
       && item.transferCorrect === true
     : item.completedAt === undefined
   const structurallyValid = item.seed === seed
-    && item.debug === false
     && STAGES.has(item.stage as Stage)
     && isFeaturePair(item.selectedFeatures)
     && MODELS.has(item.selectedModel as ModelId)
@@ -343,11 +342,14 @@ function isStoryMicroStateConsistent(session: StorySessionData): boolean {
     if (state.hasSeenOverfit && session.repairSensorReads.length !== 2) return false
   }
 
-  if (!atLeast('overfit_reveal')) {
+  // `iterate` is revisited after overfitting is discovered, so stage order alone cannot
+  // tell whether these post-reveal micro-beats are legal. `hasSeenOverfit` is the
+  // canonical state-machine marker for that second visit.
+  if (!state.hasSeenOverfit) {
     if (session.suspiciousAttemptId !== undefined || session.overfitReflection !== undefined || session.repairSensorReads.length !== 0) return false
   } else if (state.stage === 'overfit_reveal') {
     if (session.repairSensorReads.length !== 0) return false
-  } else if (state.hasSeenOverfit) {
+  } else {
     const suspiciousRecord = session.experimentLog.find((record) => record.id === session.suspiciousAttemptId)
     if (!suspiciousRecord
       || suspiciousRecord.model !== 'knn-1'
@@ -467,8 +469,7 @@ function stripMistakeFlags(result: AuditResult): AuditResult {
 function sanitizeState(state: GameState): GameState {
   return {
     ...state,
-    debug: false,
-    training: state.training ? { ...state.training, params: undefined } : undefined,
+    training: state.training ? { ...state.training } : undefined,
     audit: state.audit ? stripMistakeFlags(state.audit) : undefined,
     auditHistory: state.auditHistory.map(stripMistakeFlags),
     diagnostics: [],

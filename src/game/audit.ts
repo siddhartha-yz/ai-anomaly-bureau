@@ -8,7 +8,6 @@ export type AuditService = {
   train: Sample[]
   publicTest: PublicSample[]
   audit(model: FittedClassifier, features: readonly [FeatureKey, FeatureKey]): AuditResult
-  debugTest(): Sample[]
 }
 
 export function createAuditService(seed: number): AuditService {
@@ -55,13 +54,6 @@ export function createAuditService(seed: number): AuditService {
         mistakes,
         orangeCatErrors: mistakes.filter((mistake) => mistake.flags?.orangeCat).length,
       }
-    },
-    debugTest() {
-      return dataset.test.map((sample) => ({
-        ...sample,
-        id: publicId(sample.id),
-        features: { ...sample.features },
-      }))
     },
   }
 }

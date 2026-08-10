@@ -20,7 +20,7 @@ class MemoryStorage {
 }
 
 function session(seed = 20260809): StorySessionData {
-  const state = createInitialGameState(seed, false, 1234)
+  const state = createInitialGameState(seed, 1234)
   return {
     version: STORY_SESSION_VERSION,
     seed,
@@ -73,7 +73,7 @@ describe('Story Case local checkpoint', () => {
     expect(storySessionHasProgress(restored!)).toBe(true)
   })
 
-  it('strips debug model params and private mistake flags before localStorage serialization', () => {
+  it('strips private mistake flags before localStorage serialization', () => {
     const storage = new MemoryStorage()
     const value = session()
     addFirstRunPrerequisites(value)
@@ -91,7 +91,7 @@ describe('Story Case local checkpoint', () => {
     value.state = {
       ...value.state,
       stage: 'inspect_errors',
-      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1, params: { threshold: .5 } },
+      training: { accuracy: LINEAR_TRAIN_ACCURACY, errorCount: 4, complexity: 1 },
       audit,
       auditHistory: [audit],
     }
@@ -108,7 +108,6 @@ describe('Story Case local checkpoint', () => {
     writeStorySession(storage, value)
     const raw = storage.getItem(storySessionKey(value.seed))!
     expect(raw).not.toContain('"auditCredits"')
-    expect(raw).not.toContain('threshold')
     expect(raw).not.toContain('"flags"')
     expect(raw).not.toContain('auditProbe')
     expect(raw).not.toMatch(/test-(cat|bread)/)
@@ -369,7 +368,7 @@ describe('Story Case local checkpoint', () => {
     const storage = new MemoryStorage()
     const value = session()
     value.entryPhase = 'title'
-    value.state = createInitialGameState(value.seed, false, 1234)
+    value.state = createInitialGameState(value.seed, 1234)
     expect(storySessionHasProgress(value)).toBe(false)
 
     writeStorySession(storage, value)

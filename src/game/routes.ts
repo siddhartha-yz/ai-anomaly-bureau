@@ -32,7 +32,7 @@ export type RouteResult = {
 
 export function runPersonaRoute(persona: PersonaId, seed = 20260809): RouteResult {
   const service = createAuditService(seed)
-  let state = createInitialGameState(seed, true, 0)
+  let state = createInitialGameState(seed, 0)
   const actions: string[] = []
 
   const dispatch = (action: GameAction) => {
@@ -51,7 +51,6 @@ export function runPersonaRoute(persona: PersonaId, seed = 20260809): RouteResul
         accuracy: metrics.accuracy,
         errorCount: metrics.errorCount,
         complexity: fitted.complexity,
-        params: fitted.describe(),
       },
     })
   }

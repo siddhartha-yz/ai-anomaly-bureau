@@ -4,7 +4,6 @@ import { BeginnerGuide } from './components/BeginnerGuide'
 import { BureauHub } from './components/BureauHub'
 import { CaseAttempts, type ExperimentRecord } from './components/CaseAttempts'
 import { calculateCaseScore, CaseRating } from './components/CaseRating'
-import { DebugPanel } from './components/DebugPanel'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
 import { ExperimentPlan, type ExperimentPrediction } from './components/ExperimentPlan'
@@ -30,10 +29,10 @@ import { EndlessMode } from './endless/EndlessMode'
 import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
 import { GameAudio, type GameMusicPhase } from './game/audio'
 import { createAuditService } from './game/audit'
+import { CHEAT_AUTO_RESUME_KEY } from './game/cheats'
 import { predictionMatches } from './game/experiment'
 import { BehaviorLogger } from './game/logging'
 import { createInitialGameState, gameReducer } from './game/reducer'
-import { runPersonaRoute, type PersonaId } from './game/routes'
 import { STORY_SESSION_VERSION, clearStorySession, readStorySession, storyAuditCredits, storySessionHasProgress, writeStorySession } from './game/session'
 import type { GameAction, Stage } from './game/types'
 import { createDecisionGrid, evaluate } from './ml/evaluate'
@@ -109,28 +108,24 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
   )
 }
 
-function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, onCaseClosed }: {
+function GameSession({ seed, onRestart, onReturnToBureau, onCaseClosed }: {
   seed: number
-  debug: boolean
-  onSeedChange: (seed: number) => void
   onRestart: () => void
   onReturnToBureau?: () => void
   onCaseClosed?: (result: { grade: InvestigationGrade; score: number }) => void
 }) {
   const service = useMemo(() => createAuditService(seed), [seed])
-  const restoredSession = useMemo(() => debug ? undefined : readStorySession(window.localStorage, seed), [debug, seed])
+  const restoredSession = useMemo(() => readStorySession(window.localStorage, seed), [seed])
   const restoredProgress = Boolean(restoredSession && storySessionHasProgress(restoredSession))
-  const [state, dispatch] = useReducer(gameReducer, restoredSession?.state ?? createInitialGameState(seed, debug))
+  const [state, dispatch] = useReducer(gameReducer, restoredSession?.state ?? createInitialGameState(seed))
   const [sessionRestoredNotice, setSessionRestoredNotice] = useState(restoredProgress)
   const [checkpointSaveFailed, setCheckpointSaveFailed] = useState(false)
   const [checkpointRetryNonce, setCheckpointRetryNonce] = useState(0)
   const [resetArmed, setResetArmed] = useState(false)
   const [selectedMistake, setSelectedMistake] = useState<string | undefined>(restoredSession?.selectedMistake)
   const [helpOpen, setHelpOpen] = useState(false)
-  const [debugShowLabels, setDebugShowLabels] = useState(false)
-  const [animationSpeed, setAnimationSpeed] = useState(1)
   const [audioEnabled, setAudioEnabled] = useState(true)
-  const [entryPhase, setEntryPhase] = useState<EntryPhase>(debug ? 'game' : restoredSession?.entryPhase ?? 'title')
+  const [entryPhase, setEntryPhase] = useState<EntryPhase>(restoredSession?.entryPhase ?? 'title')
   const [rewardNotice, setRewardNotice] = useState<RewardNotice>()
   const [phaseTransition, setPhaseTransition] = useState<PhaseTransitionCue>()
   const [hintStage, setHintStage] = useState<Stage>()
@@ -176,14 +171,6 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
     : undefined
   const boundaryProbeCorrect = Boolean(boundaryProbeAnswer && boundaryProbeAnswer === boundaryProbePrediction)
   const revealUnknown = STAGE_INDEX[state.stage] >= STAGE_INDEX.hidden_test
-  const debugSamples = debug ? service.debugTest() : []
-  const debugPredictions = debug && fitted
-    ? projectSamples(debugSamples, state.selectedFeatures).map((point) => ({
-        id: point.id,
-        actual: point.label,
-        predicted: fitted.predict(point),
-      }))
-    : []
 
   useEffect(() => {
     if (state.stage === 'complete' && !completionLogged.current) {
@@ -205,7 +192,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
 
     // A phase gate already communicates the phase change. Do not immediately repeat
     // the same information as a toast; reserve rewards for actual discoveries/results.
-    if (!debug && PHASE_TRANSITION[state.stage]) {
+    if (PHASE_TRANSITION[state.stage]) {
       setRewardNotice(undefined)
       return
     }
@@ -217,10 +204,9 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
     audio.current.play(rewardSound)
     const hideTimer = window.setTimeout(() => setRewardNotice(undefined), reward.important ? 7000 : 4800)
     return () => window.clearTimeout(hideTimer)
-  }, [debug, state.stage])
+  }, [state.stage])
 
   useEffect(() => {
-    if (debug) return
     const nextPhase = musicPhaseFor(state.stage)
     if (nextPhase === previousPhase.current) return
     previousPhase.current = nextPhase
@@ -231,7 +217,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
     audio.current.play(state.stage === 'hidden_test' ? 'audit' : state.stage === 'transfer_question' ? 'success' : 'select')
     const timer = window.setTimeout(() => setPhaseTransition(undefined), 1900)
     return () => window.clearTimeout(timer)
-  }, [debug, state.stage])
+  }, [state.stage])
 
   useEffect(() => {
     audio.current.setPhase(musicPhaseFor(state.stage))
@@ -240,7 +226,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
   useEffect(() => () => audio.current.dispose(), [])
 
   useEffect(() => {
-    if (debug || !restoredProgress || restoreLogged.current) return
+    if (!restoredProgress || restoreLogged.current) return
     restoreLogged.current = true
     logger.current.record({
       stage: state.stage,
@@ -252,10 +238,10 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
       retryCount: state.retryCount,
       completed: state.stage === 'complete',
     })
-  }, [debug, restoredProgress, state])
+  }, [restoredProgress, state])
 
   useEffect(() => {
-    if (debug || entryPhase !== 'game') return
+    if (entryPhase !== 'game') return
     const saved = writeStorySession(window.localStorage, {
       version: STORY_SESSION_VERSION,
       seed,
@@ -281,7 +267,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
     })
     setCheckpointSaveFailed(!saved)
   }, [
-    debug, seed, state, entryPhase, selectedMistake, observationAnswer, suspectSampleId,
+    seed, state, entryPhase, selectedMistake, observationAnswer, suspectSampleId,
     sensorReads, repairSensorReads, modelConfirmed, boundaryProbeAnswer, successPrediction,
     evidenceInference, suspiciousAttemptId, overfitReflection, finalReflection, experimentLog,
     pendingPrediction, emergencyAudits, reasoningMisses, checkpointRetryNonce,
@@ -348,13 +334,12 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
         accuracy: metrics.accuracy,
         errorCount: metrics.errorCount,
         complexity: model.complexity,
-        params: debug ? model.describe() : undefined,
       },
     })
   }
 
   const audit = () => {
-    if (!debug && state.stage === 'iterate' && auditCredits <= 0) {
+    if (state.stage === 'iterate' && auditCredits <= 0) {
       audio.current.play('warning')
       record('AUDIT_BLOCKED_NO_CREDIT')
       return
@@ -376,7 +361,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
       prediction: state.stage === 'iterate' ? pendingPrediction : undefined,
       predictionMatched: state.stage === 'iterate' ? matched : undefined,
     }])
-    if (!debug && state.stage === 'iterate') setAuditCredits((value) => Math.max(0, value - 1))
+    if (state.stage === 'iterate') setAuditCredits((value) => Math.max(0, value - 1))
     setPendingPrediction(undefined)
     dispatch({ type: 'AUDIT_RESULT', result })
     setSelectedMistake(result.mistakes[0]?.id)
@@ -449,11 +434,9 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
     URL.revokeObjectURL(url)
   }
 
-  const availableModels: ModelId[] = debug
-    ? ['linear', 'tree', 'knn-1', 'knn-5']
-    : STAGE_INDEX[state.stage] >= STAGE_INDEX.iterate
-      ? unlockedModels(state.hasSeenOverfit)
-      : ['linear']
+  const availableModels: ModelId[] = STAGE_INDEX[state.stage] >= STAGE_INDEX.iterate
+    ? unlockedModels(state.hasSeenOverfit)
+    : ['linear']
 
   const observationCorrect = observationAnswer === 'clusters'
   const suspectCorrect = Boolean(suspectSampleId && trainPoints.find((point) => point.id === suspectSampleId)?.source.flags?.outlier)
@@ -475,20 +458,16 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
   const clueCount = [observationCorrect, evidenceCorrect, state.hasSeenOverfit && overfitCorrect, finalCorrect].filter(Boolean).length
 
   useEffect(() => {
-    if (debug || state.stage !== 'complete' || caseClosedReported.current || !onCaseClosed) return
+    if (state.stage !== 'complete' || caseClosedReported.current || !onCaseClosed) return
     caseClosedReported.current = true
     onCaseClosed(caseRating)
-  }, [caseRating, debug, onCaseClosed, state.stage])
-  const showSensorIntro = !debug && state.stage === 'choose_features'
+  }, [caseRating, onCaseClosed, state.stage])
+  const showSensorIntro = state.stage === 'choose_features'
   const repairSensorsReady = repairSensorReads.length >= 2
-  const showFeaturePicker = debug
-    ? STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_features && !['final_audit', 'transfer_question', 'complete'].includes(state.stage)
-    : state.stage === 'iterate' && state.hasSeenOverfit && repairSensorsReady
-  const showModelPicker = debug
-    ? STAGE_INDEX[state.stage] >= STAGE_INDEX.choose_model && !['final_audit', 'transfer_question', 'complete'].includes(state.stage)
-    : state.stage === 'choose_model' || (state.stage === 'iterate' && (!state.hasSeenOverfit || repairSensorsReady))
-  const featureDisabled = !debug && state.stage !== 'iterate'
-  const modelDisabled = !debug && !['choose_model', 'iterate'].includes(state.stage)
+  const showFeaturePicker = state.stage === 'iterate' && state.hasSeenOverfit && repairSensorsReady
+  const showModelPicker = state.stage === 'choose_model' || (state.stage === 'iterate' && (!state.hasSeenOverfit || repairSensorsReady))
+  const featureDisabled = state.stage !== 'iterate'
+  const modelDisabled = !['choose_model', 'iterate'].includes(state.stage)
 
   const guideOverride = (() => {
     switch (state.stage) {
@@ -539,38 +518,38 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
   const stageAction = () => {
     switch (state.stage) {
       case 'briefing': return <ActionButton onClick={() => send({ type: 'START' })}>接受事故调查</ActionButton>
-      case 'inspect_data': return debug || (observationCorrect && suspectCorrect) ? <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>带着异常样本线索继续调查</ActionButton> : null
-      case 'choose_features': return debug || sensorReads.length >= 2 ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>保留原观察方式，继续调查</ActionButton> : null
-      case 'choose_model': return debug || modelConfirmed ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>确认装载这个模型</ActionButton> : null
+      case 'inspect_data': return observationCorrect && suspectCorrect ? <ActionButton onClick={() => send({ type: 'OBSERVE_DONE' })}>带着异常样本线索继续调查</ActionButton> : null
+      case 'choose_features': return sensorReads.length >= 2 ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>保留原观察方式，继续调查</ActionButton> : null
+      case 'choose_model': return modelConfirmed ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>确认装载这个模型</ActionButton> : null
       case 'train': return <ActionButton onClick={train}>训练模型并画出边界</ActionButton>
-      case 'first_success': return debug || (boundaryProbeCorrect && successPrediction) ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>用没见过的新样本验证</ActionButton> : null
+      case 'first_success': return boundaryProbeCorrect && successPrediction ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>用没见过的新样本验证</ActionButton> : null
       case 'hidden_test': return <ActionButton onClick={audit}>放入 24 个未知样本</ActionButton>
       case 'inspect_errors': return state.viewedMistakes.length >= 2 && evidenceCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着两条证据开始修复</ActionButton> : null
       case 'iterate': {
-        if (!debug && !state.hasSeenOverfit && state.selectedModel !== 'knn-1') return null
-        if (!debug && state.hasSeenOverfit && !repairSensorsReady) return null
-        if (!debug && !pendingPrediction) return null
+        if (!state.hasSeenOverfit && state.selectedModel !== 'knn-1') return null
+        if (state.hasSeenOverfit && !repairSensorsReady) return null
+        if (!pendingPrediction) return null
         return (
           <div className="dual-actions">
             <ActionButton onClick={train}>训练当前方案</ActionButton>
-            <ActionButton kind="secondary" disabled={!state.training || (!debug && auditCredits <= 0)} onClick={audit}>
-              {state.training ? (auditCredits > 0 || debug ? `未知审计 · 剩 ${auditCredits}` : '审计额度耗尽') : '先训练，再审计'}
+            <ActionButton kind="secondary" disabled={!state.training || auditCredits <= 0} onClick={audit}>
+              {state.training ? (auditCredits > 0 ? `未知审计 · 剩 ${auditCredits}` : '审计额度耗尽') : '先训练，再审计'}
             </ActionButton>
           </div>
         )
       }
-      case 'overfit_reveal': return debug || overfitCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着“过拟合”线索重新设计</ActionButton> : null
-      case 'final_audit': return debug || finalCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>进入最后一问</ActionButton> : null
+      case 'overfit_reveal': return overfitCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>带着“过拟合”线索重新设计</ActionButton> : null
+      case 'final_audit': return finalCorrect ? <ActionButton onClick={() => send({ type: 'ADVANCE' })}>进入最后一问</ActionButton> : null
       default: return null
     }
   }
 
-  const motionDuration = animationSpeed === 0 ? 0 : Math.round(260 / animationSpeed)
+  const motionDuration = 260
   const currentAction = stageAction()
   const isBriefing = state.stage === 'briefing'
   const showMetrics = Boolean(state.training) || STAGE_INDEX[state.stage] >= STAGE_INDEX.first_success
 
-  if (!debug && entryPhase !== 'game') {
+  if (entryPhase !== 'game') {
     return (
       <EntryExperience
         phase={entryPhase}
@@ -633,7 +612,6 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
           >
             <span>{resetArmed ? '!' : '↻'}</span><small>{resetArmed ? 'SURE?' : 'RESET'}</small>
           </button>
-          {debug && <span className="debug-badge">DEBUG</span>}
         </div>
       </header>
 
@@ -661,36 +639,34 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
       )}
       <StageReward key={rewardNotice?.stage ?? 'reward-empty'} notice={rewardNotice} onDismiss={() => setRewardNotice(undefined)} />
       <PhaseTransition cue={phaseTransition} onDismiss={() => setPhaseTransition(undefined)} />
-      {!debug && <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length >= 2} />}
+      <GuideConnector stage={state.stage} mistakeViewed={state.viewedMistakes.length >= 2} />
 
       {isBriefing ? (
         <div className="briefing-game-layout">
-          {!debug && <BeginnerGuide stage={state.stage} />}
+          <BeginnerGuide stage={state.stage} />
           <IncidentScene />
           <div className="briefing-bottom-row">
-            <AssistantPanel state={state} onHint={requestHint} floating={!debug} showHint={hintStage === state.stage} />
+            <AssistantPanel state={state} onHint={requestHint} floating showHint={hintStage === state.stage} />
             {currentAction && <section className="pixel-command-dock">{currentAction}</section>}
           </div>
         </div>
       ) : (
         <div className="workspace game-workspace">
           <div className="visual-column game-stage-column">
-            {!debug && state.stage === 'inspect_errors' && state.audit && (
+            {state.stage === 'inspect_errors' && state.audit && (
               <PredictionOutcome prediction={successPrediction} accuracy={state.audit.accuracy} errors={state.audit.errorCount} />
             )}
 
             <ScatterPlot
               train={trainPoints}
               publicTest={service.publicTest}
-              debugTest={debugSamples}
               features={state.selectedFeatures}
               grid={grid}
               audit={state.audit}
               revealUnknown={revealUnknown}
-              debugShowLabels={debugShowLabels}
               selectedMistake={selectedMistake}
               onSelectMistake={viewMistake}
-              trainingProbe={!debug && state.stage === 'inspect_data' && observationCorrect}
+              trainingProbe={state.stage === 'inspect_data' && observationCorrect}
               selectedTrainingSample={state.stage === 'inspect_data' ? suspectSampleId : undefined}
               onSelectTrainingSample={(id) => {
                 audio.current.play('evidence')
@@ -715,17 +691,15 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
           </div>
 
           <div className="control-column game-console-column">
-            {!debug && (
-              <BeginnerGuide
-                stage={state.stage}
-                compact
-                action={currentAction}
-                mistakeViewed={state.viewedMistakes.length >= 2}
-                override={guideOverride}
-              />
-            )}
+            <BeginnerGuide
+              stage={state.stage}
+              compact
+              action={currentAction}
+              mistakeViewed={state.viewedMistakes.length >= 2}
+              override={guideOverride}
+            />
 
-            {!debug && state.stage === 'inspect_data' && !observationCorrect && (
+            {state.stage === 'inspect_data' && !observationCorrect && (
               <InvestigationPrompt
                 number="01 / SAMPLE ARCHIVE"
                 title="不用懂坐标：你肉眼看到了什么？"
@@ -741,7 +715,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               />
             )}
 
-            {!debug && state.stage === 'inspect_data' && observationCorrect && (
+            {state.stage === 'inspect_data' && observationCorrect && (
               <SampleHunt
                 selectedId={suspectSampleId}
                 correct={suspectCorrect}
@@ -749,7 +723,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               />
             )}
 
-            {!debug && state.stage === 'first_success' && !boundaryProbeCorrect && boundaryProbePrediction && (
+            {state.stage === 'first_success' && !boundaryProbeCorrect && boundaryProbePrediction && (
               <InvestigationPrompt
                 number="02 / MODEL READOUT"
                 title="这个 PROBE ? 会被模型判成什么？"
@@ -770,7 +744,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               />
             )}
 
-            {!debug && state.stage === 'first_success' && boundaryProbeCorrect && (
+            {state.stage === 'first_success' && boundaryProbeCorrect && (
               <InvestigationPrompt
                 number="03 / DEPLOYMENT PREDICTION"
                 title="旧样本表现不错。它真的修好了吗？"
@@ -786,7 +760,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               />
             )}
 
-            {!debug && state.stage === 'inspect_errors' && state.viewedMistakes.length >= 2 && (
+            {state.stage === 'inspect_errors' && state.viewedMistakes.length >= 2 && (
               <InvestigationPrompt
                 number="04 / EVIDENCE LINK"
                 title="两条误判证据在告诉你什么？"
@@ -806,7 +780,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               <SensorIntro features={state.selectedFeatures} read={sensorReads} onRead={readSensor} />
             )}
 
-            {!debug && state.stage === 'iterate' && state.hasSeenOverfit && !repairSensorsReady && (
+            {state.stage === 'iterate' && state.hasSeenOverfit && !repairSensorsReady && (
               <SensorIntro
                 features={['texture', 'aspect']}
                 read={repairSensorReads}
@@ -823,7 +797,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               <ModelPicker selected={state.selectedModel} unlocked={availableModels} disabled={modelDisabled} onChange={setModel} />
             )}
 
-            {!debug && state.stage === 'iterate' && (
+            {state.stage === 'iterate' && (
               (!state.hasSeenOverfit && state.selectedModel === 'knn-1') || (state.hasSeenOverfit && repairSensorsReady)
             ) && (
               <ExperimentPlan
@@ -887,7 +861,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
               </section>
             )}
 
-            {!debug && ['iterate', 'overfit_reveal', 'final_audit', 'transfer_question', 'complete'].includes(state.stage) && (
+            {['iterate', 'overfit_reveal', 'final_audit', 'transfer_question', 'complete'].includes(state.stage) && (
               <CaseAttempts
                 records={experimentLog}
                 credits={state.stage === 'iterate' ? auditCredits : undefined}
@@ -933,57 +907,29 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, o
                 <div className="takeaways">
                   <span>数据决定它见过什么</span><span>特征决定它能看什么</span><span>测试集检查未知世界</span><span>错误样本帮助找原因</span>
                 </div>
-                {!debug && (
-                  <CaseRating
-                    experimentCount={experimentLog.length}
-                    emergencyAudits={emergencyAudits}
-                    hintLevel={state.hintLevel}
-                    predictionHits={predictionHits}
-                    predictionMisses={predictionMisses}
-                    trustedOldScore={successPrediction === 'fixed'}
-                    reasoningMisses={reasoningMisses}
-                  />
-                )}
-                {!debug ? (
-                  <div className="dual-actions completion-actions">
-                    <ActionButton kind="secondary" onClick={exportLog}>导出匿名调查记录</ActionButton>
-                    <ActionButton kind="secondary" onClick={onRestart}>重新调查一次</ActionButton>
-                    {onReturnToBureau && <ActionButton onClick={onReturnToBureau}>归档并返回调查局</ActionButton>}
-                  </div>
-                ) : (
-                  <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
-                )}
+                <CaseRating
+                  experimentCount={experimentLog.length}
+                  emergencyAudits={emergencyAudits}
+                  hintLevel={state.hintLevel}
+                  predictionHits={predictionHits}
+                  predictionMisses={predictionMisses}
+                  trustedOldScore={successPrediction === 'fixed'}
+                  reasoningMisses={reasoningMisses}
+                />
+                <div className="dual-actions completion-actions">
+                  <ActionButton kind="secondary" onClick={exportLog}>导出匿名调查记录</ActionButton>
+                  <ActionButton kind="secondary" onClick={onRestart}>重新调查一次</ActionButton>
+                  {onReturnToBureau && <ActionButton onClick={onReturnToBureau}>归档并返回调查局</ActionButton>}
+                </div>
               </section>
             )}
 
-            {debug && currentAction && <section className="pixel-command-dock">{currentAction}</section>}
-            <AssistantPanel state={state} onHint={requestHint} floating={!debug} showHint={hintStage === state.stage} />
+            <AssistantPanel state={state} onHint={requestHint} floating showHint={hintStage === state.stage} />
           </div>
         </div>
       )}
 
-      {debug && (
-        <DebugPanel
-          state={state}
-          hiddenSamples={debugSamples}
-          hiddenPredictions={debugPredictions}
-          grid={grid}
-          showLabels={debugShowLabels}
-          onShowLabels={setDebugShowLabels}
-          animationSpeed={animationSpeed}
-          onAnimationSpeed={setAnimationSpeed}
-          onJump={(stage) => send({ type: 'DEBUG_JUMP', stage }, `DEBUG_JUMP:${stage}`)}
-          onResetStage={() => send({ type: 'DEBUG_RESET_STAGE' })}
-          onSeed={onSeedChange}
-          onRunPersona={(persona: PersonaId) => {
-            record(`AUTO_ROUTE:${persona}`)
-            const result = runPersonaRoute(persona, seed)
-            dispatch({ type: 'DEBUG_LOAD_STATE', state: result.finalState })
-            return result
-          }}
-          onExport={exportLog}
-        />
-      )}
+
     </main>
   )
 }
@@ -994,11 +940,10 @@ type AppMode = 'hub' | 'story' | 'endless-intro' | 'boot' | 'endless'
 
 function App() {
   const params = new URLSearchParams(window.location.search)
-  const debug = params.get('debug') === '1'
   const initialSeed = Number(params.get('seed')) || 20260809
   const requestedMode = params.get('mode')
   const legacyBootCompleted = window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete'
-  const legacyStorySession = !debug ? readStorySession(window.localStorage, initialSeed) : undefined
+  const legacyStorySession = readStorySession(window.localStorage, initialSeed)
   const [bureauProgress, setBureauProgress] = useState<BureauProgress>(() => {
     let progress = readBureauProgress(window.localStorage)
     if (legacyStorySession?.state.stage === 'complete' && !progress.story001.resolved) {
@@ -1025,7 +970,6 @@ function App() {
   const [seed, setSeed] = useState(initialSeed)
   const [session, setSession] = useState(0)
   const [mode, setMode] = useState<AppMode>(() => {
-    if (debug) return 'story'
     if (requestedMode === 'hub') return 'hub'
     if (requestedMode === 'endless') return 'endless'
     if (requestedMode === 'boot') return 'boot'
@@ -1034,15 +978,20 @@ function App() {
   })
   const [endlessReturnTarget, setEndlessReturnTarget] = useState<'hub' | 'story'>(bureauProgress.story001.resolved ? 'hub' : 'story')
   const [bootOrigin, setBootOrigin] = useState<'hub' | 'endless-intro'>('endless-intro')
-  const [storyResumeAccepted, setStoryResumeAccepted] = useState(false)
-  const savedStorySession = !debug ? readStorySession(window.localStorage, seed) : undefined
+  const [storyResumeAccepted, setStoryResumeAccepted] = useState(() => {
+    const pendingSeed = window.sessionStorage.getItem(CHEAT_AUTO_RESUME_KEY)
+    if (pendingSeed !== String(initialSeed)) return false
+    window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+    return true
+  })
+  const savedStorySession = readStorySession(window.localStorage, seed)
   const storyResume = savedStorySession && storySessionHasProgress(savedStorySession) ? {
     stageLabel: STAGE_CONTENT[savedStorySession.state.stage].step,
     experimentCount: savedStorySession.experimentLog.length,
     remainingCredits: storyAuditCredits(savedStorySession),
     solved: savedStorySession.state.stage === 'complete',
   } : undefined
-  const savedEndlessSession = !debug ? readEndlessSession(window.localStorage, seed) : undefined
+  const savedEndlessSession = readEndlessSession(window.localStorage, seed)
   const endlessResume = hasEndlessSessionProgress(savedEndlessSession) && savedEndlessSession ? {
     seed: savedEndlessSession.seed,
     historyCount: savedEndlessSession.history.length,
@@ -1056,7 +1005,7 @@ function App() {
   }
 
   const restartStory = () => {
-    if (!debug) clearStorySession(window.localStorage, seed)
+    clearStorySession(window.localStorage, seed)
     setSession((value) => value + 1)
   }
 
@@ -1073,7 +1022,7 @@ function App() {
     setMode('story')
   }
 
-  if (!debug && mode === 'hub') {
+  if (mode === 'hub') {
     return (
       <BureauHub
         progress={bureauProgress}
@@ -1095,7 +1044,7 @@ function App() {
     )
   }
 
-  if (!debug && mode === 'endless-intro') {
+  if (mode === 'endless-intro') {
     return (
       <EndlessIntro
         bootCompleted={bureauProgress.bootCase000.completed}
@@ -1118,7 +1067,7 @@ function App() {
     )
   }
 
-  if (!debug && mode === 'boot') {
+  if (mode === 'boot') {
     return <BootCase onComplete={() => {
       window.localStorage.setItem(ENDLESS_BOOT_KEY, 'complete')
       updateBureauProgress((current) => recordBootCaseCompletion(current))
@@ -1126,7 +1075,7 @@ function App() {
     }} onBack={() => setMode(bootOrigin === 'hub' ? 'hub' : 'endless-intro')} />
   }
 
-  if (!debug && mode === 'endless') {
+  if (mode === 'endless') {
     return <EndlessMode
       initialSeed={seed}
       exitLabel={endlessReturnTarget === 'hub' ? '返回调查局' : '返回剧情案件'}
@@ -1136,7 +1085,7 @@ function App() {
     />
   }
 
-  if (!debug && mode === 'story' && storyResume && !storyResumeAccepted) {
+  if (mode === 'story' && storyResume && !storyResumeAccepted) {
     return (
       <StoryResume
         summary={storyResume}
@@ -1154,11 +1103,9 @@ function App() {
     <GameSession
       key={`${seed}-${session}`}
       seed={seed}
-      debug={debug}
-      onSeedChange={changeSeed}
       onRestart={restartStory}
-      onCaseClosed={!debug ? ({ grade, score }) => updateBureauProgress((current) => recordStory001Resolution(current, grade, score)) : undefined}
-      onReturnToBureau={!debug && bureauProgress.story001.resolved ? () => {
+      onCaseClosed={({ grade, score }) => updateBureauProgress((current) => recordStory001Resolution(current, grade, score))}
+      onReturnToBureau={bureauProgress.story001.resolved ? () => {
         setStoryResumeAccepted(false)
         setMode('hub')
       } : undefined}

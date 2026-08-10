@@ -15,15 +15,8 @@ describe('game state and hidden audit boundary', () => {
     expect(service.train.every((sample) => sample.label === 'cat' || sample.label === 'bread')).toBe(true)
   })
 
-  it('blocks normal-mode debug jumps', () => {
-    const state = createInitialGameState(1, false, 0)
-    const next = gameReducer(state, { type: 'DEBUG_JUMP', stage: 'complete' })
-    expect(next.stage).toBe('briefing')
-    expect(next.diagnostics.at(-1)).toContain('debug jump rejected')
-  })
-
   it('requires viewing two different mistakes before leaving error inspection', () => {
-    let state = createInitialGameState(1, false, 0)
+    let state = createInitialGameState(1, 0)
     state = { ...state, stage: 'inspect_errors', audit: { accuracy: 0.5, errorCount: 2, orangeCatErrors: 1, mistakes: [
       { id: 'x', actual: 'cat', predicted: 'bread', correct: false, features: { warmth: 1, roundness: 1, texture: 1, aspect: 1 } },
       { id: 'y', actual: 'bread', predicted: 'cat', correct: false, features: { warmth: 0, roundness: 0, texture: 0, aspect: 0 } },
@@ -40,7 +33,7 @@ describe('game state and hidden audit boundary', () => {
 
   it('does not accumulate evidence-investigation progress outside inspect_errors', () => {
     const state = {
-      ...createInitialGameState(1, false, 0),
+      ...createInitialGameState(1, 0),
       stage: 'overfit_reveal' as const,
       audit: {
         accuracy: 0.6,
@@ -58,7 +51,7 @@ describe('game state and hidden audit boundary', () => {
   })
 
   it('escalates hints without exceeding level three', () => {
-    let state = createInitialGameState(1, false, 0)
+    let state = createInitialGameState(1, 0)
     state = { ...state, stage: 'iterate' }
     for (let i = 0; i < 5; i += 1) state = gameReducer(state, { type: 'REQUEST_HINT' })
     expect(state.hintLevel).toBe(3)
@@ -66,7 +59,7 @@ describe('game state and hidden audit boundary', () => {
   })
 })
 
-describe('debug persona routes', () => {
+describe('automated persona routes', () => {
   for (const persona of Object.keys(PERSONAS) as Array<keyof typeof PERSONAS>) {
     it(`${persona} terminates in a completed session`, () => {
       const result = runPersonaRoute(persona)

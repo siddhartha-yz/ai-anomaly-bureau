@@ -51,7 +51,6 @@ button:disabled { cursor: not-allowed; opacity: .42; }
   border: 0; background: transparent; color: #9eb0c8; cursor: pointer; padding: 8px 10px;
 }
 .ghost-button:hover, .text-button:hover { color: #fff; }
-.debug-badge { padding: 5px 8px; border-radius: 6px; background: #3c2d12; color: #ffd27f; font: 700 11px/1 ui-monospace, monospace; }
 .help-strip {
   max-width: 1480px; margin: 12px auto 0; padding: 10px 14px; border: 1px solid rgba(118, 158, 224, .22);
   border-radius: 10px; background: rgba(31, 49, 76, .6); color: #b8c6da; font-size: .87rem;
@@ -73,7 +72,7 @@ button:disabled { cursor: not-allowed; opacity: .42; }
   max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(310px, .78fr); gap: 18px; align-items: start;
 }
 .visual-column, .control-column { min-width: 0; display: grid; gap: 14px; }
-.plot-card, .control-block, .assistant-panel, .mistakes, .concept-card, .transfer-card, .completion-card, .debug-panel {
+.plot-card, .control-block, .assistant-panel, .mistakes, .concept-card, .transfer-card, .completion-card {
   border: 1px solid var(--line); border-radius: 16px; background: var(--panel); box-shadow: 0 18px 60px rgba(0,0,0,.18);
 }
 .plot-card { padding: 17px 18px 12px; overflow: hidden; }
@@ -110,7 +109,7 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .control-number { color: #6686b7; font: 700 .65rem/1.6 ui-monospace, monospace; }
 .control-heading h2 { margin: 0; font-size: .96rem; }.control-heading p { margin: 3px 0 0; color: #73849b; font-size: .72rem; line-height: 1.45; }
 .axis-selectors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.axis-selectors label, .debug-grid label { color: #7f91aa; font-size: .7rem; }
+.axis-selectors label { color: #7f91aa; font-size: .7rem; }
 select, input {
   width: 100%; margin-top: 5px; border: 1px solid rgba(151,177,216,.18); border-radius: 9px; padding: 9px 10px;
   background: #0b1320; color: #eaf2ff;
@@ -141,19 +140,14 @@ select, input {
 .concept-card, .transfer-card, .completion-card { padding: 18px; }.concept-card > span, .transfer-card > span { color: #f0af6d; font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; }.concept-card h2, .transfer-card h2 { margin: 7px 0; font-size: 1.08rem; }.concept-card p, .answer-note { margin: 0; color: #9caac0; font-size: .76rem; line-height: 1.55; }.success-card { border-color: rgba(105,213,187,.27); }.success-card > span { color: var(--cat); }
 .transfer-options { display: grid; gap: 7px; margin: 12px 0; }.transfer-options button { border: 1px solid rgba(150,176,214,.16); border-radius: 9px; padding: 10px; background: #0b1421; color: #9faec3; text-align: left; cursor: pointer; }.transfer-options button.selected { border-color: #7da8ee; color: #e8f1ff; background: #14243a; }.answer-note { margin-bottom: 12px; }
 .completion-card { text-align: left; }.completion-stamp { display: inline-block; padding: 5px 7px; border: 1px solid rgba(109,216,192,.45); border-radius: 5px; color: #7ed8c5; font: 700 .62rem/1 ui-monospace, monospace; letter-spacing: .12em; }.completion-card h1 { margin: 12px 0 5px; font-size: 1.7rem; }.completion-card > p { color: #9cacc2; font-size: .8rem; }.takeaways { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 14px 0; }.takeaways span { padding: 8px; border-radius: 8px; background: rgba(77,111,161,.09); color: #98abc6; font-size: .68rem; }
-.debug-panel { max-width: 1480px; margin: 20px auto 0; padding: 16px; border-color: rgba(255,195,93,.24); background: rgba(28,24,17,.93); }
-.debug-title { display: flex; justify-content: space-between; color: #efc169; font: 700 .7rem/1 ui-monospace, monospace; }.debug-title span { color: #8f774d; }
-.debug-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 13px; }.debug-actions { display: flex; gap: 8px; margin-top: 9px; }.debug-actions button, .debug-personas button, .inline-field button { border: 1px solid #54462f; border-radius: 7px; background: #1d1912; color: #d2b374; padding: 7px 9px; cursor: pointer; font-size: .68rem; }.inline-field { display: flex; gap: 5px; }.inline-field input { margin-top: 5px; }.inline-field button { margin-top: 5px; }
-.check-row { display: flex; align-items: center; gap: 7px; padding-top: 22px; }.check-row input { width: auto; margin: 0; }.debug-personas { margin-top: 12px; color: #a99368; font-size: .7rem; }.debug-personas > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }.debug-personas p { color: #8c7b5d; }
-.debug-panel details { margin-top: 8px; color: #aa9369; font-size: .7rem; }.debug-panel pre { max-height: 260px; overflow: auto; padding: 10px; background: #100e0a; color: #c9b58b; border-radius: 8px; font: 11px/1.45 ui-monospace, monospace; }
 
 @media (max-width: 980px) {
-  .app-shell { padding-inline: 16px; }.workspace { grid-template-columns: 1fr; }.control-column { grid-row: auto; }.plot-wrap svg { max-height: none; }.mistake-list { grid-template-columns: 1fr; }.debug-grid { grid-template-columns: 1fr 1fr; }
+  .app-shell { padding-inline: 16px; }.workspace { grid-template-columns: 1fr; }.control-column { grid-row: auto; }.plot-wrap svg { max-height: none; }.mistake-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .app-shell { padding-inline: 10px; padding-bottom: 36px; }.topbar { height: 64px; }.brand small { display: none; }.top-actions { gap: 1px; }.ghost-button { padding-inline: 7px; font-size: .72rem; }
   .task-banner { margin-top: 10px; padding: 12px; }.task-kicker { flex-direction: column; gap: 3px; }.incident-card { padding: 14px; }.workspace { gap: 10px; }.plot-card { padding: 12px 8px 8px; border-radius: 12px; }.plot-heading { padding-inline: 5px; }.legend { font-size: .6rem; gap: 7px; }.plot-note { font-size: .58rem; }
-  .metrics { gap: 5px; }.metrics article { padding: 10px 8px; }.metrics strong { font-size: 1.25rem; }.metrics small { font-size: .58rem; }.axis-selectors, .dual-actions, .takeaways { grid-template-columns: 1fr; }.control-block, .assistant-panel, .mistakes, .concept-card, .transfer-card, .completion-card { border-radius: 12px; }.debug-grid { grid-template-columns: 1fr; }.check-row { padding-top: 5px; }
+  .metrics { gap: 5px; }.metrics article { padding: 10px 8px; }.metrics strong { font-size: 1.25rem; }.metrics small { font-size: .58rem; }.axis-selectors, .dual-actions, .takeaways { grid-template-columns: 1fr; }.control-block, .assistant-panel, .mistakes, .concept-card, .transfer-card, .completion-card { border-radius: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition-duration: 0ms !important; animation-duration: 0ms !important; }
@@ -523,7 +517,7 @@ body {
 
 /* ============================================================
    PIXEL TERMINAL PLAYER THEME — V2
-   Ordinary player mode is a game scene; debug remains a tool.
+   The player UI and test shortcuts now share the same formal game state.
    ============================================================ */
 :root {
   --px-bg: #07080c;

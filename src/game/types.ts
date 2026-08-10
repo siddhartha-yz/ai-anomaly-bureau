@@ -37,12 +37,10 @@ export type TrainingResult = {
   accuracy: number
   errorCount: number
   complexity: number
-  params?: Record<string, number | string | boolean>
 }
 
 export type GameState = {
   seed: number
-  debug: boolean
   stage: Stage
   selectedFeatures: [FeatureKey, FeatureKey]
   selectedModel: ModelId
@@ -73,6 +71,3 @@ export type GameAction =
   | { type: 'VIEW_MISTAKE'; id: string }
   | { type: 'REQUEST_HINT' }
   | { type: 'ANSWER_TRANSFER'; id: string; correct: boolean }
-  | { type: 'DEBUG_JUMP'; stage: Stage }
-  | { type: 'DEBUG_RESET_STAGE' }
-  | { type: 'DEBUG_LOAD_STATE'; state: GameState }

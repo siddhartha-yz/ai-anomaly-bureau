@@ -29,7 +29,7 @@ src/
     hints.ts                 # 小析分级提示
     logging.ts               # 匿名行为日志
     session.ts               # Story Case 版本化检查点、净化与运行时校验
-    routes.ts                # debug 自动路线
+    routes.ts                # 纯测试自动人格路线
   components/
     BureauHub.tsx             # 调查局 Hub：案件板 / 训练 / 档案 / 值班室
     EntryExperience.tsx       # 新人 CASE 001 标题 + Cold Open；入职后可返回 Hub
@@ -47,7 +47,7 @@ src/
     Metrics.tsx
     ErrorSamples.tsx
     AssistantPanel.tsx
-    DebugPanel.tsx
+    CheatTerminal.tsx        # 全局本地作弊码入口；跳转仍落到正式状态
   endless/
     generator.ts             # 四类程序化监督学习故障与传感器通道重排
     observables.ts           # 训练标签 + 无标签现场分布的公开证据
@@ -102,7 +102,7 @@ type Point2D = {
 }
 ```
 
-测试数据由 `createDataset(seed)` 一次生成，但普通游戏状态仅保存训练样本与一个不含标签、flags 和语义 ID 的测试视图。`createAuditService` 会把内部 `test-cat-* / test-bread-*` 映射成中性的 `field-001...`；真实测试标签与困难子群 flags 留在评估服务闭包中。仅执行审计时返回该次错误案例需要的信息，`debug=1` 才能查看完整真实标签。
+测试数据由 `createDataset(seed)` 一次生成，但游戏状态仅保存训练样本与一个不含标签、flags 和语义 ID 的测试视图。`createAuditService` 会把内部 `test-cat-* / test-bread-*` 映射成中性的 `field-001...`；真实测试标签与困难子群 flags 留在评估服务闭包中。只有执行正式审计时才返回该次错误案例需要的信息；runtime 已不再暴露“完整隐藏测试真值”接口。
 
 ## 模型接口
 ```ts
@@ -123,7 +123,7 @@ interface FittedClassifier {
 - `fit` 只接收训练点。
 - 模型不读取 split、flags 或测试数据。
 - 所有参数由训练数据真实计算。
-- `describe()` 为 debug 面板提供参数，不参与 UI 教学结论。
+- `describe()` 只用于 ML 层单元测试 / 内部模型检查，不进入 Story `TrainingResult` 或玩家 UI。
 
 ## 模型实现
 ### 线性分类器
@@ -193,7 +193,7 @@ App 路由的正常产品语义是：
 - 未完成 Story 001：默认进入 Story，新人没有 Duty UI 入口；
 - Story 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
 - 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；
-- explicit query (`?mode=endless`, `?mode=boot`, `?debug=1`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度。
+- explicit query (`?mode=endless`, `?mode=boot`, `?mode=hub`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度；历史 `?debug=1` 参数不再改变应用权限。
 
 `BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
 
@@ -219,7 +219,7 @@ type Stage =
 
 Cold Open、图上异常样本调查、边界 `PROBE ?`、传感器读取、预测下注、正式审计额度、证据推理、实验记录比较、过拟合反思、最终反思和 `CASE_NOTES` 属于单关卡 UI 编排状态，不改变 ML 模型或主 reducer 阶段语义。它们把同一 stage 拆成需要观察 / 判断 / 验证的 micro-beat，而不是增加第二套业务状态机。
 
-Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。`training.params`、审计 mistake 的内部 flags、debug diagnostics 会在序列化前清除；合法 mistake ID 只能是已经公开的 `field-###`。
+Story Case 的长局状态由 `game/session.ts` 统一做版本化检查点。key 为 `aia.story-session.v1.<seed>`；保存 reducer `GameState` 与上述玩家可见 micro-beat，但不会缓存 fitted model，模型仍由 seed + 当前特征 / 模型配置重新计算。审计 mistake 的内部 flags 会在序列化前清除；`TrainingResult` 不再携带 fitted model 参数；合法 mistake ID 只能是已经公开的 `field-###`。
 
 checkpoint guard 同时做结构与关系校验：stage / micro-beat 必须是 UI 真正可达的顺序；训练 accuracy/errorCount 要符合 seed 对应训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；current audit 与最新 auditHistory 在 confusion、mistake ID / 标签 / 特征上深一致；最新 CASE_NOTES 还必须对应当前已审计模型 / 特征 / 训练分。实验预测命中逻辑抽到 `game/experiment.ts`，运行时写记录和恢复端验证共享同一个 `predictionMatches()`，避免两套公式漂移。迁移题 correctness 直接按 `TRANSFER_QUESTION` 配置核对，额外审计次数则由已花费审计数约束，不能通过修改 localStorage 退款。
 
@@ -229,7 +229,7 @@ Story 正式审计额度也不直接持久化：第一份未知审计不计修�
 
 `writeStorySession()` 的失败不是静默状态：GameSession 会显示 `LOCAL SAVE FAILED`，并由一个 retry nonce 显式重跑同一保存 effect。localStorage 恢复可写后，玩家点击“重试本地保存”即可清除警告；保存失败不会阻断当前页面内的游戏流程。
 
-Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作包括 `START`、`SELECT_FEATURES`、`SELECT_MODEL`、`TRAIN`、`RUN_AUDIT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`、`RESET_STAGE`、`JUMP_STAGE`。
+Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 `START`、`OBSERVE_DONE`、`SET_FEATURES`、`SET_MODEL`、`TRAIN_RESULT`、`AUDIT_RESULT`、`VIEW_MISTAKE`、`REQUEST_HINT`、`ADVANCE`、`ANSWER_TRANSFER`。没有专用 jump / load action。
 
 ## 关卡配置格式
 `level1.ts` 配置：
@@ -289,7 +289,7 @@ Reducer 对非法动作返回原状态并记录 debug diagnostic；关键动作�
 Vitest 会在大量 seed 上要求 evidence-policy 的结案率与平均未知表现显著优于 random-clicker。这个测试不证明游戏一定“好玩”，但能防止程序化案件退化成“随便点几次也和推理一样有效”。
 
 ## 行为日志
-默认仍是本地匿名记录，但 Story 检查点会把当前 `BehaviorLog` 一同保存，因此刷新后继续使用原 `sessionId / startedAt / events`；每次真正从检查点恢复会追加一条 `SESSION_RESTORED`。结案页允许普通玩家主动导出完整 JSON，debug 面板也保留原导出入口：
+默认仍是本地匿名记录，但 Story 检查点会把当前 `BehaviorLog` 一同保存，因此刷新后继续使用原 `sessionId / startedAt / events`；每次真正从检查点恢复会追加一条 `SESSION_RESTORED`。结案页允许玩家主动导出完整 JSON：
 ```ts
 type BehaviorEvent = {
   sessionId: string
@@ -310,18 +310,18 @@ type BehaviorEvent = {
 ```
 不写姓名、账号、邮箱、IP 等个人标识；sessionId 为本地随机短 ID。Story localStorage 中保存的是同一份匿名行为日志，用于跨刷新连续性，显式清档 / 重新调查会同时删除并生成下一局新 session。
 
-## Debug 模式
-`?debug=1` 显示独立面板：
-- seed 输入/应用、预设 seed 切换。
-- 阶段跳转与重置。
-- 全解锁。
-- 显示测试真实标签、样本预测、模型参数、决策网格摘要。
-- 动画速度 0/0.5/1/2。
-- 六类自动路线。
-- 导出日志 JSON。
-- diagnostics 显示非法状态转换、缺失提示、路线卡死。
+## 测试作弊码
+项目不再维护 `?debug=1` 特权模式或独立 DebugPanel。`CheatTerminal` 作为全局覆盖层，仅负责把测试意图转换成**正式可恢复状态**：
 
-自动路线执行纯游戏命令，不直接修改 reducer 内部状态，从而能发现状态机问题。
+- `CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED` 使用真实 reducer、模型训练、审计和实验记录逻辑构造版本化 Story checkpoint；
+- `BUREAU UNLOCK` 通过正式 `BureauProgress` 写入函数授予本地测试权限；
+- `TRAINING` 打开正式 Boot Case 000；
+- `DUTY <seed>` 清理该 seed 的旧 Endless session 后进入正式值班案件；
+- 命令执行后通过正常路由重载，不在 React 内存里注入一个“作弊 state”。
+
+Story 作弊 checkpoint 必须通过同一个 `writeStorySession()` / `readStorySession()` 关系校验。这样作弊系统反而会暴露真实恢复问题：例如本轮就发现并修复了 `iterate` 在过拟合前后重复使用时，旧 validator 误拒绝合法 post-overfit checkpoint 的问题。
+
+六类自动人格路线继续存在于 `game/routes.ts`，但只作为 Vitest 的纯模拟测试，不出现在玩家 UI。
 
 ## 测试策略
 ### 单元测试
@@ -344,7 +344,7 @@ type BehaviorEvent = {
 - 隐藏测试前不暴露测试指标。
 - 首次测试失败后需查看两个不同错误样本。
 - 连续失败触发 1→2→3 级提示。
-- reset/jump 仅 debug 模式生效。
+- Story reducer 不提供 jump/load action；快速定位由合法 checkpoint 作弊码完成。
 
 ### 自动路线测试
 六种人格全部执行到预期终点或明确诊断，不出现无限循环与无可用操作状态。
@@ -363,7 +363,7 @@ type BehaviorEvent = {
 - 额度恢复 E2E 故意耗尽 5 次正式审计，验证额外审计可恢复路线但会产生评级代价，避免“有限预算 = 死局”。
 - 类别不平衡 E2E 明确验证“总体高分但少数类 recall 50%”不能结案。
 - E2E 使用真实 Playwright actionability 检查，防止 SVG、NPC、tooltip、overlay 抢走点击。
-- 另有 debug-mode E2E，确保普通玩家的新手门槛不会破坏 `?debug=1` 的快速工程测试能力。
+- 作弊码 E2E 会从历史 `?debug=1` query 启动，确认该参数已无特权；随后输入 `CASE001 OVERFIT`，验证两条真实实验、审计余额与刷新恢复都来自正常 Story checkpoint。另一路跨 Story / Bureau / Boot / Duty 验证全局终端。
 - 本地 `.tooling/` headless Chrome 可在 1440×900 / 1920×1080 做阶段截图 QA；这些运行库与截图不提交 Git。
 - 浏览器 console/page errors 为零。
 
@@ -385,7 +385,7 @@ Node.js 24（与本地正式工具链一致）：
 3. ML 数据、特征、三模型、评估与固定种子测试。
 4. 游戏 reducer、关卡配置、提示与日志。
 5. SVG/UI 完整可玩流程。
-6. debug 面板与六种自动路线。
+6. 正式状态作弊码与六种纯测试自动路线。
 7. UI 响应式/动画打磨。
 8. 类型检查、单测、构建、浏览器桌面/移动端验证。
 9. CI、敏感信息扫描、GitHub 推送与 Actions 检查（远端工具可用时）。

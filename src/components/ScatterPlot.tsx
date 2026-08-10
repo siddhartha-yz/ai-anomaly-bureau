@@ -1,6 +1,6 @@
 import { FEATURE_META } from '../ml/features'
 import type { AuditResult } from '../game/types'
-import type { DecisionCell, FeatureKey, Point2D, PublicSample, Sample } from '../ml/types'
+import type { DecisionCell, FeatureKey, Point2D, PublicSample } from '../ml/types'
 import { PixelSampleGlyph, PixelUnknownGlyph } from './PixelGlyphs'
 
 const W = 760
@@ -16,12 +16,10 @@ function unknownPoint(sample: PublicSample, features: [FeatureKey, FeatureKey]) 
 export function ScatterPlot({
   train,
   publicTest,
-  debugTest,
   features,
   grid,
   audit,
   revealUnknown,
-  debugShowLabels,
   selectedMistake,
   onSelectMistake,
   trainingProbe,
@@ -31,12 +29,10 @@ export function ScatterPlot({
 }: {
   train: Point2D[]
   publicTest: PublicSample[]
-  debugTest?: Sample[]
   features: [FeatureKey, FeatureKey]
   grid: DecisionCell[]
   audit?: AuditResult
   revealUnknown: boolean
-  debugShowLabels: boolean
   selectedMistake?: string
   onSelectMistake?: (id: string) => void
   trainingProbe?: boolean
@@ -48,7 +44,6 @@ export function ScatterPlot({
   const cellW = resolution ? (W - PAD.l - PAD.r) / resolution : 0
   const cellH = resolution ? (H - PAD.t - PAD.b) / resolution : 0
   const mistakeById = new Map(audit?.mistakes.map((mistake) => [mistake.id, mistake]))
-  const debugById = new Map(debugTest?.map((sample) => [sample.id, sample]))
   const scannerStatus = audit
     ? `AUDIT_COMPLETE // MISTAKES=${audit.mistakes.length}`
     : revealUnknown
@@ -162,8 +157,7 @@ export function ScatterPlot({
               {publicTest.map((sample) => {
                 const point = unknownPoint(sample, features)
                 const mistake = mistakeById.get(sample.id)
-                const debugLabel = debugShowLabels ? debugById.get(sample.id)?.label : undefined
-                const revealedLabel = mistake?.actual ?? debugLabel
+                const revealedLabel = mistake?.actual
                 const selected = selectedMistake === sample.id
                 const clickable = Boolean(mistake && onSelectMistake)
                 return (
