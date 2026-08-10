@@ -161,29 +161,46 @@ function migrateProgressV1(progress: BureauProgressV1): BureauProgress {
 }
 
 export function readBureauProgress(storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>): BureauProgress {
+  let raw: string | null
   try {
-    const raw = storage.getItem(BUREAU_PROGRESS_KEY)
-    if (raw) {
-      const parsed: unknown = JSON.parse(raw)
-      if (isProgress(parsed)) return parsed
-      storage.removeItem(BUREAU_PROGRESS_KEY)
-    }
-
-    const legacyRaw = storage.getItem(LEGACY_BUREAU_PROGRESS_KEY)
-    if (!legacyRaw) return createBureauProgress()
-    const legacyParsed: unknown = JSON.parse(legacyRaw)
-    if (!isProgressV1(legacyParsed)) {
-      storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY)
-      return createBureauProgress()
-    }
-
-    const migrated = migrateProgressV1(legacyParsed)
-    if (writeBureauProgress(storage, migrated)) storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY)
-    return migrated
+    raw = storage.getItem(BUREAU_PROGRESS_KEY)
   } catch {
-    try { storage.removeItem(BUREAU_PROGRESS_KEY) } catch { /* localStorage may be unavailable */ }
     return createBureauProgress()
   }
+
+  if (raw) {
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      if (isProgress(parsed)) return parsed
+    } catch { /* malformed v2 can fall back to an intact legacy save */ }
+    try { storage.removeItem(BUREAU_PROGRESS_KEY) } catch { /* cleanup failure must not block legacy recovery */ }
+  }
+
+  let legacyRaw: string | null
+  try {
+    legacyRaw = storage.getItem(LEGACY_BUREAU_PROGRESS_KEY)
+  } catch {
+    return createBureauProgress()
+  }
+  if (!legacyRaw) return createBureauProgress()
+
+  let legacyParsed: unknown
+  try {
+    legacyParsed = JSON.parse(legacyRaw)
+  } catch {
+    try { storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY) } catch { /* best-effort cleanup */ }
+    return createBureauProgress()
+  }
+  if (!isProgressV1(legacyParsed)) {
+    try { storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY) } catch { /* best-effort cleanup */ }
+    return createBureauProgress()
+  }
+
+  const migrated = migrateProgressV1(legacyParsed)
+  if (writeBureauProgress(storage, migrated)) {
+    try { storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY) } catch { /* v2 is already durable */ }
+  }
+  return migrated
 }
 
 export function writeBureauProgress(storage: Pick<Storage, 'setItem'>, progress: BureauProgress) {

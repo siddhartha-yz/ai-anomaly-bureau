@@ -206,7 +206,7 @@ type BureauProgress = {
 }
 ```
 
-key 为 `aia.bureau-progress.v2`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。reader 会校验并迁移旧 `aia.bureau-progress.v1`；未知 catalog id、非法评级 / 时间或重复 Duty seed 会被拒绝。Training 000 旧完成 key 仅保留为迁移输入，新完成记录只写入 `trainingCases[TRAINING_CASE_000.id]`。
+key 为 `aia.bureau-progress.v2`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。reader 会校验并迁移旧 `aia.bureau-progress.v1`；未知 catalog id、非法评级 / 时间或重复 Duty seed 会被拒绝。v2 JSON 若损坏，会先清掉坏 key 再尝试仍完整的 v1，因此格式升级不会让一个可恢复旧存档被新的坏 payload 遮住；损坏 v1 也做 best-effort 清理。Training 000 旧完成 key 仅保留为迁移输入，新完成记录只写入 `trainingCases[TRAINING_CASE_000.id]`。
 
 App 路由的正常产品语义是：
 

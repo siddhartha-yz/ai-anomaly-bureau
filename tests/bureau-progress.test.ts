@@ -131,6 +131,30 @@ describe('Bureau meta progression', () => {
     expect(storage.getItem(BUREAU_PROGRESS_KEY)).not.toBeNull()
   })
 
+  it('recovers an intact v1 save when the newer v2 JSON is corrupted', () => {
+    const storage = new MemoryStorage()
+    storage.setItem(BUREAU_PROGRESS_KEY, '{broken-v2-json')
+    storage.setItem('aia.bureau-progress.v1', JSON.stringify({
+      version: 1,
+      inductionAcknowledged: true,
+      story001: { resolved: true, bestGrade: 'B', bestScore: 82, resolvedAt: '2026-08-10T01:00:00.000Z' },
+      bootCase000: { completed: false },
+      duty: { resolutions: [] },
+    }))
+
+    const recovered = readBureauProgress(storage as unknown as Storage)
+    expect(formalCaseProgress(recovered, STORY_CASE_001.id)).toMatchObject({ resolved: true, bestGrade: 'B', bestScore: 82 })
+    expect(storage.getItem(BUREAU_PROGRESS_KEY)).not.toBeNull()
+    expect(storage.getItem('aia.bureau-progress.v1')).toBeNull()
+  })
+
+  it('removes malformed legacy JSON instead of retrying the same broken payload forever', () => {
+    const storage = new MemoryStorage()
+    storage.setItem('aia.bureau-progress.v1', '{broken-v1-json')
+    expect(readBureauProgress(storage as unknown as Storage)).toEqual(createBureauProgress())
+    expect(storage.getItem('aia.bureau-progress.v1')).toBeNull()
+  })
+
   it('migrates only stable facts from pre-Hub local saves', () => {
     const migrated = reconcileLegacyProgress(createBureauProgress(), { storyResolved: true, bootCompleted: true }, new Date('2026-08-10T01:00:00Z'))
     expect(formalCaseProgress(migrated, STORY_CASE_001.id).resolved).toBe(true)
