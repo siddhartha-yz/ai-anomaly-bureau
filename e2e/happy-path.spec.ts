@@ -3,9 +3,22 @@ import { expect, test, type Page } from '@playwright/test'
 import { STORY_CASE_001, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import { BUREAU_PROGRESS_KEY, createBureauProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion } from '../src/bureau/progress'
 import { endlessSessionKey } from '../src/endless/session'
+import { createStoryCheatSession } from '../src/game/cheats'
 import type { BehaviorLog } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
-import { STORY_SESSION_VERSION, storyAuditCredits, storySessionKey, type StorySessionData } from '../src/game/session'
+import { STORY_SESSION_VERSION, storyAuditCredits, storySessionKey, writeStorySession, type StorySessionData } from '../src/game/session'
+
+function serializeStoryCheckpoint(checkpoint: StorySessionData) {
+  let payload: string | undefined
+  const storage = {
+    getItem: () => null,
+    setItem: (_key: string, value: string) => { payload = value },
+    removeItem: () => {},
+  }
+  expect(writeStorySession(storage as unknown as Storage, checkpoint)).toBe(true)
+  if (!payload) throw new Error('Story checkpoint writer produced no payload')
+  return payload
+}
 
 async function waitForStage(page: Page, stage: string) {
   await expect(page.locator('.app-shell')).toHaveAttribute('data-stage', stage)
@@ -136,8 +149,12 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
     resolvedAt: '2026-08-10T01:20:00.000Z',
   })
 
+  const closedStory = serializeStoryCheckpoint(createStoryCheatSession('closed', 6101))
   await page.goto('?mode=hub&seed=6101')
-  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.evaluate(([progressKey, progressValue, storyKey, storyValue]) => {
+    window.localStorage.setItem(progressKey, progressValue)
+    window.localStorage.setItem(storyKey, storyValue)
+  }, [BUREAU_PROGRESS_KEY, JSON.stringify(progress), storySessionKey(6101), closedStory])
   await page.reload()
 
   const hub = page.getByLabel('AI异常调查局主页')
@@ -150,6 +167,8 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(hub).toContainText('1 CLOSED')
   await expect(page.getByText('失控的分类器')).toBeVisible()
   await expect(page.getByText('A · 91/100')).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开结案案卷' })).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(6101))).not.toBeNull()
   const shiftPriority = page.getByLabel('当前值班优先级')
   await expect(shiftPriority).toContainText('陌生故障档案 1 / 4')
   await qaShot(page, '54-bureau-shift-priority')
@@ -185,12 +204,15 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
   await expect(bureauDepartment(page, /值班室/)).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('监督学习 · 值班系统')).toBeVisible()
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(6101))).not.toBeNull()
 
   await bureauDepartment(page, /案件板/).click()
-  await page.getByRole('button', { name: '重新调查 CASE 001' }).click()
-  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /OFFICE \/ 返回调查局/ })).toBeVisible()
-  await page.getByRole('button', { name: /OFFICE \/ 返回调查局/ }).click()
+  await expect(page.getByRole('button', { name: '打开结案案卷' })).toBeVisible()
+  await page.getByRole('button', { name: '打开结案案卷' }).click()
+  await waitForStage(page, 'complete')
+  await expect(page.getByText('CASE CLOSED', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '返回调查局', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '返回调查局', exact: true }).click()
   await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
 })
 
