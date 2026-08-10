@@ -109,12 +109,11 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
   )
 }
 
-function GameSession({ seed, debug, onSeedChange, onRestart, onEndless, onReturnToBureau, onCaseClosed }: {
+function GameSession({ seed, debug, onSeedChange, onRestart, onReturnToBureau, onCaseClosed }: {
   seed: number
   debug: boolean
   onSeedChange: (seed: number) => void
   onRestart: () => void
-  onEndless?: () => void
   onReturnToBureau?: () => void
   onCaseClosed?: (result: { grade: InvestigationGrade; score: number }) => void
 }) {
@@ -576,8 +575,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless, onReturn
       <EntryExperience
         phase={entryPhase}
         onStart={startEntry}
-        onEndless={onEndless}
-        onBureau={onEndless ? onReturnToBureau : undefined}
+        onBureau={onReturnToBureau}
         onIncidentComplete={completeIncident}
         onComplete={completeEntry}
         audioEnabled={audioEnabled}
@@ -614,7 +612,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless, onReturn
           <button type="button" className="pixel-icon-button" onClick={() => setHelpOpen((open) => !open)} aria-label="帮助">
             <span>?</span><small>HELP</small>
           </button>
-          {onEndless && onReturnToBureau && (
+          {onReturnToBureau && (
             <button type="button" className="pixel-icon-button" onClick={onReturnToBureau} aria-label="返回调查局">
               <span>⌂</span><small>OFFICE</small>
             </button>
@@ -1148,10 +1146,6 @@ function App() {
           setSession((value) => value + 1)
           setStoryResumeAccepted(true)
         }}
-        onEndless={bureauProgress.story001.resolved ? () => {
-          setEndlessReturnTarget('hub')
-          setMode('endless-intro')
-        } : undefined}
       />
     )
   }
@@ -1163,12 +1157,8 @@ function App() {
       debug={debug}
       onSeedChange={changeSeed}
       onRestart={restartStory}
-      onEndless={!debug && bureauProgress.story001.resolved ? () => {
-        setEndlessReturnTarget('hub')
-        setMode('endless-intro')
-      } : undefined}
       onCaseClosed={!debug ? ({ grade, score }) => updateBureauProgress((current) => recordStory001Resolution(current, grade, score)) : undefined}
-      onReturnToBureau={!debug ? () => {
+      onReturnToBureau={!debug && bureauProgress.story001.resolved ? () => {
         setStoryResumeAccepted(false)
         setMode('hub')
       } : undefined}
