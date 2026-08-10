@@ -94,6 +94,7 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   const hub = page.getByLabel('AI异常调查局主页')
   await expect(hub).toBeVisible()
   await expect(page.getByLabel('正式调查员权限已开放')).toBeVisible()
+  await qaShot(page, '49-bureau-induction')
   await page.getByRole('button', { name: '接收调查员证件' }).click()
   await expect(page.getByLabel('正式调查员权限已开放')).toHaveCount(0)
   await expect(page.getByLabel('调查员状态')).toContainText('正式调查员')
@@ -137,6 +138,24 @@ test('a first-time trainee still enters through Case 001 instead of an empty met
   await expect(page.getByLabel('AI异常调查局主页')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /OFFICE \/ 返回调查局/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /进入无尽调查/ })).toHaveCount(0)
+})
+
+test('Bureau Hub remains operable on a 1280x720 laptop viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  progress.inductionAcknowledged = true
+  await page.goto('?mode=hub&seed=6200')
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  for (const section of [/案件板/, /训练中心/, /调查档案/, /值班室/]) {
+    await page.getByRole('button', { name: section }).click()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  }
+  await expect(page.getByLabel('待接异常报告')).toBeVisible()
+  await expect(page.getByLabel('待接异常报告').getByRole('button', { name: '接收报告' })).toHaveCount(3)
 })
 
 test('Story resume gateway preserves or explicitly discards a saved case', async ({ page }) => {

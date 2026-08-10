@@ -21,6 +21,8 @@ src/
     knn.ts                   # KNN
     evaluate.ts              # 指标、错误样本、决策网格
     registry.ts              # 统一模型注册表
+  bureau/
+    progress.ts              # 调查局长期进度、档案发现、值班结案与工单队列
   game/
     types.ts                 # GameState / Action / Stage
     reducer.ts               # 状态机
@@ -29,7 +31,8 @@ src/
     session.ts               # Story Case 版本化检查点、净化与运行时校验
     routes.ts                # debug 自动路线
   components/
-    EntryExperience.tsx       # 标题页 + 剧情 / 无尽双入口 + Cold Open
+    BureauHub.tsx             # 调查局 Hub：案件板 / 训练 / 档案 / 值班室
+    EntryExperience.tsx       # 新人 CASE 001 标题 + Cold Open；入职后可返回 Hub
     InvestigationPrompt.tsx  # 草稿 → 锁定 → 反馈的调查判断
     SampleHunt.tsx           # 直接在散点图中抓异常旧样本
     ExperimentPlan.tsx       # 正式实验前预测与审计额度
@@ -63,6 +66,7 @@ src/
   main.tsx
   styles/app.css
 tests/
+  bureau-progress.test.ts
   ml.test.ts
   game.test.ts
   routes.test.ts
@@ -167,6 +171,31 @@ interface FittedClassifier {
 - confusion counts
 
 `createDecisionGrid(model, bounds, resolution=32)` 返回每个网格点的预测类别。UI 根据相邻网格块填充半透明区域，不伪造边界。
+
+## 调查局 Meta 层
+
+`src/bureau/progress.ts` 保存跨案件的长期事实，和 Story / Endless 各自的详细 session 分层：
+
+```ts
+type BureauProgress = {
+  version: 1
+  inductionAcknowledged: boolean
+  story001: { resolved: boolean; bestGrade?: 'S'|'A'|'B'|'C'; bestScore?: number; resolvedAt?: string }
+  bootCase000: { completed: boolean; completedAt?: string }
+  duty: { resolutions: Array<{ seed: number; syndrome: EndlessSyndrome; grade: Grade; score: number; resolvedAt: string }> }
+}
+```
+
+key 为 `aia.bureau-progress.v1`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。
+
+App 路由的正常产品语义是：
+
+- 未完成 Story 001：默认进入 Story，新人没有 Duty UI 入口；
+- Story 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
+- 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；
+- explicit query (`?mode=endless`, `?mode=boot`, `?debug=1`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度。
+
+`BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCase()` 的 `title / incident` 生成 3 份 symptom-only 工单预览。Hub 从不读取 syndrome 作为工单提示。
 
 ## 游戏状态机
 ```ts

@@ -7,6 +7,8 @@
   ·
   <a href="docs/PRODUCT_DESIGN.md">产品设计</a>
   ·
+  <a href="docs/GAME_ARCHITECTURE.md">游戏架构</a>
+  ·
   <a href="docs/VALIDATION.md">验证记录</a>
 </p>
 
@@ -40,9 +42,15 @@
 
 ![从成功到误判再到修复](docs/assets/demo.gif)
 
-## 两种单人模式
+## 从新人案件到调查局
 
-**Story Case 001 · 失控的分类器** 是有叙事节奏的教学案件。玩家不仅要训练模型，还要在图上抓异常旧样本、读取决策边界里的 `PROBE ?`、先锁定实验预测、调查两条误判、从 `CASE_NOTES.LOG` 指出反常实验，再解释为什么训练 100% 仍可能更差。错误判断不会立刻 Game Over，而会变成现场后果并影响最终调查评级。
+第一次进入时不会先给你一个空菜单：玩家以 **实习调查员** 身份直接接到 `CASE 001`。结案后才出现一次性 `CLEARANCE GRANTED`，正式开放 **AI异常调查局 Hub**：案件板保存手工剧情案，训练中心放 Boot Case，调查档案只点亮亲手遇到过的知识，值班室负责程序化异常报告。没有 XP、金币或重复刷关奖励；长期进度来自你处理过哪些不同故障。
+
+值班室也不再是“进入另一个模式”的按钮：没有未结案时会同时收到 3 份只描述症状的 `INCOMING REPORTS`，玩家选择一份接案；已经归档的 seed 不会重新发回队列。有未结案件时，新报告不会静默覆盖旧进度。
+
+![AI异常调查局 Hub：案件板、训练中心、档案与值班室](docs/assets/bureau-hub.png)
+
+**Story Case 001 · 失控的分类器** 是有叙事节奏的新人入职案件。玩家不仅要训练模型，还要在图上抓异常旧样本、读取决策边界里的 `PROBE ?`、先锁定实验预测、调查两条误判、从 `CASE_NOTES.LOG` 指出反常实验，再解释为什么训练 100% 仍可能更差。错误判断不会立刻 Game Over，而会变成现场后果并影响最终调查评级。
 
 剧情案件也使用版本化浏览器本地检查点：关闭页面或刷新后会先出现 `UNFINISHED CASE SAVED`，明确显示当前阶段、实验数和剩余正式审计额度，再由玩家决定继续或二次确认清档重开。已经锁定但尚未执行的实验预测也会恢复，因此 F5 不能抹掉“先下注、再验证”的实验记录；结案后则可重新打开 `RESOLVED CASE SAVED` 案卷。若浏览器拒绝 localStorage 写入，游戏会明确显示 `LOCAL SAVE FAILED` 并提供“重试本地保存”，不会静默假装已经保存。
 
@@ -162,6 +170,7 @@ Playwright E2E 会在真实 Chromium 中完成剧情整案：Cold Open → 图�
 ## 文档
 
 - [`docs/PRODUCT_DESIGN.md`](docs/PRODUCT_DESIGN.md) — 产品与教学目标
+- [`docs/GAME_ARCHITECTURE.md`](docs/GAME_ARCHITECTURE.md) — 调查局 Hub、四层循环、meta progression 与新内容接入规则
 - [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md) — ML、状态机、Debug 与测试设计
 - [`docs/VALIDATION.md`](docs/VALIDATION.md) — 固定 seed 指标、浏览器验证与发布验收
 
