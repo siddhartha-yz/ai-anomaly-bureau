@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { formalCaseCode, STORY_CASE_001, TRAINING_CASE_000 } from '../bureau/catalog'
-import { acknowledgeBureauInduction, readBureauProgress, recordStory001Resolution, writeBureauProgress } from '../bureau/progress'
+import { acknowledgeBureauInduction, isBureauUnlocked, readBureauProgress, recordFormalCaseResolution, writeBureauProgress } from '../bureau/progress'
 import { clearEndlessSession } from '../endless/session'
 import { CHEAT_AUTO_RESUME_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
 import { clearStorySession, writeStorySession } from '../game/session'
@@ -102,7 +102,7 @@ export function CheatTerminal() {
       let progress = readBureauProgress(window.localStorage)
       // Canonical cheat path has two correct preregistered predictions and one
       // evidence-triggered hint level, yielding a coherent A · 100 report.
-      progress = recordStory001Resolution(progress, 'A', 100)
+      progress = recordFormalCaseResolution(progress, STORY_CASE_001.id, 'A', 100)
       progress = acknowledgeBureauInduction(progress)
       if (!writeBureauProgress(window.localStorage, progress)) {
         setError(true)
@@ -115,7 +115,7 @@ export function CheatTerminal() {
 
     if (instruction.kind === 'bureau') {
       const progress = readBureauProgress(window.localStorage)
-      if (!progress.story001.resolved) {
+      if (!isBureauUnlocked(progress)) {
         setError(true)
         setMessage('调查局尚未解锁。测试时可输入 BUREAU UNLOCK。')
         return

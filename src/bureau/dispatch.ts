@@ -1,5 +1,5 @@
 import { formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
-import type { BureauProgress } from './progress'
+import { isBureauUnlocked, isTrainingCaseCompleted, type BureauProgress } from './progress'
 
 export type BureauDepartment = 'case-board' | 'training' | 'archive' | 'duty'
 
@@ -17,7 +17,7 @@ export type DutyResumeSummary = {
 }
 
 export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResumeSummary): BureauDispatch {
-  if (!progress.story001.resolved) {
+  if (!isBureauUnlocked(progress)) {
     return {
       target: 'case-board',
       code: 'INDUCTION',
@@ -47,7 +47,7 @@ export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResume
     }
   }
 
-  if (!progress.bootCase000.completed) {
+  if (!isTrainingCaseCompleted(progress, TRAINING_CASE_000.id)) {
     return {
       target: 'training',
       code: 'TRAINING',

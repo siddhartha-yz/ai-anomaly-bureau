@@ -1,15 +1,10 @@
 import { useState } from 'react'
-import { formalCaseCode, STORY_CASE_001 } from '../bureau/catalog'
+import { formalCaseCode, type FormalCaseDefinition } from '../bureau/catalog'
+import type { FormalCaseResumeSummary } from '../story/registry'
 
-export type StoryResumeSummary = {
-  stageLabel: string
-  experimentCount: number
-  remainingCredits: number
-  solved: boolean
-}
-
-export function StoryResume({ summary, onContinue, onDiscard, onEndless }: {
-  summary: StoryResumeSummary
+export function FormalCaseResume({ definition, summary, onContinue, onDiscard, onEndless }: {
+  definition: FormalCaseDefinition
+  summary: FormalCaseResumeSummary
   onContinue: () => void
   onDiscard: () => void
   onEndless?: () => void
@@ -21,7 +16,7 @@ export function StoryResume({ summary, onContinue, onDiscard, onEndless }: {
       <section className="story-resume-card">
         <span className="story-resume-kicker">{summary.solved ? 'RESOLVED CASE SAVED' : 'UNFINISHED CASE SAVED'}</span>
         <div className="story-resume-title-row">
-          <span className="story-resume-case-id">{formalCaseCode(STORY_CASE_001)}</span>
+          <span className="story-resume-case-id">{formalCaseCode(definition)}</span>
           <div>
             <h1>{summary.solved ? '上次调查已经结案。' : '上次调查还没有结束。'}</h1>
             <p>{summary.solved ? '结案案卷仍保存在这台浏览器。你可以重新打开结果，也可以清除后从头调查。' : '本地检查点保存了你已经揭示的证据、实验记录和匿名行为日志。继续不会返还正式审计额度。'}</p>
@@ -50,7 +45,7 @@ export function StoryResume({ summary, onContinue, onDiscard, onEndless }: {
               onDiscard()
             }}
           >
-            {discardArmed ? '再次点击：清除旧进度并重新开始' : `放弃旧进度并重新开始 ${formalCaseCode(STORY_CASE_001)}`}
+            {discardArmed ? '再次点击：清除旧进度并重新开始' : `放弃旧进度并重新开始 ${formalCaseCode(definition)}`}
           </button>
           {onEndless && <button type="button" className="story-resume-endless" onClick={onEndless}>暂不继续 · 进入无尽调查</button>}
         </div>

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
-import { BUREAU_PROGRESS_KEY, createBureauProgress, recordBootCaseCompletion, recordDutyResolution, recordStory001Resolution } from '../src/bureau/progress'
+import { STORY_CASE_001, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { BUREAU_PROGRESS_KEY, createBureauProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion } from '../src/bureau/progress'
 import { endlessSessionKey } from '../src/endless/session'
 import type { BehaviorLog } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
@@ -125,8 +126,8 @@ test('cheat terminal opens Bureau, Training, and seeded Duty through official mo
 })
 
 test('Bureau Hub turns solved content into one persistent investigation workspace', async ({ page }) => {
-  let progress = recordStory001Resolution(createBureauProgress(), 'A', 91, new Date('2026-08-10T01:00:00Z'))
-  progress = recordBootCaseCompletion(progress, new Date('2026-08-10T01:10:00Z'))
+  let progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 91, new Date('2026-08-10T01:00:00Z'))
+  progress = recordTrainingCaseCompletion(progress, TRAINING_CASE_000.id, new Date('2026-08-10T01:10:00Z'))
   progress = recordDutyResolution(progress, {
     seed: 6101,
     syndrome: 'overfit-noise',
@@ -203,7 +204,7 @@ test('a first-time trainee still enters through Case 001 instead of an empty met
 
 test('Bureau Hub remains operable on a 1280x720 laptop viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
-  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  const progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
   progress.inductionAcknowledged = true
   await page.goto('?mode=hub&seed=6200')
   await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
@@ -324,7 +325,7 @@ test('Story warns when local checkpoint writes fail and clears the warning after
 })
 
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
-  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  const progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
   progress.inductionAcknowledged = true
   await page.goto('?mode=hub&seed=20260809')
   await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
@@ -388,7 +389,7 @@ test('Boot Case 000 teaches comparison before unlocking formal endless play', as
 
   // Training knowledge persists, but normal Duty access still waits for formal induction through CASE 001.
   const bureauRaw = await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)
-  expect(JSON.parse(bureauRaw!).bootCase000.completed).toBe(true)
+  expect(JSON.parse(bureauRaw!).trainingCases[TRAINING_CASE_000.id].completed).toBe(true)
   await page.goto('?seed=20260809')
   await expect(page.getByRole('button', { name: /进入无尽调查/ })).toHaveCount(0)
   await page.goto('?mode=hub&seed=20260809')
@@ -584,8 +585,8 @@ test('wrong endless diagnosis remains locked across refresh until fresh evidence
 
 test('endless gateway explicitly resumes or abandons a saved investigation', async ({ page }) => {
   const seed = 6020
-  let progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
-  progress = recordBootCaseCompletion(progress)
+  let progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
+  progress = recordTrainingCaseCompletion(progress, TRAINING_CASE_000.id)
   progress.inductionAcknowledged = true
 
   await page.goto(`?mode=hub&seed=${seed}`)
@@ -646,7 +647,7 @@ test('endless onboarding and next-step navigation remain usable across desktop v
 
 test('endless onboarding stays operable on a 1280x720 laptop viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
-  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  const progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
   progress.inductionAcknowledged = true
   await page.goto('?mode=hub&seed=20260809')
   await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
@@ -948,7 +949,7 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   expect(completedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)).not.toBeNull()
   const bureauProgressAfterClosure = JSON.parse((await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY))!)
-  expect(bureauProgressAfterClosure.story001).toMatchObject({ resolved: true, bestGrade: 'A' })
+  expect(bureauProgressAfterClosure.formalCases[STORY_CASE_001.id]).toMatchObject({ resolved: true, bestGrade: 'A' })
 
   // Closing the first formal case unlocks the Bureau meta layer. Returning later starts at the office, not a raw save gateway.
   await page.reload()
@@ -996,8 +997,8 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
 })
 
 test('endless supervised mode rewards evidence-led experiments over random clicking', async ({ page }) => {
-  let progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
-  progress = recordBootCaseCompletion(progress)
+  let progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
+  progress = recordTrainingCaseCompletion(progress, TRAINING_CASE_000.id)
   progress.inductionAcknowledged = true
   await page.goto('?mode=hub&seed=6000')
   await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
@@ -1198,6 +1199,6 @@ test('endless mode rejects high overall accuracy when a minority class is still 
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()
   const directQueryProgress = JSON.parse((await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY))!)
-  expect(directQueryProgress.story001.resolved).toBe(false)
+  expect(directQueryProgress.formalCases[STORY_CASE_001.id]).toBeUndefined()
   expect(directQueryProgress.duty.resolutions).toEqual([])
 })

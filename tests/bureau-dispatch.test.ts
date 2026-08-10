@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { STORY_CASE_001, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import { bureauDispatch } from '../src/bureau/dispatch'
-import { acknowledgeBureauInduction, createBureauProgress, recordBootCaseCompletion, recordDutyResolution, recordStory001Resolution } from '../src/bureau/progress'
+import { acknowledgeBureauInduction, createBureauProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion } from '../src/bureau/progress'
 
 function inducted() {
-  return acknowledgeBureauInduction(recordStory001Resolution(createBureauProgress(), 'A', 90))
+  return acknowledgeBureauInduction(recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90))
 }
 
 describe('Bureau shift dispatch', () => {
   it('keeps a trainee on the authored case board before induction', () => {
     expect(bureauDispatch(createBureauProgress())).toMatchObject({ target: 'case-board', code: 'INDUCTION' })
-    expect(bureauDispatch(recordStory001Resolution(createBureauProgress(), 'A', 90))).toMatchObject({ target: 'case-board', title: '领取正式调查员证件' })
+    expect(bureauDispatch(recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90))).toMatchObject({ target: 'case-board', title: '领取正式调查员证件' })
   })
 
   it('prioritizes an unfinished duty case over optional training', () => {
@@ -25,7 +26,7 @@ describe('Bureau shift dispatch', () => {
   })
 
   it('uses only syndrome coverage count for field-work direction', () => {
-    let progress = recordBootCaseCompletion(inducted())
+    let progress = recordTrainingCaseCompletion(inducted(), TRAINING_CASE_000.id)
     progress = recordDutyResolution(progress, { seed: 6000, syndrome: 'feature-gap', grade: 'A', score: 90, resolvedAt: '2026-08-10T00:00:00.000Z' })
     progress = recordDutyResolution(progress, { seed: 6004, syndrome: 'feature-gap', grade: 'S', score: 96, resolvedAt: '2026-08-10T00:10:00.000Z' })
     const dispatch = bureauDispatch(progress)
@@ -34,7 +35,7 @@ describe('Bureau shift dispatch', () => {
   })
 
   it('hands a fully covered V1 investigator back to the archive', () => {
-    let progress = recordBootCaseCompletion(inducted())
+    let progress = recordTrainingCaseCompletion(inducted(), TRAINING_CASE_000.id)
     for (const [index, syndrome] of (['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as const).entries()) {
       progress = recordDutyResolution(progress, { seed: 7000 + index, syndrome, grade: 'A', score: 90, resolvedAt: `2026-08-10T00:0${index}:00.000Z` })
     }

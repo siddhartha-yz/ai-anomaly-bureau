@@ -1,10 +1,32 @@
 import type { EndlessSyndrome } from '../endless/generator'
-import { formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
+import {
+  FORMAL_CASE_CATALOG,
+  STORY_CASE_001,
+  TRAINING_CASE_CATALOG,
+  TRAINING_CASE_000,
+  formalCaseCode,
+  trainingCaseCode,
+  type FormalCaseId,
+  type TrainingCaseId,
+} from './catalog'
 
-export const BUREAU_PROGRESS_VERSION = 1
+export const BUREAU_PROGRESS_VERSION = 2
 export const BUREAU_PROGRESS_KEY = `aia.bureau-progress.v${BUREAU_PROGRESS_VERSION}`
+const LEGACY_BUREAU_PROGRESS_KEY = 'aia.bureau-progress.v1'
 
 export type InvestigationGrade = 'S' | 'A' | 'B' | 'C'
+
+export type FormalCaseProgress = {
+  resolved: boolean
+  bestGrade?: InvestigationGrade
+  bestScore?: number
+  resolvedAt?: string
+}
+
+export type TrainingCaseProgress = {
+  completed: boolean
+  completedAt?: string
+}
 
 export type DutyResolution = {
   seed: number
@@ -17,16 +39,18 @@ export type DutyResolution = {
 export type BureauProgress = {
   version: typeof BUREAU_PROGRESS_VERSION
   inductionAcknowledged: boolean
-  story001: {
-    resolved: boolean
-    bestGrade?: InvestigationGrade
-    bestScore?: number
-    resolvedAt?: string
+  formalCases: Partial<Record<FormalCaseId, FormalCaseProgress>>
+  trainingCases: Partial<Record<TrainingCaseId, TrainingCaseProgress>>
+  duty: {
+    resolutions: DutyResolution[]
   }
-  bootCase000: {
-    completed: boolean
-    completedAt?: string
-  }
+}
+
+type BureauProgressV1 = {
+  version: 1
+  inductionAcknowledged: boolean
+  story001: FormalCaseProgress
+  bootCase000: TrainingCaseProgress
   duty: {
     resolutions: DutyResolution[]
   }
@@ -35,13 +59,17 @@ export type BureauProgress = {
 const GRADES: InvestigationGrade[] = ['S', 'A', 'B', 'C']
 const SYNDROMES: EndlessSyndrome[] = ['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']
 const MAX_DUTY_ARCHIVE = 64
+const FORMAL_CASE_IDS = new Set<string>(FORMAL_CASE_CATALOG.map((item) => item.id))
+const TRAINING_CASE_IDS = new Set<string>(TRAINING_CASE_CATALOG.map((item) => item.id))
+const EMPTY_FORMAL_CASE: FormalCaseProgress = { resolved: false }
+const EMPTY_TRAINING_CASE: TrainingCaseProgress = { completed: false }
 
 export function createBureauProgress(): BureauProgress {
   return {
     version: BUREAU_PROGRESS_VERSION,
     inductionAcknowledged: false,
-    story001: { resolved: false },
-    bootCase000: { completed: false },
+    formalCases: {},
+    trainingCases: {},
     duty: { resolutions: [] },
   }
 }
@@ -58,25 +86,30 @@ function isIsoDate(value: unknown) {
   return typeof value === 'string' && Number.isFinite(Date.parse(value))
 }
 
-function isProgress(value: unknown): value is BureauProgress {
+function isFormalCaseProgress(value: unknown): value is FormalCaseProgress {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
-  if (item.version !== BUREAU_PROGRESS_VERSION) return false
+  if (typeof item.resolved !== 'boolean') return false
+  if (item.bestGrade !== undefined && !isGrade(item.bestGrade)) return false
+  if (item.bestScore !== undefined && (typeof item.bestScore !== 'number' || item.bestScore < 0 || item.bestScore > 100)) return false
+  if (item.resolvedAt !== undefined && !isIsoDate(item.resolvedAt)) return false
+  if (!item.resolved && (item.bestGrade !== undefined || item.bestScore !== undefined || item.resolvedAt !== undefined)) return false
+  return true
+}
 
-  const story = item.story001 as Record<string, unknown> | undefined
-  const boot = item.bootCase000 as Record<string, unknown> | undefined
-  const duty = item.duty as Record<string, unknown> | undefined
-  if (typeof item.inductionAcknowledged !== 'boolean') return false
-  if (!story || typeof story.resolved !== 'boolean') return false
-  if (story.bestGrade !== undefined && !isGrade(story.bestGrade)) return false
-  if (story.bestScore !== undefined && (typeof story.bestScore !== 'number' || story.bestScore < 0 || story.bestScore > 100)) return false
-  if (story.resolvedAt !== undefined && !isIsoDate(story.resolvedAt)) return false
-  if (!boot || typeof boot.completed !== 'boolean') return false
-  if (boot.completedAt !== undefined && !isIsoDate(boot.completedAt)) return false
-  if (!duty || !Array.isArray(duty.resolutions) || duty.resolutions.length > MAX_DUTY_ARCHIVE) return false
+function isTrainingCaseProgress(value: unknown): value is TrainingCaseProgress {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  if (typeof item.completed !== 'boolean') return false
+  if (item.completedAt !== undefined && !isIsoDate(item.completedAt)) return false
+  if (!item.completed && item.completedAt !== undefined) return false
+  return true
+}
 
+function isDutyArchive(value: unknown): value is DutyResolution[] {
+  if (!Array.isArray(value) || value.length > MAX_DUTY_ARCHIVE) return false
   const seenSeeds = new Set<number>()
-  for (const resolution of duty.resolutions) {
+  for (const resolution of value) {
     if (!resolution || typeof resolution !== 'object') return false
     const record = resolution as Record<string, unknown>
     if (!Number.isInteger(record.seed) || (record.seed as number) < 0 || seenSeeds.has(record.seed as number)) return false
@@ -88,16 +121,65 @@ function isProgress(value: unknown): value is BureauProgress {
   return true
 }
 
-export function readBureauProgress(storage: Pick<Storage, 'getItem' | 'removeItem'>): BureauProgress {
+function isProgress(value: unknown): value is BureauProgress {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  if (item.version !== BUREAU_PROGRESS_VERSION) return false
+  if (typeof item.inductionAcknowledged !== 'boolean') return false
+  if (!item.formalCases || typeof item.formalCases !== 'object' || Array.isArray(item.formalCases)) return false
+  if (!item.trainingCases || typeof item.trainingCases !== 'object' || Array.isArray(item.trainingCases)) return false
+
+  for (const [id, caseProgress] of Object.entries(item.formalCases as Record<string, unknown>)) {
+    if (!FORMAL_CASE_IDS.has(id) || !isFormalCaseProgress(caseProgress)) return false
+  }
+  for (const [id, caseProgress] of Object.entries(item.trainingCases as Record<string, unknown>)) {
+    if (!TRAINING_CASE_IDS.has(id) || !isTrainingCaseProgress(caseProgress)) return false
+  }
+
+  const duty = item.duty as Record<string, unknown> | undefined
+  if (!duty || !isDutyArchive(duty.resolutions)) return false
+  return true
+}
+
+function isProgressV1(value: unknown): value is BureauProgressV1 {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  if (item.version !== 1 || typeof item.inductionAcknowledged !== 'boolean') return false
+  if (!isFormalCaseProgress(item.story001) || !isTrainingCaseProgress(item.bootCase000)) return false
+  const duty = item.duty as Record<string, unknown> | undefined
+  return Boolean(duty && isDutyArchive(duty.resolutions))
+}
+
+function migrateProgressV1(progress: BureauProgressV1): BureauProgress {
+  return {
+    version: BUREAU_PROGRESS_VERSION,
+    inductionAcknowledged: progress.inductionAcknowledged,
+    formalCases: progress.story001.resolved ? { [STORY_CASE_001.id]: progress.story001 } : {},
+    trainingCases: progress.bootCase000.completed ? { [TRAINING_CASE_000.id]: progress.bootCase000 } : {},
+    duty: { resolutions: progress.duty.resolutions },
+  }
+}
+
+export function readBureauProgress(storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>): BureauProgress {
   try {
     const raw = storage.getItem(BUREAU_PROGRESS_KEY)
-    if (!raw) return createBureauProgress()
-    const parsed: unknown = JSON.parse(raw)
-    if (!isProgress(parsed)) {
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      if (isProgress(parsed)) return parsed
       storage.removeItem(BUREAU_PROGRESS_KEY)
+    }
+
+    const legacyRaw = storage.getItem(LEGACY_BUREAU_PROGRESS_KEY)
+    if (!legacyRaw) return createBureauProgress()
+    const legacyParsed: unknown = JSON.parse(legacyRaw)
+    if (!isProgressV1(legacyParsed)) {
+      storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY)
       return createBureauProgress()
     }
-    return parsed
+
+    const migrated = migrateProgressV1(legacyParsed)
+    if (writeBureauProgress(storage, migrated)) storage.removeItem(LEGACY_BUREAU_PROGRESS_KEY)
+    return migrated
   } catch {
     try { storage.removeItem(BUREAU_PROGRESS_KEY) } catch { /* localStorage may be unavailable */ }
     return createBureauProgress()
@@ -114,34 +196,68 @@ export function writeBureauProgress(storage: Pick<Storage, 'setItem'>, progress:
   }
 }
 
-export function recordStory001Resolution(progress: BureauProgress, grade: InvestigationGrade, score: number, now = new Date()): BureauProgress {
+export function formalCaseProgress(progress: BureauProgress, id: FormalCaseId): FormalCaseProgress {
+  return progress.formalCases[id] ?? EMPTY_FORMAL_CASE
+}
+
+export function trainingCaseProgress(progress: BureauProgress, id: TrainingCaseId): TrainingCaseProgress {
+  return progress.trainingCases[id] ?? EMPTY_TRAINING_CASE
+}
+
+export function isFormalCaseResolved(progress: BureauProgress, id: FormalCaseId) {
+  return formalCaseProgress(progress, id).resolved
+}
+
+export function isTrainingCaseCompleted(progress: BureauProgress, id: TrainingCaseId) {
+  return trainingCaseProgress(progress, id).completed
+}
+
+export function recordFormalCaseResolution(
+  progress: BureauProgress,
+  id: FormalCaseId,
+  grade: InvestigationGrade,
+  score: number,
+  now = new Date(),
+): BureauProgress {
+  const current = formalCaseProgress(progress, id)
   const gradeRank = (value?: InvestigationGrade) => value ? GRADES.indexOf(value) : Number.POSITIVE_INFINITY
-  const currentRank = gradeRank(progress.story001.bestGrade)
+  const currentRank = gradeRank(current.bestGrade)
   const incomingRank = gradeRank(grade)
-  const isBetterReport = progress.story001.bestGrade === undefined
+  const isBetterReport = current.bestGrade === undefined
     || incomingRank < currentRank
-    || (incomingRank === currentRank && score > (progress.story001.bestScore ?? -1))
+    || (incomingRank === currentRank && score > (current.bestScore ?? -1))
   return {
     ...progress,
-    story001: {
-      resolved: true,
-      bestGrade: isBetterReport ? grade : progress.story001.bestGrade,
-      bestScore: isBetterReport ? score : progress.story001.bestScore,
-      resolvedAt: progress.story001.resolvedAt ?? now.toISOString(),
+    formalCases: {
+      ...progress.formalCases,
+      [id]: {
+        resolved: true,
+        bestGrade: isBetterReport ? grade : current.bestGrade,
+        bestScore: isBetterReport ? score : current.bestScore,
+        resolvedAt: current.resolvedAt ?? now.toISOString(),
+      },
     },
   }
 }
 
+export function isBureauUnlocked(progress: BureauProgress) {
+  return isFormalCaseResolved(progress, STORY_CASE_001.id)
+}
+
 export function acknowledgeBureauInduction(progress: BureauProgress): BureauProgress {
-  if (progress.inductionAcknowledged || !progress.story001.resolved) return progress
+  if (progress.inductionAcknowledged || !isBureauUnlocked(progress)) return progress
   return { ...progress, inductionAcknowledged: true }
 }
 
-export function recordBootCaseCompletion(progress: BureauProgress, now = new Date()): BureauProgress {
-  if (progress.bootCase000.completed) return progress
+export function recordTrainingCaseCompletion(progress: BureauProgress, id: TrainingCaseId, now = new Date()): BureauProgress {
+  const current = trainingCaseProgress(progress, id)
+  if (current.completed) return progress
   return {
     ...progress,
-    bootCase000: { completed: true, completedAt: now.toISOString() },
+    trainingCases: {
+      ...progress.trainingCases,
+      [id]: { completed: true, completedAt: now.toISOString() },
+    },
   }
 }
 
@@ -168,19 +284,25 @@ export function recordDutyResolution(
 
 export function reconcileLegacyProgress(progress: BureauProgress, legacy: { storyResolved: boolean; bootCompleted: boolean }, now = new Date()) {
   let next = progress
-  if (legacy.storyResolved && !next.story001.resolved) next = recordStory001Resolution(next, 'A', 85, now)
-  if (legacy.bootCompleted && !next.bootCase000.completed) next = recordBootCaseCompletion(next, now)
+  if (legacy.storyResolved && !isFormalCaseResolved(next, STORY_CASE_001.id)) {
+    next = recordFormalCaseResolution(next, STORY_CASE_001.id, 'A', 85, now)
+  }
+  if (legacy.bootCompleted && !isTrainingCaseCompleted(next, TRAINING_CASE_000.id)) {
+    next = recordTrainingCaseCompletion(next, TRAINING_CASE_000.id, now)
+  }
   return next
 }
 
 export function bureauArchive(progress: BureauProgress) {
   const syndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
+  const storyResolved = isFormalCaseResolved(progress, STORY_CASE_001.id)
+  const trainingCompleted = isTrainingCaseCompleted(progress, TRAINING_CASE_000.id)
   return [
-    { id: 'train-test', title: '训练集 / 未知样本', discovered: progress.story001.resolved, source: formalCaseCode(STORY_CASE_001) },
-    { id: 'generalization', title: '泛化', discovered: progress.story001.resolved, source: formalCaseCode(STORY_CASE_001) },
-    { id: 'overfitting', title: '过拟合', discovered: progress.story001.resolved || syndromes.has('overfit-noise'), source: progress.story001.resolved ? formalCaseCode(STORY_CASE_001) : 'DUTY' },
-    { id: 'controlled-experiment', title: '控制变量实验', discovered: progress.bootCase000.completed, source: trainingCaseCode(TRAINING_CASE_000) },
-    { id: 'recall', title: '分类别召回', discovered: progress.bootCase000.completed || syndromes.has('class-imbalance'), source: progress.bootCase000.completed ? trainingCaseCode(TRAINING_CASE_000) : 'DUTY' },
+    { id: 'train-test', title: '训练集 / 未知样本', discovered: storyResolved, source: formalCaseCode(STORY_CASE_001) },
+    { id: 'generalization', title: '泛化', discovered: storyResolved, source: formalCaseCode(STORY_CASE_001) },
+    { id: 'overfitting', title: '过拟合', discovered: storyResolved || syndromes.has('overfit-noise'), source: storyResolved ? formalCaseCode(STORY_CASE_001) : 'DUTY' },
+    { id: 'controlled-experiment', title: '控制变量实验', discovered: trainingCompleted, source: trainingCaseCode(TRAINING_CASE_000) },
+    { id: 'recall', title: '分类别召回', discovered: trainingCompleted || syndromes.has('class-imbalance'), source: trainingCompleted ? trainingCaseCode(TRAINING_CASE_000) : 'DUTY' },
     { id: 'feature-gap', title: '观察信息不足', discovered: syndromes.has('feature-gap'), source: 'DUTY' },
     { id: 'distribution-shift', title: '分布变化', discovered: syndromes.has('distribution-shift'), source: 'DUTY' },
     { id: 'class-imbalance', title: '类别不平衡', discovered: syndromes.has('class-imbalance'), source: 'DUTY' },
@@ -200,7 +322,7 @@ export function nextDutySeeds(progress: BureauProgress, startSeed: number, count
 
 export function investigatorStatus(progress: BureauProgress) {
   const discoveredSyndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome)).size
-  if (!progress.story001.resolved) return { code: 'TRAINEE', label: '实习调查员' }
+  if (!isBureauUnlocked(progress)) return { code: 'TRAINEE', label: '实习调查员' }
   if (discoveredSyndromes >= 3) return { code: 'INDEPENDENT', label: '独立调查员' }
   return { code: 'FIELD', label: '正式调查员' }
 }
