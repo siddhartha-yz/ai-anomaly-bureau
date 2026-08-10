@@ -297,7 +297,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - 没有建立大规模视觉 snapshot 回归；视觉仍以真实截图人工检查为主。
 - GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
 - 外部中文像素字体网络不可用时会回退到系统 CJK 字体，功能不受影响，但视觉会变化。
-- opening fingerprint 已进一步削弱：`H-CONTEXT signal` 现在会出现在 **四种 syndrome** 中。每个 distribution-shift 案仍有真实环境/设备变化，但 feature-gap / overfit / imbalance 的部分主题也带有真实运营批次变化作为 background confound；400-seed 回归要求看到 batch signal 后，真实 shift 占比仍低于 65%，因此“资料夹亮了”不能直接当答案。剩余风险集中在 `H-RECORDS signal` 与 overfit、`H-COVERAGE signal` 与 imbalance 仍较整齐；后续应继续为这两类 positive evidence 引入非因果但真实的 confound，而不是增加病名。
+- opening fingerprint 已进一步削弱：`H-CONTEXT signal` 现在会出现在 **四种 syndrome** 中。每个 distribution-shift 案仍有真实环境/设备变化，但 feature-gap / overfit / imbalance 的部分主题也带有真实运营批次变化作为 background confound；400-seed 回归要求看到 batch signal 后，真实 shift 占比仍低于 65%，因此“资料夹亮了”不能直接当答案。`H-RECORDS signal` 也已不再只属于 overfit：部分 feature-gap / shift / imbalance 案会出现真实但未证实为病因的历史质量复核告警，400-seed 回归要求 positive quality finding 覆盖四种 syndrome，且其中 overfit 占比低于 65%。这些 benign alerts 不改标签、不改输入世界，只要求玩家把“质量系统提示值得看”与“模型真的被坏记录带偏”区分开。当前剩余较整齐的指纹主要是 `H-COVERAGE signal` 与 imbalance；后续应继续为 coverage 引入非因果但真实的 confound。
+- Duty session 升到 **v5**。v4/v3/v2 的可兼容实验历史仍可迁移，但迁移时重新封存 causal-source folders，避免旧存档中已经读过的 H-RECORDS 在新版本里静默变成另一条 finding；写入新 key 失败时保留旧存档。
 
 ## 下一步真实玩家测试重点
 

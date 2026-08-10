@@ -44,24 +44,24 @@ export function EndlessPlot({ caseData, features, model, trained, audit, showArc
         {trainPoints.map((point) => (
           <g
             key={point.id}
-            className={`${showArchiveAlerts && point.source.flags?.noise ? 'endless-archive-anomaly' : ''} ${selectedArchiveId === point.id ? 'selected' : ''}`}
-            role={showArchiveAlerts && point.source.flags?.noise ? 'button' : undefined}
-            tabIndex={showArchiveAlerts && point.source.flags?.noise ? 0 : undefined}
-            aria-label={showArchiveAlerts && point.source.flags?.noise ? `查看档案异常 ${point.id}` : undefined}
-            onClick={showArchiveAlerts && point.source.flags?.noise ? () => onArchiveSelect?.(point.id) : undefined}
-            onKeyDown={showArchiveAlerts && point.source.flags?.noise ? (event) => {
+            className={`${showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? 'endless-archive-anomaly' : ''} ${selectedArchiveId === point.id ? 'selected' : ''}`}
+            role={showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? 'button' : undefined}
+            tabIndex={showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? 0 : undefined}
+            aria-label={showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? `查看档案异常 ${point.id}` : undefined}
+            onClick={showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? () => onArchiveSelect?.(point.id) : undefined}
+            onKeyDown={showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
                 onArchiveSelect?.(point.id)
               }
             } : undefined}
           >
-            {showArchiveAlerts && point.source.flags?.noise && <title>历史档案采集质量告警：{point.id}</title>}
-            {showArchiveAlerts && point.source.flags?.noise && <rect x={x(point.x) - 14} y={y(point.y) - 14} width="28" height="28" className="endless-archive-hitbox" />}
+            {showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) && <title>历史档案采集质量告警：{point.id}</title>}
+            {showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) && <rect x={x(point.x) - 14} y={y(point.y) - 14} width="28" height="28" className="endless-archive-hitbox" />}
             {point.label === 'cat'
               ? <rect x={x(point.x) - 5} y={y(point.y) - 5} width="10" height="10" className="endless-train-a" />
               : <path d={`M ${x(point.x)} ${y(point.y)-7} L ${x(point.x)+7} ${y(point.y)+6} L ${x(point.x)-7} ${y(point.y)+6} Z`} className="endless-train-b" />}
-            {showArchiveAlerts && point.source.flags?.noise && (
+            {showArchiveAlerts && (point.source.flags?.noise || point.source.flags?.qualityAlert) && (
               <>
                 <rect x={x(point.x) - 10} y={y(point.y) - 10} width="20" height="20" className="endless-archive-anomaly-frame" />
                 <text x={x(point.x) + 9} y={y(point.y) - 9} className="endless-archive-anomaly-mark">!</text>

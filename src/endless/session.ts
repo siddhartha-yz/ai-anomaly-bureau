@@ -3,9 +3,10 @@ import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
 import type { BandPrediction, EndlessRunRecord, InspectedFieldError } from './uiTypes'
 
-export const ENDLESS_SESSION_VERSION = 4
-const PREVIOUS_ENDLESS_SESSION_VERSION = 3
-const SECONDARY_ENDLESS_SESSION_VERSION = 2
+export const ENDLESS_SESSION_VERSION = 5
+const PREVIOUS_ENDLESS_SESSION_VERSION = 4
+const SECONDARY_ENDLESS_SESSION_VERSION = 3
+const TERTIARY_ENDLESS_SESSION_VERSION = 2
 const LEGACY_ENDLESS_SESSION_VERSION = 1
 
 export type EndlessSessionData = {
@@ -145,6 +146,10 @@ function secondaryEndlessSessionKey(seed: number) {
   return `aia.endless-session.v${SECONDARY_ENDLESS_SESSION_VERSION}.${seed}`
 }
 
+function tertiaryEndlessSessionKey(seed: number) {
+  return `aia.endless-session.v${TERTIARY_ENDLESS_SESSION_VERSION}.${seed}`
+}
+
 export function hasEndlessSessionProgress(session: EndlessSessionData | undefined) {
   return Boolean(session && (
     session.history.length
@@ -176,11 +181,9 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
           storage.removeItem(previousKey)
           return undefined
         }
-        // V4 changes the meaning of some causal-source findings by allowing a
-        // real batch change to be an incidental confound in non-shift cases.
-        // Audit metrics remain valid, but already-open source folders must be
-        // reopened so a restored case never silently rewrites evidence the
-        // player had previously read.
+        // V5 changes H-RECORDS semantics by allowing benign quality alerts in
+        // non-overfit cases. Audit metrics remain valid, but already-open source
+        // folders must be reopened so restored evidence is never silently rewritten.
         const migrated: unknown = { ...previous, version: ENDLESS_SESSION_VERSION, inspectedCaseLeadIds: [] }
         if (!isSessionData(migrated, seed)) {
           storage.removeItem(previousKey)
@@ -199,12 +202,6 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
       const secondaryKey = secondaryEndlessSessionKey(seed)
       const secondaryRaw = storage.getItem(secondaryKey)
       if (secondaryRaw) {
-        if (Math.abs(seed) % 4 === 2) {
-          // V3 changed the generated distribution-shift field world; V2 shift
-          // metrics therefore still cannot be restored into V4.
-          storage.removeItem(secondaryKey)
-          return undefined
-        }
         let previous: Record<string, unknown>
         try {
           previous = JSON.parse(secondaryRaw) as Record<string, unknown>
@@ -221,6 +218,37 @@ export function readEndlessSession(storage: StorageLike, seed: number): EndlessS
         try {
           storage.setItem(key, raw)
           storage.removeItem(secondaryKey)
+        } catch {
+          return undefined
+        }
+      }
+    }
+    if (!raw) {
+      const tertiaryKey = tertiaryEndlessSessionKey(seed)
+      const tertiaryRaw = storage.getItem(tertiaryKey)
+      if (tertiaryRaw) {
+        if (Math.abs(seed) % 4 === 2) {
+          // V3 changed the generated distribution-shift field world; V2 shift
+          // metrics therefore still cannot be restored into V5.
+          storage.removeItem(tertiaryKey)
+          return undefined
+        }
+        let previous: Record<string, unknown>
+        try {
+          previous = JSON.parse(tertiaryRaw) as Record<string, unknown>
+        } catch {
+          storage.removeItem(tertiaryKey)
+          return undefined
+        }
+        const migrated: unknown = { ...previous, version: ENDLESS_SESSION_VERSION, inspectedCaseLeadIds: [] }
+        if (!isSessionData(migrated, seed)) {
+          storage.removeItem(tertiaryKey)
+          return undefined
+        }
+        raw = JSON.stringify(migrated)
+        try {
+          storage.setItem(key, raw)
+          storage.removeItem(tertiaryKey)
         } catch {
           return undefined
         }

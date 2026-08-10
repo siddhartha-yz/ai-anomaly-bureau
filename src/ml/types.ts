@@ -12,6 +12,7 @@ export type FeatureKey = keyof RawFeatures
 
 export type SampleFlags = {
   noise?: boolean
+  qualityAlert?: boolean
   outlier?: boolean
   orangeCat?: boolean
   roundBread?: boolean

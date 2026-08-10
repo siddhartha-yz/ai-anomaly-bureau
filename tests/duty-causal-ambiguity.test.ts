@@ -50,6 +50,25 @@ describe('Duty syndrome-level ambiguity', () => {
     expect(shiftSignals / batchSignals).toBeLessThan(.65)
   }, 15_000)
 
+  it('lets a positive quality alert belong to multiple underlying syndromes', () => {
+    const signalSyndromes = new Set<string>()
+    let qualitySignals = 0
+    let overfitSignals = 0
+
+    for (let seed = 9400; seed < 9800; seed += 1) {
+      const caseData = createEndlessCase(seed)
+      const qualityLead = caseData.leadSources.find((lead) => lead.id === 'quality')!
+      if (qualityLead.result !== 'signal') continue
+      qualitySignals += 1
+      signalSyndromes.add(caseData.syndrome)
+      if (caseData.syndrome === 'overfit-noise') overfitSignals += 1
+    }
+
+    expect(signalSyndromes).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
+    expect(qualitySignals).toBeGreaterThan(0)
+    expect(overfitSignals / qualitySignals).toBeLessThan(.65)
+  }, 15_000)
+
   it('makes overfit and distribution-shift first audits occupy the same failure band', () => {
     const overfit: number[] = []
     const shift: number[] = []

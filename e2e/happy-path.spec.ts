@@ -701,7 +701,7 @@ test('overfit Duty separates hypothesis discovery from reliable repair before na
 })
 
 test('Duty can falsify a plausible model explanation before repairing the field sensors', async ({ page }) => {
-  await page.goto('?mode=endless&seed=6006')
+  await page.goto('?mode=endless&seed=6026')
 
   // First reproduce the incident. At this point both intervention stories are
   // still reasonable because the player has only seen one failed deployment.

@@ -522,6 +522,15 @@ export function createEndlessCase(seed: number): EndlessCase {
         ? generateShift(seed)
         : generateImbalance(seed)
   const data = permuteCaseChannels(seed, baseData, theme)
+  // A quality-system alert is evidence that a record deserves review, not proof
+  // that its label is wrong or that noisy-memory overfitting caused the incident.
+  // Some non-overfit cases therefore carry benign historical alerts as causal
+  // confounds. The underlying samples stay correctly labelled and unchanged.
+  if (syndrome !== 'overfit-noise' && Math.floor(Math.abs(seed) / 4) % 3 !== 0) {
+    for (const item of [data.train[3], data.train[Math.floor(data.train.length * .61)]]) {
+      if (item) item.flags = { ...item.flags, qualityAlert: true }
+    }
+  }
   const baseline = selectDeployedBaseline(syndrome, data)
   const publicIdByInternal = new Map(data.test.map((sample, index) => [sample.id, `field-${String(index + 1).padStart(3, '0')}`]))
   const publicId = (internalId: string) => {
@@ -533,8 +542,13 @@ export function createEndlessCase(seed: number): EndlessCase {
   const trainCatCount = data.train.filter((item) => item.label === 'cat').length
   const trainBreadCount = data.train.filter((item) => item.label === 'bread').length
   const archiveAlerts = data.train
-    .filter((item) => item.flags?.noise)
-    .map((item) => ({ id: item.id, label: theme.archiveIssue ?? '历史采集质量告警' }))
+    .filter((item) => item.flags?.noise || item.flags?.qualityAlert)
+    .map((item) => ({
+      id: item.id,
+      label: item.flags?.noise
+        ? (theme.archiveIssue ?? '历史采集质量告警')
+        : '采集质量复核 / 自动告警未确认',
+    }))
   // Opening reports intentionally describe symptoms, not causes. Precise archive
   // composition, batch metadata and quality flags are all real evidence, but the
   // player has to choose to inspect those sources after reproducing the failure.
