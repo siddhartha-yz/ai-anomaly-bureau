@@ -37,14 +37,16 @@ describe('Bureau meta progression', () => {
     ])
   })
 
-  it('preserves first closure time while keeping the strongest Story score and grade', () => {
+  it('preserves first closure time while keeping one coherent strongest Story report', () => {
     const first = recordStory001Resolution(createBureauProgress(), 'B', 78, new Date('2026-08-10T01:00:00Z'))
     const better = recordStory001Resolution(first, 'A', 90, new Date('2026-08-11T01:00:00Z'))
     const lowerReplay = recordStory001Resolution(better, 'C', 60, new Date('2026-08-12T01:00:00Z'))
+    const flawless = recordStory001Resolution(lowerReplay, 'S', 95, new Date('2026-08-13T01:00:00Z'))
+    const higherNumberButLowerGrade = recordStory001Resolution(flawless, 'A', 100, new Date('2026-08-14T01:00:00Z'))
 
-    expect(lowerReplay.story001.bestGrade).toBe('A')
-    expect(lowerReplay.story001.bestScore).toBe(90)
-    expect(lowerReplay.story001.resolvedAt).toBe('2026-08-10T01:00:00.000Z')
+    expect(higherNumberButLowerGrade.story001.bestGrade).toBe('S')
+    expect(higherNumberButLowerGrade.story001.bestScore).toBe(95)
+    expect(higherNumberButLowerGrade.story001.resolvedAt).toBe('2026-08-10T01:00:00.000Z')
   })
 
   it('records Boot Case knowledge and distinct duty resolutions without XP grinding', () => {

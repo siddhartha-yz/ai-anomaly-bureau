@@ -115,14 +115,17 @@ export function writeBureauProgress(storage: Pick<Storage, 'setItem'>, progress:
 
 export function recordStory001Resolution(progress: BureauProgress, grade: InvestigationGrade, score: number, now = new Date()): BureauProgress {
   const gradeRank = (value?: InvestigationGrade) => value ? GRADES.indexOf(value) : Number.POSITIVE_INFINITY
-  const improvesGrade = gradeRank(grade) < gradeRank(progress.story001.bestGrade)
-  const improvesScore = score > (progress.story001.bestScore ?? -1)
+  const currentRank = gradeRank(progress.story001.bestGrade)
+  const incomingRank = gradeRank(grade)
+  const isBetterReport = progress.story001.bestGrade === undefined
+    || incomingRank < currentRank
+    || (incomingRank === currentRank && score > (progress.story001.bestScore ?? -1))
   return {
     ...progress,
     story001: {
       resolved: true,
-      bestGrade: improvesGrade ? grade : progress.story001.bestGrade ?? grade,
-      bestScore: improvesScore ? score : progress.story001.bestScore ?? score,
+      bestGrade: isBetterReport ? grade : progress.story001.bestGrade,
+      bestScore: isBetterReport ? score : progress.story001.bestScore,
       resolvedAt: progress.story001.resolvedAt ?? now.toISOString(),
     },
   }
