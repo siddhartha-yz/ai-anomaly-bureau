@@ -11,10 +11,16 @@
 ```text
 src/
   bureau/
-    catalog.ts               # 手工正式案件 / 训练案件唯一目录
+    catalog.ts               # 手工正式案件 / 训练案件唯一身份目录
     dispatch.ts              # Hub 工作优先级；只定位部门，不解释案件
-    progress.ts              # 调查局长期结案与知识事实
-  content/level1.ts          # 第一关阶段文案、特征与模型解锁
+    progress.ts              # catalog-keyed 长期结案与知识事实 + v1→v2 迁移
+  story/
+    StoryCase001Runtime.tsx  # CASE 001 自己的 UI / micro-beat 编排
+    registry.tsx             # 正式案件 runtime：组件 / resume / clear / reconciliation
+  training/
+    TrainingCase000Runtime.tsx # TRAINING 000：控制变量、读日志、诊断提交
+    registry.tsx             # 训练案件 runtime registry
+  content/level1.ts          # CASE 001 阶段文案、特征与模型解锁
   ml/
     types.ts                 # Sample / Feature / Model 接口
     rng.ts                   # 可复现 PRNG
@@ -25,8 +31,6 @@ src/
     knn.ts                   # KNN
     evaluate.ts              # 指标、错误样本、决策网格
     registry.ts              # 统一模型注册表
-  bureau/
-    progress.ts              # 调查局长期进度、档案发现、值班结案与工单队列
   game/
     types.ts                 # GameState / Action / Stage
     reducer.ts               # 状态机
@@ -35,7 +39,8 @@ src/
     session.ts               # Story Case 版本化检查点、净化与运行时校验
     routes.ts                # 纯测试自动人格路线
   components/
-    BureauHub.tsx             # 调查局 Hub：案件板 / 训练 / 档案 / 值班室
+    BureauHub.tsx             # catalog-driven 调查局 Hub：案件板 / 训练 / 档案 / 值班室
+    FormalCaseResume.tsx      # 正式案件通用本地存档恢复网关
     EntryExperience.tsx       # 新人 CASE 001 标题 + Cold Open；入职后可返回 Hub
     InvestigationPrompt.tsx  # 草稿 → 锁定 → 反馈的调查判断
     SampleHunt.tsx           # 直接在散点图中抓异常旧样本
@@ -56,8 +61,7 @@ src/
     generator.ts             # 四类程序化监督学习故障与传感器通道重排
     observables.ts           # 训练标签 + 无标签现场分布的公开证据
     balance.ts               # evidence-policy / random-clicker 自动玩法基线
-    EndlessIntro.tsx         # 无尽模式规则说明与 Boot / 正式模式入口
-    BootCase.tsx             # 训练案件 000：控制变量、读日志、诊断提交
+    EndlessIntro.tsx         # 无尽模式规则说明与 Training 000 / 正式模式入口
     EndlessNavigator.tsx     # answer-neutral NEXT OBJECTIVE / 案件线索 / 档案记录
     FieldManual.tsx          # 玩家主动打开的静态调查方法手册
     session.ts               # 版本化 seed-local 调查 session 与运行时校验
@@ -180,28 +184,39 @@ interface FittedClassifier {
 
 `src/bureau/catalog.ts` 是手工内容身份的唯一注册点。当前 `FORMAL_CASE_CATALOG` 只含 Story Case 001，`TRAINING_CASE_CATALOG` 只含 Training 000；Hub、Entry、Story cartridge、Resume 与 archive provenance 读取同一目录，避免以后新增正式案件时复制编号 / 标题 / briefing 文案。
 
-`src/bureau/progress.ts` 保存跨案件的长期事实，和 Story / Endless 各自的详细 session 分层：
+手工内容的“身份”和“怎么运行”分离：`src/story/registry.tsx` 要求每个 `FormalCaseId` 注册 `Component / readResume / clearSession / reconcileProgress`；`src/training/registry.tsx` 要求每个 `TrainingCaseId` 注册自己的 runtime component。Vitest 会比较 catalog 与 runtime registry 的 key 集，新增 catalog 条目却忘记接 runtime 会直接失败。`App.tsx` 因此只选择 case id 和模式，不直接 import `StoryCase001Runtime`、Training 000 runtime 或 Story checkpoint reader。
+
+`src/bureau/progress.ts` 保存跨案件的长期事实，和 Formal Case / Endless 各自的详细 session 分层：
 
 ```ts
 type BureauProgress = {
-  version: 1
+  version: 2
   inductionAcknowledged: boolean
-  story001: { resolved: boolean; bestGrade?: 'S'|'A'|'B'|'C'; bestScore?: number; resolvedAt?: string }
-  bootCase000: { completed: boolean; completedAt?: string }
+  formalCases: Partial<Record<FormalCaseId, {
+    resolved: boolean
+    bestGrade?: 'S'|'A'|'B'|'C'
+    bestScore?: number
+    resolvedAt?: string
+  }>>
+  trainingCases: Partial<Record<TrainingCaseId, {
+    completed: boolean
+    completedAt?: string
+  }>>
   duty: { resolutions: Array<{ seed: number; syndrome: EndlessSyndrome; grade: Grade; score: number; resolvedAt: string }> }
 }
 ```
 
-key 为 `aia.bureau-progress.v1`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。
+key 为 `aia.bureau-progress.v2`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。reader 会校验并迁移旧 `aia.bureau-progress.v1`；未知 catalog id、非法评级 / 时间或重复 Duty seed 会被拒绝。Training 000 旧完成 key 仅保留为迁移输入，新完成记录只写入 `trainingCases[TRAINING_CASE_000.id]`。
 
 App 路由的正常产品语义是：
 
-- 未完成 Story 001：默认进入 Story，新人没有 Duty UI 入口；
-- Story 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
-- 已入职：默认进入 Hub；Story / Boot / Duty 都从 Hub 出发并返回 Hub；Hub 的当前部门由 App 层保存，因此 Training / Duty 临时离开后返回原部门而不是重置案件板；
-- explicit query (`?mode=endless`, `?mode=boot`, `?mode=hub`) 仍可用于开发 / 复现，但不会因为绕过正常入口就凭空授予 Duty meta 进度；历史 `?debug=1` 参数不再改变应用权限。
+- 未完成 CASE 001：默认进入 formal-case runtime，新人没有 Duty UI 入口；
+- CASE 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
+- 已入职：默认进入 Hub；Formal Case / Training / Duty 都从 Hub 出发并返回 Hub；Hub 的当前部门由 App 层保存，因此 Training / Duty 临时离开后返回原部门而不是重置案件板；
+- App 内部模式使用 `formal-case / training / endless` 语义；历史 explicit query `?mode=story`、`?mode=boot` 继续映射到对应 runtime，`?mode=endless` / `?mode=hub` 也保持开发 / 复现兼容；这些直达不会凭空授予 Duty meta 进度，历史 `?debug=1` 参数同样不改变应用权限；
+- Formal Case seed 与 Duty seed 分开保存。切换 Duty seed 不会让案件板改用另一个 Story checkpoint key；浏览器回归会真实跨 Duty 往返后重新打开原 CASE 001 结案案卷。
 
-`BureauHub` 只消费各系统的摘要：Story checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
+`BureauHub` 只消费各系统的摘要：`readFormalCaseResumes()` 聚合的正式案件 checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。案件板与训练中心分别直接遍历 `FORMAL_CASE_CATALOG / TRAINING_CASE_CATALOG`，而不是手写 CASE 001 / Training 000 卡。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
 
 `bureauDispatch()` 只读取长期进度、Boot 完成状态与“是否存在未结 Duty”摘要，输出 `target / code / title / detail / action`。它不会读取 Endless syndrome、字段、模型或审计结果，因此顶部 `SHIFT PRIORITY` 可以承担宏观导航，却不能演变成正式案件的动态解题助手。
 

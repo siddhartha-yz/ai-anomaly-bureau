@@ -125,7 +125,7 @@ Hub 是**世界与长期状态**，不是另一个实验驾驶舱。
 
 ## 4. 正式案件目录与 Story Case 001
 
-所有手工正式案件必须先注册到 `src/bureau/catalog.ts`。编号、标题、事故摘要、调查目标、分类标签与玩家展示 tags 由 catalog 统一提供；Entry、Story 顶栏、Resume、案件板与档案来源不得各自复制一份字符串。V1 的 `FORMAL_CASE_CATALOG` **严格只有 CASE 001**，训练案件保存在独立 `TRAINING_CASE_CATALOG`，因此不会因为 UI 需要占位就伪造一个“CASE 002”。
+所有手工正式案件必须先注册到 `src/bureau/catalog.ts`，并在 `src/story/registry.tsx` 提供对应 runtime。编号、标题、事故摘要、调查目标、分类标签与玩家展示 tags 由 catalog 统一提供；runtime 负责组件、checkpoint 摘要、清档与“已结案 checkpoint → Bureau 长期事实”的 reconciliation。Hub 直接遍历 `FORMAL_CASE_CATALOG`，不会为 CASE 001 手写一套特殊案件卡。V1 的 `FORMAL_CASE_CATALOG` **严格只有 CASE 001**，训练案件保存在独立 `TRAINING_CASE_CATALOG`，因此不会因为 UI 需要占位就伪造一个“CASE 002”。
 
 CASE 001 的定位
 
@@ -156,7 +156,7 @@ Hub 的部门选择属于办公室层状态，而不是某个案件的状态。�
 
 ## 5. Boot Case 000 的定位
 
-Boot Case 不再是“无尽模式前的弹窗教程”，而属于**训练中心**。
+Boot Case 不再是“无尽模式前的弹窗教程”，而属于**训练中心**。它的 runtime 位于 `src/training/TrainingCase000Runtime.tsx`，并通过 `src/training/registry.tsx` 注册；虽然训练内容复用 Duty generator 的真实数据与审计逻辑，但不再由 `src/endless/` 目录拥有。
 
 它专门教：
 
@@ -189,13 +189,14 @@ Duty Case 是**独立应用方法**，不是教学章节。
 
 ## 7. Meta progression 数据边界
 
-`aia.bureau-progress.v1` 只保存长期事实：
+`aia.bureau-progress.v2` 只保存长期事实，并按 catalog id 保存手工内容状态：
 
-- CASE 001 是否结案；
-- CASE 001 最佳评级 / 分数；
+- `formalCases[caseId]`：正式案件是否结案、最佳评级 / 分数与首次结案时间；
+- `trainingCases[caseId]`：训练案件是否完成与完成时间；
 - 是否已经确认正式入职；
-- TRAINING 000 是否完成；
 - 已经结案的 Duty seed / syndrome / grade / score。
+
+旧 `aia.bureau-progress.v1` 的 `story001 / bootCase000` 会在读取时校验并一次性迁移到 v2；迁移成功后才删除旧 key。Training 000 的旧 `aia.boot-case-000.v2` 也只作为历史完成事实的迁移输入，不再作为新局的第二份长期进度写入。
 
 它**不复制**：
 
@@ -207,7 +208,7 @@ Duty Case 是**独立应用方法**，不是教学章节。
 
 这些仍由各自 session/checkpoint 管理。
 
-原则：Hub 只知道“这宗案子是什么状态”，不接管“这宗案子内部进行到哪一步”。
+原则：Hub 只知道“这宗案子是什么状态”，不接管“这宗案子内部进行到哪一步”。Formal Case 与 Duty 还拥有独立 seed 状态；接取 / 切换 Duty 不会改变正式剧情 checkpoint 的查找、清档或重开身份。
 
 ## 8. 导航约束
 

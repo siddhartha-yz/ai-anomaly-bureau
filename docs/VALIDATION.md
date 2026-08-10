@@ -18,7 +18,7 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：16 个测试文件、89 个测试全部通过。
+- Vitest：18 个测试文件、94 个测试全部通过。
 - Vite production build：通过。
 - Playwright：23 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
@@ -61,7 +61,7 @@ Vitest 当前覆盖：
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID 与 mistake flags 不进入序列化结果，Story `TrainingResult` 也不携带 fitted model 参数。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
-- Bureau meta progression：`aia.bureau-progress.v1` 只保存长期结案 / 知识事实；CASE 001 首次结案后才开放 Hub 与 Duty，重复 Duty seed 不会重复制造进度，晋级按不同 syndrome 的经验广度计算；值班工单队列会跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。
+- Bureau meta progression：`aia.bureau-progress.v2` 使用 `formalCases[caseId] / trainingCases[caseId]` 保存 catalog-keyed 长期结案 / 知识事实；旧 v1 `story001 / bootCase000` 会校验后迁移，未知 case id 与重复 Duty seed 会被拒绝。CASE 001 首次结案后才开放 Hub 与 Duty，晋级仍按不同 syndrome 的经验广度计算；值班工单队列会跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。
 - Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
 - Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。专项测试还用 80 字符 action + 所有可选 telemetry 字段填满 505 次，确认截断后的 500 条最胖合法事件仍可写入并恢复于 200KB checkpoint 上限内。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
@@ -74,6 +74,8 @@ Vitest 当前覆盖：
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
+- Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime；CASE 001 的 resume 摘要、checkpoint clear 与结案 checkpoint → Bureau progress reconciliation 都由 registry owning runtime 提供，App 不读取 Story session 内部结构。
+- Training runtime registry：catalog 中每个训练案件都必须有 runtime；Training 000 已迁到 `src/training/TrainingCase000Runtime.tsx`，并继续复用真实 Endless generator / audit，而不是作为 `src/endless/` 的特殊教程组件存在。
 
 ## Playwright 浏览器 E2E
 
@@ -83,10 +85,11 @@ Vitest 当前覆盖：
 
 - 全新浏览器仍从 CASE 001 进入，不显示空 Hub、OFFICE 或正常 Duty 入口。
 - CASE 001 真实结案后写入 Bureau progress；刷新首次进入 Hub 时出现 `CLEARANCE GRANTED`，确认后不会重复出现。
-- Hub 案件板能重开 CASE 001；训练中心识别 Boot Case `CLEARED`；调查档案只显示已经真实发现的条目。
+- Hub 案件板从 formal catalog 渲染并能重开 CASE 001；训练中心从 training catalog 渲染并识别 Training 000 `CLEARED`；调查档案只显示已经真实发现的条目。
 - 值班室无未结案时显示 3 份 symptom-only `INCOMING REPORTS`；已经归档的 seed 不会重新出现在工单队列。
 - Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷；显式 `?mode=endless` 开发直达即使完成案件，也不会在未入职 profile 中写入 Duty 长期进度。
 - 存在未结 Duty session 时，Hub 只引导继续旧案；新报告不能静默覆盖现有 session。
+- Formal Case seed 与 Duty seed 已分离：浏览器路线预先保存一份由正式 writer 净化的 CASE 001 结案 checkpoint，随后接取不同 seed 的 Duty 并返回 Hub，案件板仍必须显示 `打开结案案卷`，且能够重新进入原 `CASE CLOSED`；Duty seed 变化不能改变 Story checkpoint 身份。
 - Hub / 工单队列在 1280×720 下无横向溢出，四个部门都可操作。
 
 零基础玩家完整案件：
@@ -114,16 +117,16 @@ Vitest 当前覆盖：
 - k=1 正式审计后刷新：仍停在 `overfit_reveal`，两条实验记录存在，修复正式额度仍为 3。
 - CASE CLOSED 后刷新：进入 `RESOLVED CASE SAVED`，重新打开仍保持评级 A，不重播阶段过场，匿名日志的 `COMPLETE` 始终只有 1 条。
 - 普通结案页真实下载行为日志 JSON：同一 sessionId 贯穿四次恢复，最终有 4 条 `SESSION_RESTORED`，并包含早期 `VIEW_MISTAKE`、后期 `RUN_AUDIT` 与最终 `EXPORT_LOG`；文件不含内部 `test-cat/test-bread` 或 mistake flags。
-- `StoryResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
+- `FormalCaseResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
 - localStorage 故障路线会故意让 Story key 的 `setItem` 抛 `QuotaExceededError`：游戏保持可操作并显示 `LOCAL SAVE FAILED`；恢复 Storage 后点击“重试本地保存”，真实写入成功且警告消失。
 
-作弊码路线会故意从历史 `?debug=1` query 打开页面，先确认它不再提供特权 UI，再用 `CASE001 OVERFIT` 构造真实两次审计的合法 Story checkpoint；进入正式 `overfit_reveal` 后再次刷新，必须回到普通 `StoryResume` 网关。另一条浏览器路线验证 `BUREAU UNLOCK → TRAINING → DUTY 6003` 都进入正式模式。
+作弊码路线会故意从历史 `?debug=1` query 打开页面，先确认它不再提供特权 UI，再用 `CASE001 OVERFIT` 构造真实两次审计的合法 Story checkpoint；进入正式 `overfit_reveal` 后再次刷新，必须回到通用 `FormalCaseResume` 网关。另一条浏览器路线验证 `BUREAU UNLOCK → TRAINING → DUTY 6003` 都进入正式模式。
 
 无尽 onboarding / 证据路线现在验证：
 
 - 正常产品流程由调查局值班室接案后进入模式说明；显式 query 仍可用于开发复现，但不会绕过新人入职去制造长期 Duty 进度。
 - Boot Case 000 真实完成“建立基线 → 只换字段做对照 → 从日志认出变量 → 三类证据阅读练习 → 诊断草稿 → 正式提交”；所有分数来自真实 generator / model / audit。
-- Boot 完成后使用版本化 localStorage 标记；正式模式仍可 query 直达，训练案件可重玩。
+- Training 000 完成后的 canonical 长期事实只写入 `aia.bureau-progress.v2.trainingCases`；历史 `aia.boot-case-000.v2` 只作为旧存档迁移输入，新完成路线明确断言不会再写这个副本。正式模式仍可 query 直达，训练案件可重玩。
 - 正式案件首屏只描述症状，不写出 syndrome；sticky `NEXT OBJECTIVE` 持续告诉玩家下一步缺什么动作，但不推荐具体字段、模型或病因。
 - 过拟合类历史档案的质量告警在散点图里为可点击橙色 `!`；只有玩家亲手打开后才进入 `CASE_LEADS.LOG`。
 - 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡；`TRAIN / FIELD / 召回` 仅有字面指标词典。
