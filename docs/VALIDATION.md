@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：18 个测试文件、96 个测试全部通过。
+- Vitest：19 个测试文件、97 个测试全部通过。
 - Vite production build：通过。
-- Playwright：24 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
+- Playwright：24 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -76,6 +76,7 @@ Vitest 当前覆盖：
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。
 - Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime；CASE 001 的 resume 摘要、checkpoint clear 与结案 checkpoint → Bureau progress reconciliation 都由 registry owning runtime 提供，App 不读取 Story session 内部结构。
 - Training runtime registry：catalog 中每个训练案件都必须有 runtime；Training 000 已迁到 `src/training/TrainingCase000Runtime.tsx`，并继续复用真实 Endless generator / audit，而不是作为 `src/endless/` 的特殊教程组件存在。
+- Bureau Duty adapter：`createDutyCasePreview()` 的回归测试只允许 `caseNo / incident / reportedFacts / seed / title` 五类公开字段，并明确拒绝 syndrome / diagnosis / publicTest / audit；Hub 已不直接 import 完整 generator。
 
 ## Playwright 浏览器 E2E
 
@@ -86,7 +87,7 @@ Vitest 当前覆盖：
 - 全新浏览器仍从 CASE 001 进入，不显示空 Hub、OFFICE 或正常 Duty 入口。
 - Bureau migration browser route 会真实写入损坏的 v2 JSON 与完整 v1 payload，刷新后要求恢复正式调查员 / CASE 001 / Training 000 长期事实、写出合法 v2 并删除旧 v1 key。
 - CASE 001 真实结案后写入 Bureau progress；刷新首次进入 Hub 时出现 `CLEARANCE GRANTED`，确认后不会重复出现。
-- Hub 案件板从 formal catalog 渲染并能重开 CASE 001；训练中心从 training catalog 渲染并识别 Training 000 `CLEARED`；调查档案只显示已经真实发现的条目。
+- Hub 案件板从 formal catalog 渲染并能重开 CASE 001；训练中心从 training catalog 渲染并识别 Training 000 `CLEARED`；调查档案只显示已经真实发现的条目；Duty queue 通过 Bureau-facing safe preview adapter 生成。
 - 值班室无未结案时显示 3 份 symptom-only `INCOMING REPORTS`；已经归档的 seed 不会重新出现在工单队列。
 - Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷；显式 `?mode=endless` 开发直达即使完成案件，也不会在未入职 profile 中写入 Duty 长期进度。
 - 存在未结 Duty session 时，Hub 只引导继续旧案；新报告不能静默覆盖现有 session。

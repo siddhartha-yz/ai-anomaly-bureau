@@ -1,8 +1,8 @@
 import { Fragment } from 'react'
 import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_CATALOG, trainingCaseCode, type FormalCaseId, type TrainingCaseId } from '../bureau/catalog'
 import { bureauDispatch, type BureauDepartment } from '../bureau/dispatch'
-import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, nextDutySeeds, trainingCaseProgress, type BureauProgress } from '../bureau/progress'
-import { createEndlessCasePreview, type EndlessSyndrome } from '../endless/generator'
+import { createDutyCasePreview } from '../bureau/duty'
+import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, nextDutySeeds, trainingCaseProgress, type BureauProgress, type DutyResolution } from '../bureau/progress'
 import type { FormalCaseResumeSummary } from '../story/registry'
 
 type EndlessResumeSummary = {
@@ -21,7 +21,9 @@ const SECTION_META: Record<HubSection, { code: string; label: string; descriptio
   duty: { code: 'DUTY DESK', label: '值班室', description: '处理程序化异常报告，把方法用在陌生案件上。' },
 }
 
-const PATHOLOGY_LABEL: Record<EndlessSyndrome, string> = {
+type DutySyndrome = DutyResolution['syndrome']
+
+const PATHOLOGY_LABEL: Record<DutySyndrome, string> = {
   'feature-gap': '观察信息不足',
   'overfit-noise': '训练噪声 / 过拟合',
   'distribution-shift': '分布变化',
@@ -66,7 +68,7 @@ export function BureauHub({
   const dispatch = bureauDispatch(progress, endlessResume ? { seed: endlessResume.seed, solved: endlessResume.solved } : undefined)
   const hasOpenDuty = Boolean(endlessResume && !endlessResume.solved)
   const queueStart = endlessResume?.solved ? endlessResume.seed + 1 : dutySeed
-  const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createEndlessCasePreview(caseSeed))
+  const dutyQueue = nextDutySeeds(progress, queueStart).map((caseSeed) => createDutyCasePreview(caseSeed))
 
   return (
     <main className="bureau-hub" aria-label="AI异常调查局主页">
@@ -239,7 +241,7 @@ export function BureauHub({
                   <div className="bureau-duty-latest"><small>LATEST</small><strong>CASE {latestDuty.seed} · {latestDuty.grade}</strong><span>{latestDuty.score}/100 · {PATHOLOGY_LABEL[latestDuty.syndrome]}</span></div>
                 ) : <p>还没有值班结案。训练中心可以先教你怎么看实验记录。</p>}
                 <div className="bureau-pathology-progress" aria-label="已处理病症">
-                  {(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as EndlessSyndrome[]).map((id) => <span key={id} className={dutySyndromes.has(id) ? 'known' : ''}>{dutySyndromes.has(id) ? '◆' : '◇'} {PATHOLOGY_LABEL[id]}</span>)}
+                  {(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as DutySyndrome[]).map((id) => <span key={id} className={dutySyndromes.has(id) ? 'known' : ''}>{dutySyndromes.has(id) ? '◆' : '◇'} {PATHOLOGY_LABEL[id]}</span>)}
                 </div>
               </section>
             </div>

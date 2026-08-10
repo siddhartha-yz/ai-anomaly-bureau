@@ -13,6 +13,7 @@ src/
   bureau/
     catalog.ts               # 手工正式案件 / 训练案件唯一身份目录
     dispatch.ts              # Hub 工作优先级；只定位部门，不解释案件
+    duty.ts                  # Hub 可见的 symptom-safe Duty preview 适配层
     progress.ts              # catalog-keyed 长期结案与知识事实 + v1→v2 迁移
   story/
     StoryCase001Runtime.tsx  # CASE 001 自己的 UI / micro-beat 编排
@@ -216,9 +217,11 @@ App 路由的正常产品语义是：
 - App 内部模式使用 `formal-case / training / endless` 语义；历史 explicit query `?mode=story`、`?mode=boot` 继续映射到对应 runtime，`?mode=endless` / `?mode=hub` 也保持开发 / 复现兼容；这些直达不会凭空授予 Duty meta 进度，历史 `?debug=1` 参数同样不改变应用权限；
 - Formal Case seed 与 Duty seed 分开保存。切换 Duty seed 不会让案件板改用另一个 Story checkpoint key；浏览器回归会真实跨 Duty 往返后重新打开原 CASE 001 结案案卷。
 
-`BureauHub` 只消费各系统的摘要：`readFormalCaseResumes()` 聚合的正式案件 checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。案件板与训练中心分别直接遍历 `FORMAL_CASE_CATALOG / TRAINING_CASE_CATALOG`，而不是手写 CASE 001 / Training 000 卡。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再用 `createEndlessCasePreview()` 生成 3 份 symptom-only 工单。该 preview 的公开类型只含 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；Hub 因此在类型层也拿不到答案对象。
+`BureauHub` 只消费各系统的摘要：`readFormalCaseResumes()` 聚合的正式案件 checkpoint 摘要、Endless resumable 摘要和长期 `BureauProgress`。案件板与训练中心分别直接遍历 `FORMAL_CASE_CATALOG / TRAINING_CASE_CATALOG`，而不是手写 CASE 001 / Training 000 卡。存在未结 Duty session 时只允许继续 / 明确放弃；没有未结案件时，通过 `nextDutySeeds()` 跳过已经归档的 seed，再经 `bureau/duty.ts#createDutyCasePreview()` 生成 3 份 symptom-only 工单。该 adapter 只返回 `seed / caseNo / title / incident / reportedFacts`，不携带 syndrome、diagnosis、test 或 audit；`BureauHub.tsx` 不再直接 import `endless/generator`。
 
 `bureauDispatch()` 只读取长期进度、Boot 完成状态与“是否存在未结 Duty”摘要，输出 `target / code / title / detail / action`。它不会读取 Endless syndrome、字段、模型或审计结果，因此顶部 `SHIFT PRIORITY` 可以承担宏观导航，却不能演变成正式案件的动态解题助手。
+
+`eslint.config.js` 还把这些边界做成 CI 护栏：`App.tsx` 禁止直接 import CASE 001 runtime、Training 000 runtime 或 Story session；`BureauHub.tsx` 禁止直接 import authored runtime、Story / Endless session 与完整 `endless/generator`。本地用 `eslint --stdin --stdin-filename` 注入违规 import 实测，规则会以 `no-restricted-imports` 阻止回归。
 
 ## 游戏状态机
 ```ts

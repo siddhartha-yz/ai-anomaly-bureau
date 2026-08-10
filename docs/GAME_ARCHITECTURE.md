@@ -106,6 +106,7 @@ Hub 是**世界与长期状态**，不是另一个实验驾驶舱。
 没有未结案件时：
 
 - 显示 3 份 symptom-only `INCOMING REPORTS`；
+- Hub 只通过 `bureau/duty.ts` 的安全 preview adapter 取得 `seed / caseNo / title / incident / reportedFacts`，不直接 import 完整 Duty generator；
 - 玩家主动选择一份接案；
 - 已经归档的 seed 不会重新当成新工单发回队列。
 
@@ -291,6 +292,8 @@ BUREAU HUB
 - [ ] 完成状态是知识记录，不是数值强化。
 
 ---
+
+架构边界还由 ESLint 做最低限度强制：App 不能直接重新依赖 authored case runtime / Story session，BureauHub 不能直接读取 Story / Duty session 或完整 procedural generator。这样“Hub 只看摘要、案件拥有内部状态”不是只写在文档里的约定。
 
 一句话约束：
 
