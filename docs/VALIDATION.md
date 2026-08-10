@@ -18,7 +18,7 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：12 个测试文件、65 个测试全部通过。
+- Vitest：12 个测试文件、66 个测试全部通过。
 - Vite production build：通过。
 - Playwright：19 条 Chromium E2E 通过，覆盖剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、debug 工程模式、无尽模式说明、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
@@ -62,7 +62,7 @@ Vitest 当前覆盖：
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID、mistake flags 与 debug model params 不进入序列化结果。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
 - Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
-- Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
+- Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。专项测试还用 80 字符 action + 所有可选 telemetry 字段填满 505 次，确认截断后的 500 条最胖合法事件仍可写入并恢复于 200KB checkpoint 上限内。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
 - 无尽生成器：确定性、四类 syndrome、传感器通道重排、可解性与随机配置成功比例。
 - 无尽案件 symptom-only brief：incident / reported facts 不直接写出正确诊断；过拟合类含可点击历史档案质量告警，distribution-shift 含历史 / 现场批次元数据。
