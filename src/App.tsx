@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { bootstrapBureauProgress } from './app/bootstrap'
 import { STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId, type TrainingCaseId } from './bureau/catalog'
 import { clearDutyProgress, readDutyResume } from './bureau/duty'
-import { acknowledgeBureauInduction, isBureauUnlocked, isTrainingCaseCompleted, readBureauProgress, reconcileLegacyProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion, writeBureauProgress, type BureauProgress } from './bureau/progress'
+import { acknowledgeBureauInduction, isBureauUnlocked, isTrainingCaseCompleted, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion, writeBureauProgress, type BureauProgress } from './bureau/progress'
 import { BureauHub, type HubSection } from './components/BureauHub'
 import { FormalCaseResume } from './components/FormalCaseResume'
 import { EndlessIntro } from './endless/EndlessIntro'
@@ -10,26 +11,13 @@ import { CHEAT_AUTO_RESUME_KEY } from './game/cheats'
 import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
 import { trainingCaseRuntime } from './training/registry'
 
-const LEGACY_BOOT_COMPLETION_KEY = 'aia.boot-case-000.v2'
-
 type AppMode = 'hub' | 'formal-case' | 'endless-intro' | 'training' | 'endless'
 
 function App() {
   const params = new URLSearchParams(window.location.search)
   const initialSeed = Number(params.get('seed')) || 20260809
   const requestedMode = params.get('mode')
-  const legacyBootCompleted = window.localStorage.getItem(LEGACY_BOOT_COMPLETION_KEY) === 'complete'
-  const inductionRuntime = formalCaseRuntime(STORY_CASE_001.id)
-  const [bureauProgress, setBureauProgress] = useState<BureauProgress>(() => {
-    let progress = readBureauProgress(window.localStorage)
-    progress = inductionRuntime.reconcileProgress(window.localStorage, initialSeed, progress)
-    progress = reconcileLegacyProgress(progress, {
-      storyResolved: Boolean(inductionRuntime.readResume(window.localStorage, initialSeed)?.solved),
-      bootCompleted: legacyBootCompleted,
-    })
-    writeBureauProgress(window.localStorage, progress)
-    return progress
-  })
+  const [bureauProgress, setBureauProgress] = useState<BureauProgress>(() => bootstrapBureauProgress(window.localStorage, initialSeed))
   const [formalCaseSeed] = useState(initialSeed)
   const [dutySeed, setDutySeed] = useState(initialSeed)
   const [formalCaseSession, setFormalCaseSession] = useState(0)

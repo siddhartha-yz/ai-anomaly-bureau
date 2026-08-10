@@ -18,7 +18,7 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：19 个测试文件、98 个测试全部通过。
+- Vitest：20 个测试文件、100 个测试全部通过。
 - Vite production build：通过。
 - Playwright：24 条 Chromium E2E 通过，覆盖新人 CASE 001 → 正式入职 → Bureau Hub 的宏观闭环、Hub 案件板 / 训练中心 / 档案 / 值班室、Bureau v2 损坏时从有效 v1 恢复、程序化工单队列与结案回流、剧情完整案件、Story 本地检查点 / 显式恢复网关 / 实验预注册恢复 / 二次确认 RESET / 保存失败与 retry / 结案匿名日志导出、作弊码正式检查点 / 跨模式跳转、Boot Case 000、显式证据引用 / 对照、可调查现场误判、session 刷新恢复、错误诊断锁跨刷新、键盘 modal、1280×720 压力布局、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
@@ -77,6 +77,7 @@ Vitest 当前覆盖：
 - Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime；CASE 001 的 resume 摘要、checkpoint clear 与结案 checkpoint → Bureau progress reconciliation 都由 registry owning runtime 提供，App 不读取 Story session 内部结构。
 - Training runtime registry：catalog 中每个训练案件都必须有 runtime；Training 000 已迁到 `src/training/TrainingCase000Runtime.tsx`，并继续复用真实 Endless generator / audit，而不是作为 `src/endless/` 的特殊教程组件存在。
 - Bureau Duty adapter：`createDutyCasePreview()` 的回归测试只允许 `caseNo / incident / reportedFacts / seed / title` 五类公开字段，并明确拒绝 syndrome / diagnosis / publicTest / audit；`readDutyResume()` 只暴露 `seed / historyCount / remainingCredits / solved`，`clearDutyProgress()` 负责清档。Hub 已不直接 import 完整 generator，App 也不再直接 import Endless session。
+- App bootstrap：旧 Story 结案 checkpoint 与历史 Training 完成 key 会归并进 canonical Bureau v2；旧 Training key 只有在 v2 写成功后才删除。模拟所有 Storage 操作抛 `SecurityError` 时，bootstrap 仍返回空长期进度并允许应用继续启动。
 
 ## Playwright 浏览器 E2E
 

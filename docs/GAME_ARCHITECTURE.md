@@ -293,7 +293,7 @@ BUREAU HUB
 
 ---
 
-架构边界还由 ESLint 做最低限度强制：App 不能直接重新依赖 authored case runtime / Story session / Duty session，BureauHub 不能直接读取 Story / Duty session 或完整 procedural generator。App 的 Duty resume / clear 同样只能通过 `bureau/duty.ts`。这样“Hub / App 只看摘要、案件拥有内部状态”不是只写在文档里的约定。
+架构边界还由 ESLint 做最低限度强制：App 不能直接重新依赖 authored case runtime / Story session / Duty session，BureauHub 不能直接读取 Story / Duty session 或完整 procedural generator。App 的 Duty resume / clear 同样只能通过 `bureau/duty.ts`；启动阶段的旧进度归并则集中在 `app/bootstrap.ts`，App 不再认识历史 Boot storage key。这样“Hub / App 只看摘要、案件拥有内部状态”不是只写在文档里的约定。
 
 一句话约束：
 

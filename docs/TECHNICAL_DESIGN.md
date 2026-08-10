@@ -10,6 +10,8 @@
 ## 目录结构
 ```text
 src/
+  app/
+    bootstrap.ts             # 应用启动时汇总 Bureau v2 + 旧 Story / Training 迁移
   bureau/
     catalog.ts               # 手工正式案件 / 训练案件唯一身份目录
     dispatch.ts              # Hub 工作优先级；只定位部门，不解释案件
@@ -209,6 +211,8 @@ type BureauProgress = {
 
 key 为 `aia.bureau-progress.v2`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。reader 会校验并迁移旧 `aia.bureau-progress.v1`；未知 catalog id、非法评级 / 时间或重复 Duty seed 会被拒绝。v2 JSON 若损坏，会先清掉坏 key 再尝试仍完整的 v1，因此格式升级不会让一个可恢复旧存档被新的坏 payload 遮住；损坏 v1 也做 best-effort 清理。Training 000 旧完成 key 仅保留为迁移输入，新完成记录只写入 `trainingCases[TRAINING_CASE_000.id]`。
 
+应用启动的持久化 composition 不再写在 `App.tsx`：`src/app/bootstrap.ts#bootstrapBureauProgress()` 读取 canonical Bureau v2、让入职 Formal runtime reconcile 旧结案 checkpoint，并把历史 `aia.boot-case-000.v2` 完成事实归并进 `trainingCases`。旧 Training key 只有在 v2 成功写入后才删除；若浏览器对 Storage 抛 `SecurityError`，bootstrap 返回可用的空长期进度而不是让应用启动崩溃。相关测试同时覆盖成功迁移与 Storage 全拒绝访问。
+
 App 路由的正常产品语义是：
 
 - 未完成 CASE 001：默认进入 formal-case runtime，新人没有 Duty UI 入口；
@@ -223,7 +227,7 @@ App 路由的正常产品语义是：
 
 `bureauDispatch()` 只读取长期进度、Boot 完成状态与“是否存在未结 Duty”摘要，输出 `target / code / title / detail / action`。它不会读取 Endless syndrome、字段、模型或审计结果，因此顶部 `SHIFT PRIORITY` 可以承担宏观导航，却不能演变成正式案件的动态解题助手。
 
-`eslint.config.js` 还把这些边界做成 CI 护栏：`App.tsx` 禁止直接 import CASE 001 runtime、Training 000 runtime、Story session 或 Endless session；`BureauHub.tsx` 禁止直接 import authored runtime、Story / Endless session 与完整 `endless/generator`。本地用 `eslint --stdin --stdin-filename` 注入违规 import 实测，规则会以 `no-restricted-imports` 阻止回归。
+`eslint.config.js` 还把这些边界做成 CI 护栏：`App.tsx` 禁止直接 import CASE 001 runtime、Training 000 runtime、Story session 或 Endless session；启动迁移也由 `app/bootstrap` 统一承担，不在 App 里保留旧 localStorage key。`BureauHub.tsx` 禁止直接 import authored runtime、Story / Endless session 与完整 `endless/generator`。本地用 `eslint --stdin --stdin-filename` 注入违规 import 实测，规则会以 `no-restricted-imports` 阻止回归。
 
 ## 游戏状态机
 ```ts
