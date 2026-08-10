@@ -18,7 +18,20 @@ function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, 
   return evaluate(MODEL_REGISTRY[model].fit(points), points).accuracy
 }
 
-export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onExit: () => void }) {
+type EndlessResolutionSummary = {
+  seed: number
+  syndrome: EndlessSyndrome
+  grade: 'S' | 'A' | 'B' | 'C'
+  score: number
+}
+
+export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exitLabel = '返回剧情案件' }: {
+  initialSeed: number
+  onExit: () => void
+  onSeedChange?: (seed: number) => void
+  onResolved?: (result: EndlessResolutionSummary) => void
+  exitLabel?: string
+}) {
   const [seed, setSeed] = useState(initialSeed)
   const caseData = useMemo(() => createEndlessCase(seed), [seed])
   const restoredSession = useMemo(() => readEndlessSession(window.localStorage, seed), [seed])
@@ -70,6 +83,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   const [submittedDiagnosis, setSubmittedDiagnosis] = useState<EndlessSyndrome | undefined>(restoredSession?.submittedDiagnosis)
   const [lastDiagnosisOutcome, setLastDiagnosisOutcome] = useState<'wrong' | 'needs-reliable' | undefined>(restoredSession?.lastDiagnosisOutcome)
   const [solved, setSolved] = useState(restoredSession?.solved ?? false)
+  const reportedResolutionSeed = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     writeEndlessSession(window.localStorage, {
@@ -264,6 +278,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
     clearEndlessSession(window.localStorage, nextSeed)
     resetCaseState()
     setSeed(nextSeed)
+    onSeedChange?.(nextSeed)
   }
 
   const auditsUsed = history.length
@@ -290,6 +305,12 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
   ))
   const grade = score >= 95 ? 'S' : score >= 85 ? 'A' : score >= 72 ? 'B' : 'C'
 
+  useEffect(() => {
+    if (!solved || reportedResolutionSeed.current === seed || !onResolved) return
+    reportedResolutionSeed.current = seed
+    onResolved({ seed, syndrome: caseData.syndrome, grade, score })
+  }, [caseData.syndrome, grade, onResolved, score, seed, solved])
+
   return (
     <main className="endless-shell">
       <header className="endless-header">
@@ -315,7 +336,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
           >
             {resetArmed ? '再次点击确认重置' : '重置本案'}
           </button>
-          {!solved && <button type="button" onClick={onExit}>返回剧情案件</button>}
+          {!solved && <button type="button" onClick={onExit}>{exitLabel}</button>}
         </div>
       </header>
 
@@ -465,7 +486,7 @@ export function EndlessMode({ initialSeed, onExit }: { initialSeed: number; onEx
             </div>
           )}
           <div className="endless-rank"><strong>{grade}</strong><span>{score}/100</span><small>可靠未知表现 {Math.round((bestReliable?.test ?? best) * 100)}% · 最低类别召回 {Math.round(Math.min(bestReliable?.recall.cat ?? 0, bestReliable?.recall.bread ?? 0) * 100)}% · {history.length} 次审计</small><small>实验设计：{controlledComparisons} 次单变量对照 · {mixedComparisons} 次同时改字段与模型</small></div>
-          <div className="endless-solved-actions"><button type="button" onClick={nextCase}>生成下一起案件</button><button type="button" onClick={onExit}>返回剧情案件</button></div>
+          <div className="endless-solved-actions"><button type="button" onClick={nextCase}>生成下一起案件</button><button type="button" onClick={onExit}>{exitLabel}</button></div>
         </section>
       )}
       <FieldManual open={manualOpen} onClose={() => setManualOpen(false)} />

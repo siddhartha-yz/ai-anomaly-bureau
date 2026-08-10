@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
+import { BUREAU_PROGRESS_KEY, createBureauProgress, recordBootCaseCompletion, recordDutyResolution, recordStory001Resolution } from '../src/bureau/progress'
 import { endlessSessionKey } from '../src/endless/session'
 import type { BehaviorLog } from '../src/game/logging'
 import { createInitialGameState } from '../src/game/reducer'
@@ -75,6 +76,68 @@ test('debug mode keeps the fast engineering controls available', async ({ page }
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storySessionKey(20260809))).toBeNull()
 })
 
+test('Bureau Hub turns solved content into one persistent investigation workspace', async ({ page }) => {
+  let progress = recordStory001Resolution(createBureauProgress(), 'A', 91, new Date('2026-08-10T01:00:00Z'))
+  progress = recordBootCaseCompletion(progress, new Date('2026-08-10T01:10:00Z'))
+  progress = recordDutyResolution(progress, {
+    seed: 6101,
+    syndrome: 'overfit-noise',
+    grade: 'A',
+    score: 90,
+    resolvedAt: '2026-08-10T01:20:00.000Z',
+  })
+
+  await page.goto('?mode=hub&seed=6101')
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+
+  const hub = page.getByLabel('AI异常调查局主页')
+  await expect(hub).toBeVisible()
+  await expect(page.getByLabel('正式调查员权限已开放')).toBeVisible()
+  await page.getByRole('button', { name: '接收调查员证件' }).click()
+  await expect(page.getByLabel('正式调查员权限已开放')).toHaveCount(0)
+  await expect(page.getByLabel('调查员状态')).toContainText('正式调查员')
+  await expect(hub).toContainText('1 CLOSED')
+  await expect(page.getByText('失控的分类器')).toBeVisible()
+  await expect(page.getByText('A · 91/100')).toBeVisible()
+  await qaShot(page, '50-bureau-hub')
+
+  await page.getByRole('button', { name: /调查档案/ }).click()
+  await expect(page.getByText('训练集 / 未知样本')).toBeVisible()
+  await expect(page.getByText('过拟合', { exact: true })).toBeVisible()
+  await expect(page.getByText('????????').first()).toBeVisible()
+  await qaShot(page, '51-bureau-archive')
+
+  await page.getByRole('button', { name: /训练中心/ }).click()
+  await expect(page.getByText('训练案件 000 · 对照实验')).toBeVisible()
+  await expect(page.getByText('CLEARED')).toBeVisible()
+
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await expect(page.getByText('监督学习 · 值班系统')).toBeVisible()
+  await expect(page.getByText('CASE 6101 · A')).toBeVisible()
+  await qaShot(page, '52-bureau-duty')
+  await page.getByRole('button', { name: '接入值班系统' }).click()
+  await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '返回调查局' })).toBeVisible()
+  await page.getByRole('button', { name: '返回调查局' }).click()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+
+  await page.getByRole('button', { name: /案件板/ }).click()
+  await page.getByRole('button', { name: '重新调查 CASE 001' }).click()
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /OFFICE \/ 返回调查局/ })).toBeVisible()
+  await page.getByRole('button', { name: /OFFICE \/ 返回调查局/ }).click()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+})
+
+test('a first-time trainee still enters through Case 001 instead of an empty meta menu', async ({ page }) => {
+  await page.goto('?seed=20260809')
+  await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect(page.getByLabel('AI异常调查局主页')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /OFFICE \/ 返回调查局/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /进入无尽调查/ })).toHaveCount(0)
+})
+
 test('Story resume gateway preserves or explicitly discards a saved case', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   const seed = 20260819
@@ -103,12 +166,9 @@ test('Story resume gateway preserves or explicitly discards a saved case', async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
   await qaShot(page, '23-story-resume-gateway')
 
-  // Visiting another single-player mode does not silently delete Story progress.
-  await gateway.getByRole('button', { name: '暂不继续 · 进入无尽调查' }).click()
-  await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
+  // Duty access is a post-induction privilege; an unfinished trainee case cannot jump into Endless from this gateway.
+  await expect(gateway.getByRole('button', { name: '暂不继续 · 进入无尽调查' })).toHaveCount(0)
   await expect.poll(() => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull()
-  await page.getByRole('button', { name: '返回剧情案件' }).click()
-  await expect(page.getByLabel('已保存剧情案件')).toBeVisible()
 
   // Discard is intentionally two-step: the first click only arms the destructive action.
   await page.getByRole('button', { name: '放弃旧进度并重新开始 CASE 001' }).click()
@@ -178,8 +238,13 @@ test('Story warns when local checkpoint writes fail and clears the warning after
 })
 
 test('endless mode introduces its loop before the player enters the sandbox', async ({ page }) => {
-  await page.goto('?seed=20260809')
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  progress.inductionAcknowledged = true
+  await page.goto('?mode=hub&seed=20260809')
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await page.getByRole('button', { name: '接入值班系统' }).click()
   await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
   await expect(page.getByText(/这里没有固定解法路线/)).toBeVisible()
   await expect(page.getByRole('button', { name: /进行训练案件 000/ })).toBeVisible()
@@ -235,11 +300,15 @@ test('Boot Case 000 teaches comparison before unlocking formal endless play', as
   await expect(page.getByText(/NEXT OBJECTIVE/)).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('aia.boot-case-000.v2'))).toBe('complete')
 
-  // Completion is remembered: the next title entry recommends formal play, while replay stays optional.
+  // Training knowledge persists, but normal Duty access still waits for formal induction through CASE 001.
+  const bureauRaw = await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)
+  expect(JSON.parse(bureauRaw!).bootCase000.completed).toBe(true)
   await page.goto('?seed=20260809')
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
-  await expect(page.getByRole('button', { name: /TRAINING COMPLETE.*进入正式无尽调查/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /重玩训练案件 000/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /进入无尽调查/ })).toHaveCount(0)
+  await page.goto('?mode=hub&seed=20260809')
+  await page.getByRole('button', { name: /训练中心/ }).click()
+  await expect(page.getByText('CLEARED')).toBeVisible()
+  await expect(page.getByRole('button', { name: /值班室/ })).toBeDisabled()
 })
 
 test('formal endless mode exposes facts and next actions without revealing the diagnosis', async ({ page }) => {
@@ -429,14 +498,25 @@ test('wrong endless diagnosis remains locked across refresh until fresh evidence
 
 test('endless gateway explicitly resumes or abandons a saved investigation', async ({ page }) => {
   const seed = 6020
-  await page.goto(`?mode=endless&seed=${seed}`)
+  let progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  progress = recordBootCaseCompletion(progress)
+  progress.inductionAcknowledged = true
+
+  await page.goto(`?mode=hub&seed=${seed}`)
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await page.getByRole('button', { name: '接入值班系统' }).click()
+  await page.getByRole('button', { name: /进入正式无尽调查/ }).click()
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.locator('.endless-band-picks button').first().click()
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
 
-  await page.getByRole('button', { name: '返回剧情案件' }).click()
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  await page.getByRole('button', { name: '返回调查局' }).click()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await expect(page.getByRole('button', { name: '继续未结值班案件' })).toBeVisible()
+  await page.getByRole('button', { name: '继续未结值班案件' }).click()
   const savedCase = page.getByLabel('已保存无尽案件')
   await expect(savedCase).toContainText('UNFINISHED CASE SAVED')
   await expect(savedCase).toContainText('CASE 6020')
@@ -448,8 +528,9 @@ test('endless gateway explicitly resumes or abandons a saved investigation', asy
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
   await expect(page.getByLabel('已恢复本案进度')).toBeVisible()
 
-  await page.getByRole('button', { name: '返回剧情案件' }).click()
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  await page.getByRole('button', { name: '返回调查局' }).click()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await page.getByRole('button', { name: '继续未结值班案件' }).click()
   await page.getByRole('button', { name: '生成一宗全新案件' }).click()
   await expect(page.getByRole('button', { name: /再次点击：放弃旧进度并生成新案件/ })).toBeVisible()
   await page.getByRole('button', { name: /再次点击：放弃旧进度并生成新案件/ }).click()
@@ -479,8 +560,15 @@ test('endless onboarding and next-step navigation remain usable across desktop v
 
 test('endless onboarding stays operable on a 1280x720 laptop viewport', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto('?seed=20260809')
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  const progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  progress.inductionAcknowledged = true
+  await page.goto('?mode=hub&seed=20260809')
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+  await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await page.getByRole('button', { name: '接入值班系统' }).click()
   await expect(page.getByRole('button', { name: /进行训练案件 000/ })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
 
@@ -539,7 +627,7 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   // Cold open: the player learns the goal and the visual language before seeing a dashboard.
   const titleAction = page.getByRole('button', { name: /查看事故录像/ })
   await expect(titleAction).toBeVisible()
-  await expect(page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /进入无尽调查/ })).toHaveCount(0)
   await qaShot(page, '00-title')
   await titleAction.click()
   await expect(page.locator('.incident-cold-open')).toBeVisible()
@@ -772,12 +860,20 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   expect(completedCheckpointRaw).not.toContain('"flags"')
   const completedCheckpoint = JSON.parse(completedCheckpointRaw!) as StorySessionData
   expect(completedCheckpoint.behaviorLog?.events.filter((event) => event.action === 'COMPLETE')).toHaveLength(1)
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY)).not.toBeNull()
+  const bureauProgressAfterClosure = JSON.parse((await page.evaluate((key) => window.localStorage.getItem(key), BUREAU_PROGRESS_KEY))!)
+  expect(bureauProgressAfterClosure.story001).toMatchObject({ resolved: true, bestGrade: 'A' })
 
+  // Closing the first formal case unlocks the Bureau meta layer. Returning later starts at the office, not a raw save gateway.
   await page.reload()
-  const completedResumeGateway = page.getByLabel('已保存剧情案件')
-  await expect(completedResumeGateway).toContainText('RESOLVED CASE SAVED')
-  await expect(completedResumeGateway.getByRole('button', { name: '查看上次结案' })).toBeVisible()
-  await completedResumeGateway.getByRole('button', { name: '查看上次结案' }).click()
+  const bureau = page.getByLabel('AI异常调查局主页')
+  await expect(bureau).toBeVisible()
+  await expect(page.getByLabel('正式调查员权限已开放')).toBeVisible()
+  await page.getByRole('button', { name: '接收调查员证件' }).click()
+  await expect(bureau).toContainText('CASE 001')
+  await expect(bureau).toContainText('CLOSED')
+  await expect(page.getByRole('button', { name: '打开结案案卷' })).toBeVisible()
+  await page.getByRole('button', { name: '打开结案案卷' }).click()
   await waitForStage(page, 'complete')
   await expect(page.getByLabel('已恢复剧情案件进度')).toBeVisible()
   await expect(page.getByText('CASE CLOSED', { exact: true })).toBeVisible()
@@ -809,11 +905,20 @@ test('zero-background player can investigate the incident and reach CASE CLOSED'
   // Explicit restart is the escape hatch from persistence: it must delete the checkpoint and return to a fresh title.
   await page.getByRole('button', { name: '重新调查一次' }).click()
   await expect(page.getByRole('button', { name: /查看事故录像/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /OFFICE \/ 返回调查局/ })).toBeVisible()
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storyKey)).toBeNull()
 })
 
 test('endless supervised mode rewards evidence-led experiments over random clicking', async ({ page }) => {
-  await page.goto('?mode=endless&seed=6000')
+  let progress = recordStory001Resolution(createBureauProgress(), 'A', 90)
+  progress = recordBootCaseCompletion(progress)
+  progress.inductionAcknowledged = true
+  await page.goto('?mode=hub&seed=6000')
+  await page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [BUREAU_PROGRESS_KEY, JSON.stringify(progress)])
+  await page.reload()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await page.getByRole('button', { name: '接入值班系统' }).click()
+  await page.getByRole('button', { name: /进入正式无尽调查/ }).click()
   await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
   await qaShot(page, '30-endless-start')
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 5')
@@ -919,9 +1024,17 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('1 条误判复核')
   await expect(page.getByText(/实验设计：2 次单变量对照/)).toBeVisible()
 
-  // A solved local session is explicit at the gateway and can reopen the same closure dossier.
-  await page.getByRole('button', { name: '返回剧情案件' }).click()
-  await page.getByRole('button', { name: /已熟悉流程？进入无尽调查/ }).click()
+  // Resolution now flows back into the Bureau meta layer: this duty case becomes archive evidence rather than an isolated sandbox result.
+  await page.getByRole('button', { name: '返回调查局' }).click()
+  const bureau = page.getByLabel('AI异常调查局主页')
+  await expect(bureau).toBeVisible()
+  await expect(bureau).toContainText('值班结案')
+  await expect(bureau).toContainText('1')
+  await page.getByRole('button', { name: /调查档案/ }).click()
+  await expect(page.getByText('观察信息不足')).toBeVisible()
+  await page.getByRole('button', { name: /值班室/ }).click()
+  await expect(page.getByText('CASE 6000 ·')).toBeVisible()
+  await page.getByRole('button', { name: '打开值班结案' }).click()
   const resolvedSavedCase = page.getByLabel('已保存无尽案件')
   await expect(resolvedSavedCase).toContainText('RESOLVED CASE SAVED')
   await expect(resolvedSavedCase).toContainText('CASE 6000')

@@ -13,6 +13,7 @@ import './styles/phase-cinematics.css'
 import './styles/narrative-expansion.css'
 import './styles/endless-mode.css'
 import './styles/endless-onboarding.css'
+import './styles/bureau-hub.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { AssistantPanel } from './components/AssistantPanel'
 import { BeginnerGuide } from './components/BeginnerGuide'
+import { BureauHub } from './components/BureauHub'
 import { CaseAttempts, type ExperimentRecord } from './components/CaseAttempts'
-import { CaseRating } from './components/CaseRating'
+import { calculateCaseScore, CaseRating } from './components/CaseRating'
 import { DebugPanel } from './components/DebugPanel'
 import { EntryExperience, type EntryPhase } from './components/EntryExperience'
 import { ErrorSamples } from './components/ErrorSamples'
@@ -23,6 +24,7 @@ import { StoryResume } from './components/StoryResume'
 import { TaskBanner } from './components/TaskBanner'
 import { STAGE_CONTENT, TRANSFER_QUESTION, unlockedModels } from './content/level1'
 import { BootCase } from './endless/BootCase'
+import { acknowledgeBureauInduction, readBureauProgress, reconcileLegacyProgress, recordBootCaseCompletion, recordDutyResolution, recordStory001Resolution, writeBureauProgress, type BureauProgress, type InvestigationGrade } from './bureau/progress'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
 import { clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits } from './endless/session'
@@ -107,12 +109,14 @@ function ActionButton({ children, onClick, disabled = false, kind = 'primary' }:
   )
 }
 
-function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
+function GameSession({ seed, debug, onSeedChange, onRestart, onEndless, onReturnToBureau, onCaseClosed }: {
   seed: number
   debug: boolean
   onSeedChange: (seed: number) => void
   onRestart: () => void
   onEndless?: () => void
+  onReturnToBureau?: () => void
+  onCaseClosed?: (result: { grade: InvestigationGrade; score: number }) => void
 }) {
   const service = useMemo(() => createAuditService(seed), [seed])
   const restoredSession = useMemo(() => debug ? undefined : readStorySession(window.localStorage, seed), [debug, seed])
@@ -149,6 +153,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const [reasoningMisses, setReasoningMisses] = useState(restoredSession?.reasoningMisses ?? 0)
   const logger = useRef<BehaviorLogger>(new BehaviorLogger(seed, restoredSession?.behaviorLog))
   const completionLogged = useRef(restoredSession?.state.stage === 'complete')
+  const caseClosedReported = useRef(false)
   const restoreLogged = useRef(false)
   const audio = useRef(new GameAudio(true))
   const previousStage = useRef<Stage>(restoredSession?.state.stage ?? 'briefing')
@@ -459,7 +464,22 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
   const finalCorrect = finalReflection === 'unknown-stable'
   const predictionHits = experimentLog.filter((record) => record.predictionMatched === true).length
   const predictionMisses = experimentLog.filter((record) => record.predictionMatched === false).length
+  const caseRating = calculateCaseScore({
+    experimentCount: experimentLog.length,
+    emergencyAudits,
+    hintLevel: state.hintLevel,
+    predictionHits,
+    predictionMisses,
+    trustedOldScore: successPrediction === 'fixed',
+    reasoningMisses,
+  })
   const clueCount = [observationCorrect, evidenceCorrect, state.hasSeenOverfit && overfitCorrect, finalCorrect].filter(Boolean).length
+
+  useEffect(() => {
+    if (debug || state.stage !== 'complete' || caseClosedReported.current || !onCaseClosed) return
+    caseClosedReported.current = true
+    onCaseClosed(caseRating)
+  }, [caseRating, debug, onCaseClosed, state.stage])
   const showSensorIntro = !debug && state.stage === 'choose_features'
   const repairSensorsReady = repairSensorReads.length >= 2
   const showFeaturePicker = debug
@@ -557,6 +577,7 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
         phase={entryPhase}
         onStart={startEntry}
         onEndless={onEndless}
+        onBureau={onEndless ? onReturnToBureau : undefined}
         onIncidentComplete={completeIncident}
         onComplete={completeEntry}
         audioEnabled={audioEnabled}
@@ -593,6 +614,11 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
           <button type="button" className="pixel-icon-button" onClick={() => setHelpOpen((open) => !open)} aria-label="帮助">
             <span>?</span><small>HELP</small>
           </button>
+          {onEndless && onReturnToBureau && (
+            <button type="button" className="pixel-icon-button" onClick={onReturnToBureau} aria-label="返回调查局">
+              <span>⌂</span><small>OFFICE</small>
+            </button>
+          )}
           <button
             type="button"
             className={`pixel-icon-button reset-case-button ${resetArmed ? 'armed' : ''}`}
@@ -923,7 +949,8 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
                 {!debug ? (
                   <div className="dual-actions completion-actions">
                     <ActionButton kind="secondary" onClick={exportLog}>导出匿名调查记录</ActionButton>
-                    <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
+                    <ActionButton kind="secondary" onClick={onRestart}>重新调查一次</ActionButton>
+                    {onReturnToBureau && <ActionButton onClick={onReturnToBureau}>归档并返回调查局</ActionButton>}
                   </div>
                 ) : (
                   <ActionButton onClick={onRestart}>重新调查一次</ActionButton>
@@ -965,17 +992,50 @@ function GameSession({ seed, debug, onSeedChange, onRestart, onEndless }: {
 
 const ENDLESS_BOOT_KEY = 'aia.boot-case-000.v2'
 
+type AppMode = 'hub' | 'story' | 'endless-intro' | 'boot' | 'endless'
+
 function App() {
   const params = new URLSearchParams(window.location.search)
   const debug = params.get('debug') === '1'
   const initialSeed = Number(params.get('seed')) || 20260809
+  const requestedMode = params.get('mode')
+  const legacyBootCompleted = window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete'
+  const legacyStorySession = !debug ? readStorySession(window.localStorage, initialSeed) : undefined
+  const [bureauProgress, setBureauProgress] = useState<BureauProgress>(() => {
+    let progress = readBureauProgress(window.localStorage)
+    if (legacyStorySession?.state.stage === 'complete' && !progress.story001.resolved) {
+      const hits = legacyStorySession.experimentLog.filter((record) => record.predictionMatched === true).length
+      const misses = legacyStorySession.experimentLog.filter((record) => record.predictionMatched === false).length
+      const rating = calculateCaseScore({
+        experimentCount: legacyStorySession.experimentLog.length,
+        emergencyAudits: legacyStorySession.emergencyAudits,
+        hintLevel: legacyStorySession.state.hintLevel,
+        predictionHits: hits,
+        predictionMisses: misses,
+        trustedOldScore: legacyStorySession.successPrediction === 'fixed',
+        reasoningMisses: legacyStorySession.reasoningMisses,
+      })
+      progress = recordStory001Resolution(progress, rating.grade, rating.score)
+    }
+    progress = reconcileLegacyProgress(progress, {
+      storyResolved: legacyStorySession?.state.stage === 'complete',
+      bootCompleted: legacyBootCompleted,
+    })
+    writeBureauProgress(window.localStorage, progress)
+    return progress
+  })
   const [seed, setSeed] = useState(initialSeed)
   const [session, setSession] = useState(0)
-  const requestedMode = params.get('mode')
-  const [mode, setMode] = useState<'story' | 'endless-intro' | 'boot' | 'endless'>(
-    requestedMode === 'endless' ? 'endless' : requestedMode === 'boot' ? 'boot' : 'story',
-  )
-  const [bootCompleted, setBootCompleted] = useState(() => window.localStorage.getItem(ENDLESS_BOOT_KEY) === 'complete')
+  const [mode, setMode] = useState<AppMode>(() => {
+    if (debug) return 'story'
+    if (requestedMode === 'hub') return 'hub'
+    if (requestedMode === 'endless') return 'endless'
+    if (requestedMode === 'boot') return 'boot'
+    if (requestedMode === 'story') return 'story'
+    return bureauProgress.story001.resolved ? 'hub' : 'story'
+  })
+  const [endlessReturnTarget, setEndlessReturnTarget] = useState<'hub' | 'story'>(bureauProgress.story001.resolved ? 'hub' : 'story')
+  const [bootOrigin, setBootOrigin] = useState<'hub' | 'endless-intro'>('endless-intro')
   const [storyResumeAccepted, setStoryResumeAccepted] = useState(false)
   const savedStorySession = !debug ? readStorySession(window.localStorage, seed) : undefined
   const storyResume = savedStorySession && storySessionHasProgress(savedStorySession) ? {
@@ -1002,12 +1062,48 @@ function App() {
     setSession((value) => value + 1)
   }
 
+  const updateBureauProgress = (update: (current: BureauProgress) => BureauProgress) => {
+    setBureauProgress((current) => {
+      const next = update(current)
+      writeBureauProgress(window.localStorage, next)
+      return next
+    })
+  }
+
+  const openStoryFromHub = () => {
+    setStoryResumeAccepted(Boolean(storyResume?.solved))
+    setMode('story')
+  }
+
+  if (!debug && mode === 'hub') {
+    return (
+      <BureauHub
+        progress={bureauProgress}
+        storyResume={storyResume}
+        endlessResume={endlessResume}
+        onOpenStory={openStoryFromHub}
+        onTraining={() => {
+          setBootOrigin('hub')
+          setMode('boot')
+        }}
+        onDuty={() => {
+          setEndlessReturnTarget('hub')
+          setMode('endless-intro')
+        }}
+        onAcknowledgeInduction={() => updateBureauProgress((current) => acknowledgeBureauInduction(current))}
+      />
+    )
+  }
+
   if (!debug && mode === 'endless-intro') {
     return (
       <EndlessIntro
-        bootCompleted={bootCompleted}
+        bootCompleted={bureauProgress.bootCase000.completed}
         resume={endlessResume}
-        onBoot={() => setMode('boot')}
+        onBoot={() => {
+          setBootOrigin('endless-intro')
+          setMode('boot')
+        }}
         onSkip={() => setMode('endless')}
         onNewCase={() => {
           const nextSeed = seed + 1
@@ -1016,7 +1112,8 @@ function App() {
           changeSeed(nextSeed)
           setMode('endless')
         }}
-        onBack={() => setMode('story')}
+        backLabel={endlessReturnTarget === 'hub' ? '返回调查局' : '返回剧情案件'}
+        onBack={() => setMode(endlessReturnTarget)}
       />
     )
   }
@@ -1024,13 +1121,19 @@ function App() {
   if (!debug && mode === 'boot') {
     return <BootCase onComplete={() => {
       window.localStorage.setItem(ENDLESS_BOOT_KEY, 'complete')
-      setBootCompleted(true)
-      setMode('endless')
-    }} onBack={() => setMode('endless-intro')} />
+      updateBureauProgress((current) => recordBootCaseCompletion(current))
+      setMode(bootOrigin === 'hub' ? 'hub' : 'endless')
+    }} onBack={() => setMode(bootOrigin === 'hub' ? 'hub' : 'endless-intro')} />
   }
 
   if (!debug && mode === 'endless') {
-    return <EndlessMode initialSeed={seed} onExit={() => setMode('story')} />
+    return <EndlessMode
+      initialSeed={seed}
+      exitLabel={endlessReturnTarget === 'hub' ? '返回调查局' : '返回剧情案件'}
+      onSeedChange={setSeed}
+      onResolved={bureauProgress.story001.resolved ? (result) => updateBureauProgress((current) => recordDutyResolution(current, result)) : undefined}
+      onExit={() => setMode(endlessReturnTarget)}
+    />
   }
 
   if (!debug && mode === 'story' && storyResume && !storyResumeAccepted) {
@@ -1043,7 +1146,10 @@ function App() {
           setSession((value) => value + 1)
           setStoryResumeAccepted(true)
         }}
-        onEndless={() => setMode('endless-intro')}
+        onEndless={bureauProgress.story001.resolved ? () => {
+          setEndlessReturnTarget('hub')
+          setMode('endless-intro')
+        } : undefined}
       />
     )
   }
@@ -1055,7 +1161,15 @@ function App() {
       debug={debug}
       onSeedChange={changeSeed}
       onRestart={restartStory}
-      onEndless={!debug ? () => setMode('endless-intro') : undefined}
+      onEndless={!debug && bureauProgress.story001.resolved ? () => {
+        setEndlessReturnTarget('hub')
+        setMode('endless-intro')
+      } : undefined}
+      onCaseClosed={!debug ? ({ grade, score }) => updateBureauProgress((current) => recordStory001Resolution(current, grade, score)) : undefined}
+      onReturnToBureau={!debug ? () => {
+        setStoryResumeAccepted(false)
+        setMode('hub')
+      } : undefined}
     />
   )
 }

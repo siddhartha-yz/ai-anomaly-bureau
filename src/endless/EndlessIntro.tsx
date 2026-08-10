@@ -7,13 +7,14 @@ export type EndlessResumeSummary = {
   solved: boolean
 }
 
-export function EndlessIntro({ bootCompleted, resume, onBoot, onSkip, onNewCase, onBack }: {
+export function EndlessIntro({ bootCompleted, resume, onBoot, onSkip, onNewCase, onBack, backLabel = '返回剧情案件' }: {
   bootCompleted: boolean
   resume?: EndlessResumeSummary
   onBoot: () => void
   onSkip: () => void
   onNewCase: () => void
   onBack: () => void
+  backLabel?: string
 }) {
   const [newCaseArmed, setNewCaseArmed] = useState(false)
   const caseNo = resume ? String(Math.abs(resume.seed) % 10000).padStart(4, '0') : undefined
@@ -84,7 +85,7 @@ export function EndlessIntro({ bootCompleted, resume, onBoot, onSkip, onNewCase,
               </button>
             </>
           )}
-          <button type="button" className="endless-intro-back" onClick={onBack}>返回剧情案件</button>
+          <button type="button" className="endless-intro-back" onClick={onBack}>{backLabel}</button>
         </div>
       </section>
     </main>

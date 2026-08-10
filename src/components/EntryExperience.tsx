@@ -3,7 +3,7 @@ import { PixelCat, PixelScanner } from './PixelScene'
 
 export type EntryPhase = 'title' | 'incident' | 'boot' | 'game'
 
-function TitleScene({ onStart, onEndless, audioEnabled }: { onStart: () => void; onEndless?: () => void; audioEnabled: boolean }) {
+function TitleScene({ onStart, onEndless, onBureau, audioEnabled }: { onStart: () => void; onEndless?: () => void; onBureau?: () => void; audioEnabled: boolean }) {
   const startRef = useRef(onStart)
   startRef.current = onStart
 
@@ -61,6 +61,8 @@ function TitleScene({ onStart, onEndless, audioEnabled }: { onStart: () => void;
         )}
         <div className="entry-start-meta"><span>剧情案件 + 无尽调查</span><i>·</i><span>有限实验预算</span><i>·</i><span>{audioEnabled ? '♪ 8-BIT AUDIO ON' : 'AUDIO OFF'}</span></div>
       </div>
+
+      {onBureau && <button type="button" className="entry-bureau-return" onClick={onBureau}>⌂ OFFICE / 返回调查局</button>}
 
       <div className="entry-xiaoxi-callout">
         <span className="entry-xiaoxi-pixel">析</span>
@@ -172,15 +174,16 @@ function BootSequence({ onComplete }: { onComplete: () => void }) {
   )
 }
 
-export function EntryExperience({ phase, onStart, onEndless, onIncidentComplete, onComplete, audioEnabled }: {
+export function EntryExperience({ phase, onStart, onEndless, onBureau, onIncidentComplete, onComplete, audioEnabled }: {
   phase: Exclude<EntryPhase, 'game'>
   onStart: () => void
   onEndless?: () => void
+  onBureau?: () => void
   onIncidentComplete: () => void
   onComplete: () => void
   audioEnabled: boolean
 }) {
-  if (phase === 'title') return <TitleScene onStart={onStart} onEndless={onEndless} audioEnabled={audioEnabled} />
+  if (phase === 'title') return <TitleScene onStart={onStart} onEndless={onEndless} onBureau={onBureau} audioEnabled={audioEnabled} />
   if (phase === 'incident') return <IncidentColdOpen onComplete={onIncidentComplete} />
   return <BootSequence onComplete={onComplete} />
 }

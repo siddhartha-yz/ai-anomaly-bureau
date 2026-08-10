@@ -238,6 +238,27 @@
   bottom: clamp(52px, 9vh, 94px);
   z-index: 8;
 }
+.entry-bureau-return {
+  position: absolute;
+  top: clamp(24px, 4vh, 44px);
+  right: clamp(24px, 4vw, 58px);
+  z-index: 9;
+  padding: 9px 12px;
+  border: 2px solid #304d87;
+  background: rgba(6,12,24,.88);
+  color: #8caaff;
+  cursor: pointer;
+  font: 900 .65rem/1 ui-monospace, Consolas, monospace;
+  letter-spacing: .08em;
+  box-shadow: 4px 4px 0 #020307;
+}
+.entry-bureau-return:hover,
+.entry-bureau-return:focus-visible {
+  border-color: #ffe05b;
+  color: #ffe05b;
+  outline: none;
+  transform: translate(-1px,-1px);
+}
 .entry-start-button {
   min-width: min(440px, calc(100vw - 60px));
   min-height: 74px;

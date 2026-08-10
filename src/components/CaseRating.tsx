@@ -1,3 +1,5 @@
+export type CaseGrade = 'S' | 'A' | 'B' | 'C'
+
 type Props = {
   experimentCount: number
   emergencyAudits: number
@@ -8,7 +10,7 @@ type Props = {
   reasoningMisses: number
 }
 
-export function calculateCaseScore({ experimentCount, emergencyAudits, hintLevel, predictionHits, predictionMisses, trustedOldScore, reasoningMisses }: Props) {
+export function calculateCaseScore({ experimentCount, emergencyAudits, hintLevel, predictionHits, predictionMisses, trustedOldScore, reasoningMisses }: Props): { score: number; grade: CaseGrade } {
   const extraExperiments = Math.max(0, experimentCount - 3)
   const score = Math.max(45, Math.min(100,
     100

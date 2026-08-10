@@ -1,0 +1,206 @@
+import { useState } from 'react'
+import { bureauArchive, investigatorStatus, type BureauProgress } from '../bureau/progress'
+import type { EndlessSyndrome } from '../endless/generator'
+import type { StoryResumeSummary } from './StoryResume'
+
+type EndlessResumeSummary = {
+  seed: number
+  historyCount: number
+  remainingCredits: number
+  solved: boolean
+}
+
+type HubSection = 'case-board' | 'training' | 'archive' | 'duty'
+
+const SECTION_META: Record<HubSection, { code: string; label: string; description: string }> = {
+  'case-board': { code: 'CASE BOARD', label: '案件板', description: '接收正式案件，查看结案与当前分派。' },
+  training: { code: 'TRAINING', label: '训练中心', description: '练调查方法，不消耗正式案件记录。' },
+  archive: { code: 'ARCHIVE', label: '调查档案', description: '只记录你亲手发现过的模型故障与调查方法。' },
+  duty: { code: 'DUTY DESK', label: '值班室', description: '处理程序化异常报告，把方法用在陌生案件上。' },
+}
+
+function StatusPill({ children, tone = 'blue' }: { children: React.ReactNode; tone?: 'blue' | 'yellow' | 'muted' }) {
+  return <span className={`bureau-status-pill ${tone}`}>{children}</span>
+}
+
+export function BureauHub({
+  progress,
+  storyResume,
+  endlessResume,
+  onOpenStory,
+  onTraining,
+  onDuty,
+  onAcknowledgeInduction,
+}: {
+  progress: BureauProgress
+  storyResume?: StoryResumeSummary
+  endlessResume?: EndlessResumeSummary
+  onOpenStory: () => void
+  onTraining: () => void
+  onDuty: () => void
+  onAcknowledgeInduction: () => void
+}) {
+  const [section, setSection] = useState<HubSection>('case-board')
+  const status = investigatorStatus(progress)
+  const archive = bureauArchive(progress)
+  const discovered = archive.filter((item) => item.discovered)
+  const dutySyndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
+  const latestDuty = progress.duty.resolutions.at(-1)
+
+  return (
+    <main className="bureau-hub" aria-label="AI异常调查局主页">
+      <div className="bureau-hub-scanlines" aria-hidden="true" />
+      <header className="bureau-hub-header">
+        <div className="bureau-hub-brand">
+          <span className="bureau-hub-mark">A<span>/</span>Δ</span>
+          <div><small>ANOMALY BUREAU // INTERNAL</small><h1>AI异常调查局</h1></div>
+        </div>
+        <div className="bureau-investigator-card" aria-label="调查员状态">
+          <small>INVESTIGATOR STATUS</small>
+          <strong>{status.label}</strong>
+          <span>{status.code}</span>
+        </div>
+      </header>
+
+      <section className="bureau-shift-strip" aria-label="调查局值班摘要">
+        <div><small>正式案件</small><strong>{progress.story001.resolved ? '1 CLOSED' : '1 ACTIVE'}</strong></div>
+        <div><small>值班结案</small><strong>{progress.duty.resolutions.length}</strong></div>
+        <div><small>病症档案</small><strong>{dutySyndromes.size} / 4</strong></div>
+        <div><small>知识条目</small><strong>{discovered.length} / {archive.length}</strong></div>
+        <p><span>SHIFT NOTE</span>{progress.story001.resolved ? 'CASE 001 已归档。现在由你决定下一份工作。' : '先完成新人入职案件，调查局权限才会开放。'}</p>
+      </section>
+
+      {progress.story001.resolved && !progress.inductionAcknowledged && (
+        <section className="bureau-induction" role="dialog" aria-label="正式调查员权限已开放">
+          <div className="bureau-induction-stamp">CLEARANCE<br />GRANTED</div>
+          <div className="bureau-induction-copy">
+            <small>CASE 001 / ARCHIVED</small>
+            <h2>新人案件结案。正式调查员权限已开放。</h2>
+            <p>从现在开始，你不再沿着一条教程线前进。案件板保存正式调查，训练中心练方法，调查档案记录你真正见过的故障，值班室负责陌生的程序化案件。</p>
+            <div className="bureau-induction-unlocks"><span>✓ 调查档案</span><span>✓ 训练中心</span><span>✓ 值班室</span></div>
+          </div>
+          <button type="button" onClick={onAcknowledgeInduction}>接收调查员证件</button>
+        </section>
+      )}
+
+      <div className="bureau-hub-layout">
+        <nav className="bureau-department-nav" aria-label="调查局部门">
+          {(Object.keys(SECTION_META) as HubSection[]).map((id) => {
+            const meta = SECTION_META[id]
+            const locked = id === 'duty' && !progress.story001.resolved
+            return (
+              <button
+                type="button"
+                key={id}
+                className={section === id ? 'active' : ''}
+                aria-pressed={section === id}
+                disabled={locked}
+                onClick={() => setSection(id)}
+              >
+                <small>{meta.code}</small><strong>{meta.label}</strong><span>{locked ? '入职后开放' : meta.description}</span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <section className="bureau-workdesk" aria-live="polite">
+          <div className="bureau-workdesk-head">
+            <div><small>{SECTION_META[section].code}</small><h2>{SECTION_META[section].label}</h2></div>
+            <span>{SECTION_META[section].description}</span>
+          </div>
+
+          {section === 'case-board' && (
+            <div className="bureau-case-board">
+              <article className="bureau-case-file primary">
+                <header><span>CASE 001</span><StatusPill tone={progress.story001.resolved ? 'yellow' : 'blue'}>{progress.story001.resolved ? 'CLOSED' : 'ACTIVE'}</StatusPill></header>
+                <div className="bureau-case-file-body">
+                  <div className="bureau-case-icon" aria-hidden="true">CAT<br /><i>≠</i><br />BREAD</div>
+                  <div>
+                    <small>SUPERVISED CLASSIFICATION INCIDENT</small>
+                    <h3>失控的分类器</h3>
+                    <p>校园北门的识别器把一只橘猫判成了面包。调查它从旧数据里学错了什么，并验证修复能否面对未知样本。</p>
+                    <div className="bureau-case-meta">
+                      <span>剧情调查</span><span>监督学习</span><span>有限未知审计</span>
+                    </div>
+                  </div>
+                </div>
+                <footer>
+                  <div>
+                    {progress.story001.resolved ? <><small>BEST REPORT</small><strong>{progress.story001.bestGrade ?? '—'} · {progress.story001.bestScore ?? '—'}/100</strong></> : storyResume ? <><small>CHECKPOINT</small><strong>{storyResume.stageLabel}</strong></> : <><small>ASSIGNMENT</small><strong>新人入职案件</strong></>}
+                  </div>
+                  <button type="button" onClick={onOpenStory}>{progress.story001.resolved ? (storyResume?.solved ? '打开结案案卷' : '重新调查 CASE 001') : storyResume ? '继续 CASE 001' : '接收 CASE 001'}</button>
+                </footer>
+              </article>
+
+              <article className="bureau-case-file locked">
+                <header><span>CASE ???</span><StatusPill tone="muted">SEALED</StatusPill></header>
+                <div className="bureau-locked-file"><strong>后续正式案件尚未编入 V1</strong><p>这里保留为剧情案件板的位置，而不是用无尽模式假装“第二关”。</p></div>
+              </article>
+            </div>
+          )}
+
+          {section === 'training' && (
+            <div className="bureau-training-panel">
+              <article className="bureau-terminal-card">
+                <span className="bureau-terminal-index">000</span>
+                <div><small>CONTROLLED INVESTIGATION DRILL</small><h3>训练案件 000 · 对照实验</h3><p>学习如何比较两条实验记录、一次只改变一个因素，以及“选中病因 ≠ 已经提交诊断”。</p></div>
+                <StatusPill tone={progress.bootCase000.completed ? 'yellow' : 'blue'}>{progress.bootCase000.completed ? 'CLEARED' : 'AVAILABLE'}</StatusPill>
+              </article>
+              <div className="bureau-training-brief">
+                <strong>训练中心不会替正式案件做判断。</strong>
+                <p>这里负责教调查方法；值班室只给事实和下一步动作，不会动态告诉你应该选什么答案。</p>
+                <button type="button" onClick={onTraining}>{progress.bootCase000.completed ? '重新进行训练案件' : '开始训练案件 000'}</button>
+              </div>
+            </div>
+          )}
+
+          {section === 'archive' && (
+            <div className="bureau-archive-panel">
+              <div className="bureau-archive-summary"><strong>{discovered.length} / {archive.length}</strong><span>已发现条目</span><p>档案不是技能树：只有你在案件里真正遇到过的概念才会亮起。</p></div>
+              <div className="bureau-archive-grid">
+                {archive.map((item, index) => (
+                  <article key={item.id} className={item.discovered ? 'discovered' : 'unknown'}>
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <div><small>{item.discovered ? item.source : 'UNKNOWN RECORD'}</small><strong>{item.discovered ? item.title : '????????'}</strong></div>
+                    <i>{item.discovered ? '✓' : '·'}</i>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {section === 'duty' && (
+            <div className="bureau-duty-panel">
+              <section className="bureau-duty-console">
+                <div><small>LIVE DUTY QUEUE</small><h3>监督学习 · 值班系统</h3><p>程序化异常报告。案件语境、传感器映射和故障原因都会变化；正式审计有预算，系统不会替你解释证据。</p></div>
+                <div className="bureau-duty-status">
+                  {endlessResume ? (
+                    <><StatusPill tone={endlessResume.solved ? 'yellow' : 'blue'}>{endlessResume.solved ? 'RESOLVED SAVE' : 'OPEN CASE'}</StatusPill><strong>CASE {endlessResume.seed}</strong><span>{endlessResume.historyCount} 次审计 · 剩 {endlessResume.remainingCredits} 额度</span></>
+                  ) : (
+                    <><StatusPill tone="blue">QUEUE READY</StatusPill><strong>暂无未结案件</strong><span>接入后生成当前 seed 的异常报告</span></>
+                  )}
+                </div>
+                <button type="button" onClick={onDuty}>{endlessResume ? (endlessResume.solved ? '打开值班结案' : '继续未结值班案件') : '接入值班系统'}</button>
+              </section>
+              <section className="bureau-duty-history">
+                <header><span>DUTY ARCHIVE</span><strong>{progress.duty.resolutions.length} RESOLVED</strong></header>
+                {latestDuty ? (
+                  <div className="bureau-duty-latest"><small>LATEST</small><strong>CASE {latestDuty.seed} · {latestDuty.grade}</strong><span>{latestDuty.score}/100 · {latestDuty.syndrome}</span></div>
+                ) : <p>还没有值班结案。训练中心可以先教你怎么看实验记录。</p>}
+                <div className="bureau-pathology-progress" aria-label="已处理病症">
+                  {(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as EndlessSyndrome[]).map((id) => <span key={id} className={dutySyndromes.has(id) ? 'known' : ''}>{dutySyndromes.has(id) ? '◆' : '◇'} {id}</span>)}
+                </div>
+              </section>
+            </div>
+          )}
+        </section>
+
+        <aside className="bureau-side-desk" aria-label="调查局侧边状态">
+          <section><small>CURRENT CLEARANCE</small><strong>{status.label}</strong><p>{status.code === 'INDEPENDENT' ? '你已经在至少三类陌生故障中完成过独立结案。' : '权限来自已处理的不同异常，不来自重复刷同一案件。'}</p></section>
+          <section><small>OPEN THREAD</small><strong>{endlessResume && !endlessResume.solved ? `CASE ${endlessResume.seed}` : 'NONE'}</strong><p>{endlessResume && !endlessResume.solved ? `值班案件还有 ${endlessResume.remainingCredits} 次正式审计额度。` : '没有被遗忘的未结值班案件。'}</p></section>
+          <section className="bureau-xiaoxi-note"><span>析</span><p><strong>小析：</strong>调查局只负责告诉你哪里有工作。进了案件，证据还是得你自己读。</p></section>
+        </aside>
+      </div>
+    </main>
+  )
+}
