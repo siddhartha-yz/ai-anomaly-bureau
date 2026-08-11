@@ -192,6 +192,7 @@ export function EndlessDiagnosis({
   evidenceRecords,
   evidenceReady,
   falsificationReady,
+  falsificationSummary,
   diagnosisAvailable,
   attention = false,
   onChange,
@@ -209,6 +210,7 @@ export function EndlessDiagnosis({
   evidenceRecords: EndlessRunRecord[]
   evidenceReady: boolean
   falsificationReady: boolean
+  falsificationSummary?: string
   diagnosisAvailable: boolean
   attention?: boolean
   onChange: (value: EndlessSyndrome) => void
@@ -225,7 +227,7 @@ export function EndlessDiagnosis({
         <span>{!evidenceReady
           ? '返回 EXPERIMENTS.LOG 选择两条有效记录。'
           : falsificationReady
-            ? '这组支持证据已经配上独立反证，可以进入诊断。'
+            ? `这组支持证据已经配上独立反证：${falsificationSummary ?? '已记录'}。可以进入诊断。`
             : '这组对照只有支持、没有独立反证。再用另一条干预轴做预注册 null test，或复核一份明确为 clear 的原因来源。'}</span>
       </div>
       {caseData.diagnosis.options.map((option) => (

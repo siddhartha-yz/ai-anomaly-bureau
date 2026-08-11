@@ -190,7 +190,10 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const bestReliable = history.filter((record) => record.reliable).sort((a, b) => b.test - a.test)[0]
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
-  const sourceFalsification = inspectedCaseLeadIds.some((id) => caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear')
+  const sourceFalsificationLead = inspectedCaseLeadIds
+    .map((id) => caseData.leadSources.find((lead) => lead.id === id))
+    .find((lead) => lead?.result === 'clear')
+  const sourceFalsification = Boolean(sourceFalsificationLead)
   const interventionFalsification = competingAxisNullResult(history, discriminatingEvidence)
   const falsificationReady = sourceFalsification || Boolean(interventionFalsification)
   const diagnosisAvailable = distinctConfigCount >= 2
@@ -204,10 +207,15 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     ? discriminatingExperiment(citedEvidence.records[0], citedEvidence.records[1])
     : undefined
   const evidenceReady = citedEvidence.ready && Boolean(citedDiscrimination?.discriminating)
-  const citedFalsificationReady = sourceFalsification
-    || Boolean(competingAxisNullResult(history, citedDiscrimination && citedEvidence.records.length === 2
-      ? { first: citedEvidence.records[0], second: citedEvidence.records[1], comparison: citedDiscrimination }
-      : undefined))
+  const citedInterventionFalsification = competingAxisNullResult(history, citedDiscrimination && citedEvidence.records.length === 2
+    ? { first: citedEvidence.records[0], second: citedEvidence.records[1], comparison: citedDiscrimination }
+    : undefined)
+  const citedFalsificationReady = sourceFalsification || Boolean(citedInterventionFalsification)
+  const citedFalsificationSummary = sourceFalsificationLead
+    ? `${sourceFalsificationLead.label}返回 CLEAR`
+    : citedInterventionFalsification
+      ? `E${String(citedInterventionFalsification.first.id).padStart(2, '0')} + E${String(citedInterventionFalsification.second.id).padStart(2, '0')} 的${citedInterventionFalsification.comparison.axis === 'fields' ? '字段' : '模型'}轴 null 对照`
+      : undefined
   const reportReady = evidenceReady && citedFalsificationReady
   const canSubmitDiagnosis = diagnosisAvailable && reportReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
@@ -498,6 +506,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
                 evidenceRecords={citedEvidence.records}
                 evidenceReady={evidenceReady}
                 falsificationReady={citedFalsificationReady}
+                falsificationSummary={citedFalsificationSummary}
                 diagnosisAvailable={diagnosisAvailable}
                 attention={objective.target === 'diagnosis' || objective.target === 'recovery'}
                 onChange={(value) => { audio.play('select'); setDiagnosis(value) }}
@@ -518,6 +527,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>FIELD EVIDENCE</small><strong>{Math.round(bestReliable.test * 100)}%</strong><span>最低类别召回 {Math.round(Math.min(bestReliable.recall.cat, bestReliable.recall.bread) * 100)}%</span></article>
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 预测命中 {history.filter((record) => record.predictionHit).length} 次</span></article>
               <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
+              <article><small>FALSIFICATION</small><strong>{citedFalsificationSummary ?? '未记录'}</strong><span>{sourceFalsificationLead ? '原因来源的明确阴性事实' : citedInterventionFalsification ? '与支持证据锚定的竞争轴预注册 null result' : '本案没有封存独立反证'}</span></article>
               <article><small>FIELD INSPECTION</small><strong>{inspectedFieldErrors.length} 条误判复核</strong><span>{inspectedFieldErrors.length ? `来自 ${new Set(inspectedFieldErrors.map((item) => item.runId)).size} 次正式审计` : '本次结案没有额外打开现场误判记录'}</span></article>
               <article><small>CAUSE SOURCES</small><strong>{inspectedCaseLeadIds.length} / {caseData.leadSources.length} 份来源已复核</strong><span>{inspectedCaseLeadIds.length ? inspectedCaseLeadIds.map((id) => caseData.leadSources.find((lead) => lead.id === id)?.label).filter(Boolean).join(' · ') : '未复核额外因果来源'}</span></article>
               <article><small>ARCHIVE</small><strong>{inspectedArchiveIds.length} 条档案复核</strong><span>{caseData.archiveAlerts.length ? `本案共有 ${caseData.archiveAlerts.length} 条质量告警` : '本案无额外质量告警'}</span></article>

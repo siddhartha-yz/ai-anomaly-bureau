@@ -1444,6 +1444,9 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('EVIDENCE CHAIN')
   await expect(closureReport).toContainText('E02 + E04')
   await expect(closureReport).toContainText('只换字段')
+  await expect(closureReport).toContainText('FALSIFICATION')
+  await expect(closureReport).toContainText('历史质量记录返回 CLEAR')
+  await expect(closureReport).toContainText('原因来源的明确阴性事实')
   await expect(closureReport).toContainText('FIELD INSPECTION')
   await expect(closureReport).toContainText('1 条误判复核')
   await expect(closureReport).toContainText('CAUSE SOURCES')
@@ -1467,6 +1470,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await page.getByRole('button', { name: /查看 CASE 6000 结案报告/ }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()
   await expect(page.getByLabel('无尽案件结案报告')).toContainText('E02 + E04')
+  await expect(page.getByLabel('无尽案件结案报告')).toContainText('历史质量记录返回 CLEAR')
 
   // Endless still means the next case is generated without a backend.
   await page.getByRole('button', { name: '生成下一起案件' }).click()
