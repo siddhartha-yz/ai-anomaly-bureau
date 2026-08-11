@@ -73,10 +73,11 @@ async function inspectCausalLead(page: Page, name: RegExp) {
   await page.getByLabel('因果线索来源').getByRole('button', { name }).click()
 }
 
-async function runDutyAudit(page: Page, causalPrediction: 'material' | 'null' = 'material') {
+async function runDutyAudit(page: Page, causalPrediction: 'improved' | 'degraded' | 'null' = 'improved') {
   const causal = page.getByLabel('因果预注册')
   if (await causal.isVisible()) {
-    await causal.getByRole('button', { name: causalPrediction === 'material' ? '应该明显变化' : '应该基本不变' }).click()
+    const causalLabel = causalPrediction === 'improved' ? '应该明显改善' : causalPrediction === 'degraded' ? '应该明显恶化' : '应该基本不变'
+    await causal.getByRole('button', { name: causalLabel }).click()
   }
   await page.getByRole('button', { name: /消耗 1 次额度/ }).click()
 }
@@ -737,11 +738,11 @@ test('Duty can falsify a plausible model explanation before repairing the field 
   await page.locator('.endless-band-picks button').first().click()
   await expect(page.getByLabel('因果预注册')).toBeVisible()
   await expect(page.getByRole('button', { name: '先完成因果预注册' })).toBeDisabled()
-  await page.getByLabel('因果预注册').getByRole('button', { name: '应该明显变化' }).click()
+  await page.getByLabel('因果预注册').getByRole('button', { name: '应该明显改善' }).click()
   await expect(page.getByRole('button', { name: /消耗 1 次额度/ })).toBeEnabled()
   await runDutyAudit(page)
   await expect(modelHypothesis).toContainText('WEAKENED')
-  await expect(page.locator('.endless-run-log')).toContainText('因果预测×：应变化 → 基本不变')
+  await expect(page.locator('.endless-run-log')).toContainText('因果预测×：应改善 → 基本不变')
   await expect(fieldHypothesis).toContainText('OPEN')
   await expect(page.getByLabel('竞争假设')).toContainText(/模型-only|H-MODEL.*削弱|H-MODEL 的单变量预测/)
   await expect(page.locator('.endless-diagnosis')).toHaveCount(0)
@@ -1520,7 +1521,7 @@ test('endless audit budget has a costly recovery path instead of a dead end', as
   await page.getByRole('button', { name: '训练当前方案' }).click()
   await page.getByRole('button', { name: /≥85% 稳定|60–84% 勉强|<60% 翻车/ }).first().click()
   await expect(page.getByRole('button', { name: '先完成因果预注册' })).toBeDisabled()
-  await page.getByLabel('因果预注册').getByRole('button', { name: '应该明显变化' }).click()
+  await page.getByLabel('因果预注册').getByRole('button', { name: '应该明显改善' }).click()
   await expect(page.getByRole('button', { name: /消耗 1 次额度/ })).toBeEnabled()
 })
 

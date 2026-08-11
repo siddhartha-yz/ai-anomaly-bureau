@@ -54,9 +54,18 @@ describe('endless local session persistence', () => {
 
   it('persists a pre-audit causal expectation and rejects unknown expectation values', () => {
     const storage = new MemoryStorage()
-    const value = { ...session(), causalPrediction: 'null' as const }
+    const value = { ...session(), causalPrediction: 'improved' as const }
     expect(writeEndlessSession(storage, value)).toBe(true)
-    expect(readEndlessSession(storage, 6000)?.causalPrediction).toBe('null')
+    expect(readEndlessSession(storage, 6000)?.causalPrediction).toBe('improved')
+
+    const degraded = { ...session(), causalPrediction: 'degraded' as const }
+    expect(writeEndlessSession(storage, degraded)).toBe(true)
+    expect(readEndlessSession(storage, 6000)?.causalPrediction).toBe('degraded')
+
+    // Compatibility for a preregistration saved by the earlier v6 UI.
+    const legacyMaterial = { ...session(), causalPrediction: 'material' as const }
+    expect(writeEndlessSession(storage, legacyMaterial)).toBe(true)
+    expect(readEndlessSession(storage, 6000)?.causalPrediction).toBe('material')
 
     storage.setItem(endlessSessionKey(6000), JSON.stringify({ ...value, causalPrediction: 'after-the-fact' }))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()

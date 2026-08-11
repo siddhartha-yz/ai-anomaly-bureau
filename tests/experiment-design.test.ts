@@ -173,13 +173,21 @@ describe('endless experiment comparison metadata', () => {
     })
     expect(preRegisteredNullResult(baseline, weakModelChange)).toBe(false)
     expect(causalPredictionResult(baseline, { ...weakModelChange, causalPrediction: 'null' })).toEqual({ expected: 'null', observed: 'null', hit: true })
-    expect(causalPredictionResult(baseline, { ...weakModelChange, causalPrediction: 'material' })).toEqual({ expected: 'material', observed: 'null', hit: false })
+    expect(causalPredictionResult(baseline, { ...weakModelChange, causalPrediction: 'improved' })).toEqual({ expected: 'improved', observed: 'null', hit: false })
     expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'null' })).toBe(true)
-    expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'material' })).toBe(true)
+    expect(preRegisteredNullResult(baseline, { ...weakModelChange, causalPrediction: 'improved' })).toBe(true)
 
-    const materialChange = { ...weakModelChange, test: .91, recall: { cat: .92, bread: .90 }, causalPrediction: 'material' as const }
-    expect(causalPredictionResult(baseline, materialChange)).toEqual({ expected: 'material', observed: 'material', hit: true })
-    expect(preRegisteredNullResult(baseline, materialChange)).toBe(false)
+    const improvedChange = { ...weakModelChange, test: .91, recall: { cat: .92, bread: .90 }, causalPrediction: 'improved' as const }
+    expect(causalPredictionResult(baseline, improvedChange)).toEqual({ expected: 'improved', observed: 'improved', hit: true })
+    expect(causalPredictionResult(baseline, { ...improvedChange, causalPrediction: 'degraded' })).toEqual({ expected: 'degraded', observed: 'improved', hit: false })
+    expect(preRegisteredNullResult(baseline, improvedChange)).toBe(false)
+
+    const degradedChange = { ...weakModelChange, test: .55, recall: { cat: .58, bread: .54 }, causalPrediction: 'degraded' as const }
+    expect(causalPredictionResult(baseline, degradedChange)).toEqual({ expected: 'degraded', observed: 'degraded', hit: true })
+
+    // Old v6 sessions used `material`; they remain readable and preserve the old
+    // coarse hit semantics, but the current UI no longer creates this value.
+    expect(causalPredictionResult(baseline, { ...improvedChange, causalPrediction: 'material' })).toEqual({ expected: 'material', observed: 'improved', hit: true })
 
     const mixed = { ...weakModelChange, features: ['texture', 'aspect'] as EndlessRunRecord['features'], causalPrediction: 'null' as const }
     expect(causalPredictionResult(baseline, mixed)).toBeUndefined()

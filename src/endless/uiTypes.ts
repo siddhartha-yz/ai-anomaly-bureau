@@ -2,7 +2,9 @@ import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
 
 export type BandPrediction = 'high' | 'mid' | 'low'
-export type CausalPrediction = 'material' | 'null'
+// `material` is retained only so in-progress v6 sessions created before directional
+// preregistration can still resume. New UI writes improved/degraded/null.
+export type CausalPrediction = 'improved' | 'degraded' | 'null' | 'material'
 
 export type EndlessRunRecord = {
   id: number
@@ -136,11 +138,13 @@ export function discriminatingExperiment(first: EndlessRunRecord, second: Endles
 export function causalPredictionResult(first: EndlessRunRecord, second: EndlessRunRecord) {
   const comparison = discriminatingExperiment(first, second)
   if (!comparison.axis || !second.causalPrediction) return undefined
-  const observed: CausalPrediction = comparison.discriminating ? 'material' : 'null'
+  const observed: Exclude<CausalPrediction, 'material'> = comparison.discriminating
+    ? comparison.direction === 'improved' ? 'improved' : 'degraded'
+    : 'null'
   return {
     expected: second.causalPrediction,
     observed,
-    hit: second.causalPrediction === observed,
+    hit: second.causalPrediction === 'material' ? observed !== 'null' : second.causalPrediction === observed,
   }
 }
 

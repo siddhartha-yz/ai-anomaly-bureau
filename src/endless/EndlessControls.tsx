@@ -99,12 +99,13 @@ export function EndlessControls({
           {controlledPlan && (
             <div className="endless-causal-prediction" aria-label="因果预注册">
               <small>CAUSAL PRE-REGISTRATION</small>
-              <strong>只改这一个变量，FIELD / 最低召回应该明显变化吗？</strong>
+              <strong>只改这一个变量，FIELD / 最低召回应该往哪个方向走？</strong>
               <div className="endless-causal-picks">
-                <button type="button" className={causalPrediction === 'material' ? 'selected' : ''} onClick={() => onCausalPrediction('material')}>应该明显变化</button>
+                <button type="button" className={causalPrediction === 'improved' ? 'selected' : ''} onClick={() => onCausalPrediction('improved')}>应该明显改善</button>
+                <button type="button" className={causalPrediction === 'degraded' ? 'selected' : ''} onClick={() => onCausalPrediction('degraded')}>应该明显恶化</button>
                 <button type="button" className={causalPrediction === 'null' ? 'selected' : ''} onClick={() => onCausalPrediction('null')}>应该基本不变</button>
               </div>
-              <span>单变量正式审计必须先写下因果预期。审计后系统会封存“预期 / 实际”：猜错不会抹掉证据，但会留下可复盘的预测失误。</span>
+              <span>单变量正式审计必须先写下变化方向。审计后系统会封存“预期 / 实际”：猜错不会抹掉证据，但不能用“反正会变”回避真正的因果判断。</span>
             </div>
           )}
           <button type="button" className="endless-primary" disabled={!prediction || missingCausalPrediction || credits <= 0} onClick={onAudit}>{missingCausalPrediction ? '先完成因果预注册' : '消耗 1 次额度 · 运行现场审计'}</button>
