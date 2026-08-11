@@ -1462,7 +1462,8 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('1 条误判复核')
   await expect(closureReport).toContainText('CAUSE SOURCES')
   await expect(closureReport).toContainText('历史质量记录')
-  await expect(page.getByText(/实验设计：2 次单变量对照/)).toBeVisible()
+  await expect(closureReport).toContainText('因果预测 1/2')
+  await expect(page.getByText(/实验设计：2 次单变量对照.*因果预测 1\/2（1 次失误，- 3）/)).toBeVisible()
 
   // Resolution now flows back into the Bureau meta layer: this duty case becomes archive evidence rather than an isolated sandbox result.
   await page.getByRole('button', { name: '返回调查局' }).click()

@@ -58,7 +58,7 @@ Vitest 当前覆盖：
 - Story reducer 不存在 jump/load 特权动作；作弊码必须生成可被正式 session validator 接受的完整 checkpoint。
 - 六类开发者测试人格均在有限步骤内完成关卡，并经历过拟合与多次未知审计。
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
-- 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。
+- 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。Duty 的方向性 causal pre-registration 现在由 `causalForecastStats()` 单独汇总，baseline / repeat / mixed 不计入；每次因果方向 miss 在既有封顶分之后扣 3 分，所以错误预注册仍可成为有价值的反证，但不再与校准良好的因果预测同分。真实结案 E2E 会检查 `因果预测 hit/total` 与对应扣分提示。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID 与 mistake flags 不进入序列化结果，Story `TrainingResult` 也不携带 fitted model 参数。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
 - Bureau meta progression：`aia.bureau-progress.v2` 使用 `formalCases[caseId] / trainingCases[caseId]` 保存 catalog-keyed 长期结案 / 知识事实；旧 v1 `story001 / bootCase000` 会校验后迁移，未知 case id 与重复 Duty seed 会被拒绝。若 v2 key 存在但 JSON 已损坏，reader 会清理坏 v2 并继续尝试仍完整的 v1，而不是直接丢失可恢复进度；损坏的 v1 JSON 也会清理，避免每次启动重复解析同一坏 payload。CASE 001 首次结案后才开放 Hub 与 Duty，晋级仍按不同 syndrome 的经验广度计算；值班工单队列会跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。

@@ -325,7 +325,7 @@ baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家�
 
 普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。正式 Sensor Deck 不再把四个字段统一压成 `旧差异 X/5 / 现场变化 Y/5` 排行；玩家需要切换二维投影观察 `FIELD MATRIX`。自动 evidence-policy 仍可把同一类可见统计压缩成策略分数用于批量验证，但不允许读取隐藏 syndrome/test label 再假装推理。
 
-正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
+正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位；fields-only / model-only 还必须做方向性 causal pre-registration。`causalForecastStats()` 从相邻正式记录中汇总这些因果预测的 hit / miss，baseline、repeat、mixed 不计入。结案评分沿用既有实验次数 / 现场预测 / 额外额度 / controlled-vs-mixed 结构，但在原始封顶分之后再对每次 causal miss 扣 3 分，因此错误预测仍保留为有效实验事实和 falsification，却会降低调查评级，避免方向预注册退化成无成本随机选择。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
 
 ## 自动玩法平衡
 `balance.ts` 同时执行：

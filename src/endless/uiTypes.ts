@@ -155,6 +155,18 @@ export function causalPredictionResult(first: EndlessRunRecord, second: EndlessR
   }
 }
 
+export function causalForecastStats(history: EndlessRunRecord[]) {
+  let total = 0
+  let hits = 0
+  for (let index = 1; index < history.length; index += 1) {
+    const result = causalPredictionResult(history[index - 1], history[index])
+    if (!result) continue
+    total += 1
+    if (result.hit) hits += 1
+  }
+  return { total, hits, misses: total - hits }
+}
+
 export function preRegisteredNullResult(first: EndlessRunRecord, second: EndlessRunRecord) {
   const result = causalPredictionResult(first, second)
   return Boolean(result && result.observed === 'null')

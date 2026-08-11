@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -161,6 +161,15 @@ describe('endless experiment comparison metadata', () => {
     const support = { first: baseline, second: fieldsSupport, comparison: discriminatingExperiment(baseline, fieldsSupport) }
 
     expect(competingAxisNullResult([baseline, fieldsSupport, unrelatedFields, unrelatedModelNull], support)).toBeUndefined()
+  })
+
+  it('summarizes directional causal forecast calibration without counting baseline or mixed runs', () => {
+    const baseline = record({ id: 1, test: .70, recall: { cat: .70, bread: .70 } })
+    const fieldsHit = record({ id: 2, features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 }, causalPrediction: 'improved' })
+    const modelMiss = record({ id: 3, model: 'tree', features: ['texture', 'aspect'], test: .91, recall: { cat: .91, bread: .91 }, causalPrediction: 'improved' })
+    const mixed = record({ id: 4, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 }, causalPrediction: 'degraded' })
+
+    expect(causalForecastStats([baseline, fieldsHit, modelMiss, mixed])).toEqual({ total: 2, hits: 1, misses: 1 })
   })
 
   it('only lets a weak controlled result count as falsification when its causal expectation was registered first', () => {
