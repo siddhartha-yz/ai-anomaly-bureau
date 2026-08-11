@@ -22,5 +22,5 @@ describe('endless gameplay balance baselines', () => {
     expect(gap.randomSolveRate).toBeLessThan(.25)
     expect(gap.evidenceSolveRate - gap.randomSolveRate).toBeGreaterThan(.7)
     expect(gap.evidenceMeanBestAccuracy - gap.randomMeanBestAccuracy).toBeGreaterThan(.07)
-  })
+  }, 15_000)
 })

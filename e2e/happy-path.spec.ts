@@ -1521,6 +1521,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('原因来源的明确阴性事实')
   await expect(closureReport).toContainText('FIELD INSPECTION')
   await expect(closureReport).toContainText('1 条误判复核')
+  await expect(closureReport).toContainText(/E01 FIELD-\d{3}：.+ → .+/)
   await expect(closureReport).toContainText('CAUSE SOURCES')
   await expect(closureReport).toContainText('历史质量记录')
   await expect(closureReport).toContainText('因果预测 1/2')
