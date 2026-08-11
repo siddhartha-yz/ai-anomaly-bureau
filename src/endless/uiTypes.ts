@@ -23,6 +23,7 @@ export type EndlessRunRecord = {
 export type InspectedFieldError = { runId: number; sampleId: string; actual: Label; predicted: Label }
 
 export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
+export type HypothesisAxisStatus = 'open' | 'supported' | 'weakened' | 'contested'
 
 export type DiagnosisEvidenceStatus = {
   records: EndlessRunRecord[]
@@ -195,6 +196,21 @@ export function latestControlledExperiment(
     if (comparison.axis === axis) return { first: history[index - 1], second: history[index], comparison }
   }
   return undefined
+}
+
+export function hypothesisAxisStatus(history: EndlessRunRecord[], axis: 'fields' | 'model'): HypothesisAxisStatus {
+  let hasMaterial = false
+  let hasNull = false
+  for (let index = 1; index < history.length; index += 1) {
+    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    if (comparison.axis !== axis) continue
+    if (comparison.discriminating) hasMaterial = true
+    else hasNull = true
+  }
+  if (hasMaterial && hasNull) return 'contested'
+  if (hasMaterial) return 'supported'
+  if (hasNull) return 'weakened'
+  return 'open'
 }
 
 export function accuracyBand(value: number): BandPrediction {

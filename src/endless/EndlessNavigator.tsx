@@ -1,6 +1,6 @@
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { discriminatingExperiment, earnedCaseLeadReviewCount, latestControlledExperiment, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { discriminatingExperiment, earnedCaseLeadReviewCount, hypothesisAxisStatus, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
@@ -135,10 +135,8 @@ export function EndlessLeadBoard({
     quality: 'H-RECORDS',
   }
   const latest = history.at(-1)
-  const fieldTest = latestControlledExperiment(history, 'fields')
-  const modelTest = latestControlledExperiment(history, 'model')
-  const fieldStatus = fieldTest ? (fieldTest.comparison.discriminating ? 'supported' : 'weakened') : 'open'
-  const modelStatus = modelTest ? (modelTest.comparison.discriminating ? 'supported' : 'weakened') : 'open'
+  const fieldStatus = hypothesisAxisStatus(history, 'fields')
+  const modelStatus = hypothesisAxisStatus(history, 'model')
   const latestPair = history.length >= 2 ? discriminatingExperiment(history.at(-2)!, history.at(-1)!) : undefined
   const inspectedAlerts = caseData.archiveAlerts.filter((alert) => inspectedArchiveIds.includes(alert.id))
   const evidenceCount = inspectedCaseLeadIds.length + (inspectedAlerts.length > 0 ? 1 : 0) + history.length + inspectedFieldErrors.length
@@ -183,7 +181,9 @@ export function EndlessLeadBoard({
             <em>{modelStatus.toUpperCase()}</em>
           </article>
           <p>
-            {fieldStatus === 'supported' && modelStatus === 'supported'
+            {fieldStatus === 'contested' || modelStatus === 'contested'
+              ? `${fieldStatus === 'contested' ? 'H-FIELDS' : 'H-MODEL'} 在不同受控实验里既出现过显著变化，也出现过近乎 null 的结果：这不是“最后一次实验覆盖前一次”，而是条件依赖的冲突证据。回到这些实验的共同端点，检查什么条件让该因素时而重要、时而不起作用。`
+              : fieldStatus === 'supported' && modelStatus === 'supported'
               ? '字段轴和模型轴都曾在单变量实验中显著改变现场结果：单一“只怪字段”或“只怪模型”的解释都不够，继续检查它们如何共同造成失效。'
               : fieldStatus === 'supported' && modelStatus === 'weakened'
                 ? '字段实验产生了显著变化，而最近一次模型-only 测试变化很小：H-MODEL 被削弱。'
