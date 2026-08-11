@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -355,6 +355,10 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const fieldInspectionSummary = inspectedFieldErrors.slice(-3).map((error) =>
     `E${String(error.runId).padStart(2, '0')} ${error.sampleId.toUpperCase()}：${caseData.classNames[error.actual]} → ${caseData.classNames[error.predicted]}`,
   ).join(' · ')
+  const closureSupportLeadId = diagnosis ? diagnosisSourceLeadId(diagnosis) : undefined
+  const closureSupportLead = closureSupportLeadId && inspectedCaseLeadIds.includes(closureSupportLeadId)
+    ? caseData.leadSources.find((lead) => lead.id === closureSupportLeadId && lead.result === 'signal')
+    : undefined
   const scoreBeforeCausalCalibration = Math.min(100,
     100 - Math.max(0, auditsUsed - 3) * 4 - emergencyCredits * 12 - Math.max(0, diagnosisAttempts - 1) * 8
       + history.filter((record) => record.predictionHit).length * 2
@@ -553,6 +557,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 现场预测命中 {history.filter((record) => record.predictionHit).length} 次 · 因果预测 {causalForecast.hits}/{causalForecast.total}</span></article>
               <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
               <article><small>FALSIFICATION</small><strong>{citedFalsificationSummary ?? '未记录'}</strong><span>{sourceFalsificationLead ? '原因来源的明确阴性事实' : citedInterventionFalsification ? '与支持证据锚定的竞争轴预注册 null result' : '本案没有封存独立反证'}</span></article>
+              <article><small>CAUSAL SUPPORT</small><strong>{closureSupportLead ? `${closureSupportLead.label} · SIGNAL` : '受控实验干预证据'}</strong><span>{closureSupportLead?.finding ?? '本病因没有专属正向来源；支持来自被引用的 material 单变量实验。'}</span></article>
               <article><small>FIELD INSPECTION</small><strong>{inspectedFieldErrors.length} 条误判复核</strong><span>{fieldInspectionSummary || '本次结案没有额外打开现场误判记录'}</span></article>
               <article><small>CAUSE SOURCES</small><strong>{inspectedCaseLeadIds.length} / {caseData.leadSources.length} 份来源已复核</strong><span>{inspectedCaseLeadIds.length ? inspectedCaseLeadIds.map((id) => caseData.leadSources.find((lead) => lead.id === id)?.label).filter(Boolean).join(' · ') : '未复核额外因果来源'}</span></article>
               <article><small>ARCHIVE</small><strong>{inspectedArchiveIds.length} 条档案复核</strong><span>{caseData.archiveAlerts.length ? `本案共有 ${caseData.archiveAlerts.length} 条质量告警` : '本案无额外质量告警'}</span></article>
