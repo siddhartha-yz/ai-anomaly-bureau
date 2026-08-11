@@ -1,7 +1,7 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
 import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { earnedCaseLeadReviewCount, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { earnedCaseLeadReviewCount, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -31,6 +31,7 @@ export type EndlessSessionData = {
   lastDiagnosisOutcome?: 'wrong' | 'needs-reliable'
   inspectedArchiveIds: string[]
   inspectedCaseLeadIds: EndlessCaseLeadId[]
+  caseLeadPredictions?: CaseLeadPredictions
   inspectedFieldErrors: InspectedFieldError[]
   solved: boolean
 }
@@ -45,6 +46,7 @@ const SYNDROMES = new Set<EndlessSyndrome>(['feature-gap', 'overfit-noise', 'dis
 const LABELS = new Set<Label>(['cat', 'bread'])
 const OUTCOMES = new Set(['wrong', 'needs-reliable'] as const)
 const CASE_LEADS = new Set<EndlessCaseLeadId>(['composition', 'batch', 'quality'])
+const CASE_LEAD_PREDICTIONS = new Set<CaseLeadPrediction>(['signal', 'clear'])
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -96,6 +98,14 @@ function isInspectedFieldError(value: unknown): value is InspectedFieldError {
     && LABELS.has(item.predicted as Label)
 }
 
+function isCaseLeadPredictions(value: unknown): value is CaseLeadPredictions {
+  if (value === undefined) return true
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  return Object.entries(value).every(([key, prediction]) =>
+    CASE_LEADS.has(key as EndlessCaseLeadId) && CASE_LEAD_PREDICTIONS.has(prediction as CaseLeadPrediction),
+  )
+}
+
 function optionalMember<T extends string>(value: unknown, allowed: Set<T>) {
   return value === undefined || allowed.has(value as T)
 }
@@ -119,6 +129,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (!Array.isArray(item.inspectedArchiveIds) || !item.inspectedArchiveIds.every((id) => typeof id === 'string')) return false
   if (!Array.isArray(item.inspectedCaseLeadIds) || !item.inspectedCaseLeadIds.every((id) => CASE_LEADS.has(id as EndlessCaseLeadId))) return false
   if (new Set(item.inspectedCaseLeadIds).size !== item.inspectedCaseLeadIds.length) return false
+  if (!isCaseLeadPredictions(item.caseLeadPredictions)) return false
   if (!Array.isArray(item.inspectedFieldErrors) || !item.inspectedFieldErrors.every(isInspectedFieldError)) return false
   const history = item.history
   const runIds = new Set(history.map((run) => run.id))
@@ -167,6 +178,7 @@ export function hasEndlessSessionProgress(session: EndlessSessionData | undefine
     || session.diagnosisAttempts
     || session.inspectedArchiveIds.length
     || session.inspectedCaseLeadIds.length
+    || Object.keys(session.caseLeadPredictions ?? {}).length
     || session.inspectedFieldErrors.length
     || session.solved
   ))

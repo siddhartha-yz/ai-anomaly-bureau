@@ -69,8 +69,10 @@ async function citeEndlessRuns(page: Page, ...runNumbers: number[]) {
   }
 }
 
-async function inspectCausalLead(page: Page, name: RegExp) {
-  await page.getByLabel('因果线索来源').getByRole('button', { name }).click()
+async function inspectCausalLead(page: Page, name: RegExp, prediction: 'signal' | 'clear' = 'signal') {
+  const lead = page.getByLabel('因果线索来源').locator('.endless-causal-lead').filter({ hasText: name })
+  await lead.getByRole('button', { name: prediction === 'signal' ? '预测 SIGNAL' : '预测 CLEAR' }).click()
+  await lead.getByRole('button', { name: /复核/ }).click()
 }
 
 async function runDutyAudit(page: Page, causalPrediction: 'improved' | 'degraded' | 'null' = 'improved') {
@@ -553,8 +555,9 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
   await expect(page.locator('.endless-case-brief')).not.toContainText(/4 条|镜头污染|HISTORY|FIELD BATCH/)
   await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(0)
   const causalLeads = page.getByLabel('因果线索来源')
-  await expect(causalLeads.getByRole('button')).toHaveCount(3)
-  for (const button of await causalLeads.getByRole('button').all()) await expect(button).toBeDisabled()
+  await expect(causalLeads.locator('.endless-causal-lead')).toHaveCount(3)
+  await expect(causalLeads.locator('.endless-causal-lead.sealed')).toHaveCount(3)
+  await expect(causalLeads.getByRole('button')).toHaveCount(0)
 
   await expect(page.locator('.endless-console .objective-focus')).toHaveCount(0)
   await expect(page.locator('.endless-console .endless-primary.objective-action')).toHaveText('训练当前方案')
@@ -597,13 +600,17 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
   await expect(page.getByLabel('竞争假设')).toContainText('H-MODEL')
   await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
   await expect(page.locator('.endless-lead-board')).toContainText('正式审计 #1')
-  for (const button of await causalLeads.getByRole('button').all()) await expect(button).toBeEnabled()
+  await expect(causalLeads.locator('.endless-causal-lead.available')).toHaveCount(3)
+  await expect(causalLeads.getByRole('button', { name: /预测 SIGNAL|预测 CLEAR/ })).toHaveCount(6)
+  for (const button of await causalLeads.getByRole('button', { name: /预测 SIGNAL|预测 CLEAR/ }).all()) await expect(button).toBeEnabled()
+  await expect(causalLeads.getByRole('button', { name: /复核/ })).toHaveCount(3)
+  for (const button of await causalLeads.getByRole('button', { name: /复核/ }).all()) await expect(button).toBeDisabled()
 
   await inspectCausalLead(page, /历史质量记录/)
   await expect(causalLeads).toContainText('质量系统标出了 4 条需要人工复核的历史记录')
-  await expect(causalLeads.getByRole('button', { name: /历史质量记录/ })).toBeEnabled()
-  await expect(causalLeads.getByRole('button', { name: /历史档案构成/ })).toBeDisabled()
-  await expect(causalLeads.getByRole('button', { name: /采集批次记录/ })).toBeDisabled()
+  await expect(causalLeads.locator('.endless-causal-lead.inspected').filter({ hasText: /历史质量记录/ })).toHaveCount(1)
+  await expect(causalLeads.locator('.endless-causal-lead.sealed').filter({ hasText: /历史档案构成/ })).toHaveCount(1)
+  await expect(causalLeads.locator('.endless-causal-lead.sealed').filter({ hasText: /采集批次记录/ })).toHaveCount(1)
   await expect(causalLeads).toContainText('需要先完成一个新的单变量正式对照')
   await expect(page.getByLabel('当前调查目标')).toContainText('让两个解释真正分叉')
   await expect(page.locator('.endless-archive-anomaly-frame')).toHaveCount(4)
@@ -662,8 +669,9 @@ test('Duty experiments alone cannot reveal syndrome names until one causal sourc
   await expect(page.getByLabel('当前调查目标')).toContainText('先决定查哪一种原因')
   await expect(page.getByText('观察特征没有抓住真正差异')).toHaveCount(0)
 
-  await inspectCausalLead(page, /历史质量记录/)
+  await inspectCausalLead(page, /历史质量记录/, 'clear')
   await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/来源预判 CLEAR → 实际 CLEAR · HIT/)
   await expect(page.locator('.endless-diagnosis')).toBeVisible()
   await expect(page.getByText('观察特征没有抓住真正差异')).toBeVisible()
 })
@@ -680,6 +688,7 @@ test('overfit Duty separates hypothesis discovery from reliable repair before na
   await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
   await inspectCausalLead(page, /历史质量记录/)
   await expect(page.getByLabel('因果线索来源')).toContainText(/4 条需要人工复核/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/来源预判 SIGNAL → 实际 SIGNAL · HIT/)
 
   // Smoothing k=1 → k=5 while keeping fields fixed kills one plausible
   // explanation, but it does not yet produce a reliable system.
@@ -788,7 +797,7 @@ test('mixed endless changes do not earn a new causal-source review until a contr
   await runDutyAudit(page)
   await expect(page.locator('.endless-objective-stats')).toContainText('不同配置 2')
   await expect(page.getByLabel('因果线索来源')).toContainText('当前可新开 0 份')
-  await expect(page.getByLabel('因果线索来源').locator('button:disabled')).toHaveCount(2)
+  await expect(page.getByLabel('因果线索来源').locator('.endless-causal-lead.sealed')).toHaveCount(2)
 
   // A new model-only run from that state is controlled and earns one review.
   await page.locator('.endless-model-list button:not(.selected)').first().click()
@@ -818,7 +827,7 @@ test('repeating the same endless configuration is replication, not new diagnosti
   await expect(page.getByLabel('竞争假设')).toContainText('同配置复现')
   await expect(page.getByLabel('竞争假设')).toContainText('OPEN')
   await expect(page.getByLabel('因果线索来源')).toContainText('当前可新开 0 份')
-  await expect(page.getByLabel('因果线索来源').locator('button:disabled')).toHaveCount(2)
+  await expect(page.getByLabel('因果线索来源').locator('.endless-causal-lead.sealed')).toHaveCount(2)
 
   await chooseEndlessFeatures(page, '正文重复度', '发件人可信度')
   await page.getByRole('button', { name: '训练当前方案' }).click()

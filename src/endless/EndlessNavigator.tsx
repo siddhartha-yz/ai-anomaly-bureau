@@ -1,6 +1,6 @@
 import type { FeatureKey } from '../ml/types'
 import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { discriminatingExperiment, earnedCaseLeadReviewCount, hypothesisAxisStatus, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { discriminatingExperiment, earnedCaseLeadReviewCount, hypothesisAxisStatus, type CaseLeadPrediction, type CaseLeadPredictions, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
 export type EndlessObjectiveTarget = 'train' | 'field-error' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
@@ -153,6 +153,8 @@ export function EndlessLeadBoard({
   inspectedCaseLeadIds = [],
   inspectedArchiveIds = [],
   inspectedFieldErrors = [],
+  caseLeadPredictions = {},
+  onPredictCaseLead,
   onInspectCaseLead,
 }: {
   caseData: EndlessCase
@@ -160,6 +162,8 @@ export function EndlessLeadBoard({
   inspectedCaseLeadIds?: EndlessCaseLeadId[]
   inspectedArchiveIds?: string[]
   inspectedFieldErrors?: InspectedFieldError[]
+  caseLeadPredictions?: CaseLeadPredictions
+  onPredictCaseLead?: (id: EndlessCaseLeadId, prediction: CaseLeadPrediction) => void
   onInspectCaseLead?: (id: EndlessCaseLeadId) => void
 }) {
   const causeCodes: Record<EndlessCaseLeadId, string> = {
@@ -184,18 +188,29 @@ export function EndlessLeadBoard({
           {caseData.leadSources.map((lead) => {
             const inspected = inspectedCaseLeadIds.includes(lead.id)
             const available = canInspectCaseLead(history, inspectedCaseLeadIds.length, inspected)
+            const prediction = caseLeadPredictions[lead.id]
             return (
-              <button
-                type="button"
+              <article
                 key={lead.id}
-                disabled={!available}
-                className={inspected ? 'inspected' : ''}
-                onClick={() => onInspectCaseLead?.(lead.id)}
+                className={`endless-causal-lead ${inspected ? 'inspected' : available ? 'available' : 'sealed'}`}
               >
                 <i>{causeCodes[lead.id]} · {inspected ? 'OPEN' : available ? 'READY' : 'SEALED'}</i>
                 <strong>{lead.label}</strong>
                 <small>{inspected ? lead.finding : available ? lead.prompt : '需要先完成一个新的单变量正式对照，才能继续解封来源。'}</small>
-              </button>
+                {available && !inspected && (
+                  <div className="endless-source-forecast" aria-label={`${lead.label} 来源预判`}>
+                    <span>打开前预判</span>
+                    <button type="button" className={prediction === 'signal' ? 'selected' : ''} aria-pressed={prediction === 'signal'} onClick={() => onPredictCaseLead?.(lead.id, 'signal')}>预测 SIGNAL</button>
+                    <button type="button" className={prediction === 'clear' ? 'selected' : ''} aria-pressed={prediction === 'clear'} onClick={() => onPredictCaseLead?.(lead.id, 'clear')}>预测 CLEAR</button>
+                    <button type="button" className="endless-source-open" disabled={!prediction} onClick={() => onInspectCaseLead?.(lead.id)}>复核 {lead.label}</button>
+                  </div>
+                )}
+                {inspected && prediction && (
+                  <em className={prediction === lead.result ? 'forecast-hit' : 'forecast-miss'}>
+                    来源预判 {prediction.toUpperCase()} → 实际 {lead.result.toUpperCase()} · {prediction === lead.result ? 'HIT' : 'MISS'}
+                  </em>
+                )}
+              </article>
             )
           })}
         </div>

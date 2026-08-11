@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, caseLeadForecastStats, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -52,6 +52,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const [selectedArchiveId, setSelectedArchiveId] = useState<string>()
   const [inspectedArchiveIds, setInspectedArchiveIds] = useState<string[]>(restoredSession?.inspectedArchiveIds ?? [])
   const [inspectedCaseLeadIds, setInspectedCaseLeadIds] = useState<EndlessCaseLeadId[]>(restoredSession?.inspectedCaseLeadIds ?? [])
+  const [caseLeadPredictions, setCaseLeadPredictions] = useState<CaseLeadPredictions>(restoredSession?.caseLeadPredictions ?? {})
   const [selectedFieldErrorId, setSelectedFieldErrorId] = useState<string>()
   const [inspectedFieldErrors, setInspectedFieldErrors] = useState<InspectedFieldError[]>(restoredSession?.inspectedFieldErrors ?? [])
 
@@ -109,13 +110,14 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       lastDiagnosisOutcome,
       inspectedArchiveIds,
       inspectedCaseLeadIds,
+      caseLeadPredictions,
       inspectedFieldErrors,
       solved,
     })
   }, [
     seed, features, activeSlot, model, trained, prediction, causalPrediction, auditResult, emergencyCredits, history,
     diagnosis, diagnosisAttempts, lastDiagnosisConfigCount, lastDiagnosisRunCount, selectedEvidenceRunIds,
-    submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedCaseLeadIds, inspectedFieldErrors, solved,
+    submittedDiagnosis, lastDiagnosisOutcome, inspectedArchiveIds, inspectedCaseLeadIds, caseLeadPredictions, inspectedFieldErrors, solved,
   ])
 
   const resetExperiment = () => {
@@ -310,6 +312,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     setSelectedArchiveId(undefined)
     setInspectedArchiveIds([])
     setInspectedCaseLeadIds([])
+    setCaseLeadPredictions({})
     setSelectedFieldErrorId(undefined)
     setInspectedFieldErrors([])
     setSolved(false)
@@ -344,6 +347,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const controlledComparisons = experimentDeltas.filter((delta) => delta === 'fields-only' || delta === 'model-only').length
   const mixedComparisons = experimentDeltas.filter((delta) => delta === 'mixed').length
   const causalForecast = causalForecastStats(history)
+  const sourceForecast = caseLeadForecastStats(caseLeadPredictions, inspectedCaseLeadIds, caseData.leadSources)
   const closureEvidenceComparison = citedEvidence.records.length === 2
     ? compareExperimentRecords(citedEvidence.records[0], citedEvidence.records[1])
     : undefined
@@ -482,8 +486,14 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               inspectedCaseLeadIds={inspectedCaseLeadIds}
               inspectedArchiveIds={inspectedArchiveIds}
               inspectedFieldErrors={inspectedFieldErrors}
+              caseLeadPredictions={caseLeadPredictions}
+              onPredictCaseLead={(id, prediction: CaseLeadPrediction) => {
+                if (inspectedCaseLeadIds.includes(id)) return
+                setCaseLeadPredictions((predictions) => ({ ...predictions, [id]: prediction }))
+              }}
               onInspectCaseLead={(id) => {
                 if (!canInspectCaseLead(history, inspectedCaseLeadIds.length, inspectedCaseLeadIds.includes(id))) return
+                if (!inspectedCaseLeadIds.includes(id) && !caseLeadPredictions[id]) return
                 audio.play('evidence')
                 setInspectedCaseLeadIds((ids) => ids.includes(id) ? ids : [...ids, id])
               }}
@@ -555,6 +565,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>FINAL CONFIG</small><strong>{caseData.featureNames[bestReliable.features[0]]} + {caseData.featureNames[bestReliable.features[1]]}</strong><span>{MODEL_META[bestReliable.model].label}</span></article>
               <article><small>FIELD EVIDENCE</small><strong>{Math.round(bestReliable.test * 100)}%</strong><span>最低类别召回 {Math.round(Math.min(bestReliable.recall.cat, bestReliable.recall.bread) * 100)}%</span></article>
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 现场预测命中 {history.filter((record) => record.predictionHit).length} 次 · 因果预测 {causalForecast.hits}/{causalForecast.total}</span></article>
+              <article><small>SOURCE FORECAST</small><strong>{sourceForecast.hits}/{sourceForecast.total} 命中</strong><span>{sourceForecast.total ? `${sourceForecast.misses} 次来源预判失误；预判只在打开来源前可修改` : '旧存档来源没有预判记录，不计入本项'}</span></article>
               <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
               <article><small>FALSIFICATION</small><strong>{citedFalsificationSummary ?? '未记录'}</strong><span>{sourceFalsificationLead ? '原因来源的明确阴性事实' : citedInterventionFalsification ? '与支持证据锚定的竞争轴预注册 null result' : '本案没有封存独立反证'}</span></article>
               <article><small>CAUSAL SUPPORT</small><strong>{closureSupportLead ? `${closureSupportLead.label} · SIGNAL` : '受控实验干预证据'}</strong><span>{closureSupportLead?.finding ?? '本病因没有专属正向来源；支持来自被引用的 material 单变量实验。'}</span></article>

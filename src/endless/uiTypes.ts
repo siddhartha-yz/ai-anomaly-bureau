@@ -22,6 +22,8 @@ export type EndlessRunRecord = {
 }
 
 export type InspectedFieldError = { runId: number; sampleId: string; actual: Label; predicted: Label }
+export type CaseLeadPrediction = 'signal' | 'clear'
+export type CaseLeadPredictions = Partial<Record<EndlessCaseLeadId, CaseLeadPrediction>>
 
 export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
 export type HypothesisAxisStatus = 'open' | 'supported' | 'weakened' | 'contested'
@@ -90,6 +92,23 @@ export function diagnosisSourceSupported(
 ) {
   const status = diagnosisSourceStatus(diagnosis, inspectedLeadIds, leadSources)
   return status === 'supported' || status === 'not-required'
+}
+
+export function caseLeadForecastStats(
+  predictions: CaseLeadPredictions,
+  inspectedLeadIds: EndlessCaseLeadId[],
+  leadSources: EndlessCaseLead[],
+) {
+  let total = 0
+  let hits = 0
+  for (const leadId of inspectedLeadIds) {
+    const expected = predictions[leadId]
+    const observed = leadSources.find((lead) => lead.id === leadId)?.result
+    if (!expected || !observed) continue
+    total += 1
+    if (expected === observed) hits += 1
+  }
+  return { total, hits, misses: total - hits }
 }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {

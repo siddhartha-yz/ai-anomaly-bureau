@@ -305,6 +305,8 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家主动决定先核验哪一条 causal story；之后只有新增一个此前未审计过、且相对上一轮属于 fields-only / model-only 的配置才再获得一次来源解封额度。`experimentConfigKey()` 会把字段顺序归一化，所以重复同一配置或只交换两个显示槽位都不能刷来源；mixed change 同样不会奖励取证额度，因为它没有形成可归因的对照。`signal` 只是支持继续调查，`clear` 才承担“杀掉一个竞争解释”的反证作用。finding 不包含 syndrome 名称。
 
+来源解封增加轻量 causal-source pre-registration：`caseLeadPredictions` 按 `composition / batch / quality` 保存 `signal | clear`，`EndlessLeadBoard` 只有在 READY source 已留下预测后才允许执行 `onInspectCaseLead`；runtime 同时二次守卫，避免绕过 UI。来源打开后预测不可修改，并用 `caseLeadForecastStats()` 只统计真正已经 inspected 的来源。字段作为 v6 session 的可选扩展保存，因此已有 v6 checkpoint 不需要版本迁移；validator 会拒绝未知 source id / prediction 值，但缺失该字段的旧存档继续合法。
+
 诊断不再只要求“两个不同配置”。`discriminatingExperiment()` 只有在两条相邻正式记录属于 **fields-only 或 model-only**，且 `FIELD` 或最低类别召回的绝对变化达到 **12 个百分点**时，才认为它们真正区分了竞争解释；性能显著下降和显著改善都属于信息，因为 falsification 本来就可能通过“只改一个因素后结果崩掉”完成。受控实验训练完成后、正式审计前必须写入 `causalPrediction: improved | degraded | null`，把“这个单变量应该明显改善 / 明显恶化 / 基本不起作用”封存在 run record 与 session 中；运行时 guard 与按钮状态都阻止未预注册的 fields-only / model-only 审计。为不破坏已经生成的 v6 存档，reader 仍接受旧值 `material`，并沿用旧语义将任意非 null material change 视为该旧预测命中；当前 UI 不再生成它。repeat 只验证稳定性，mixed change 无法归因，都不能解锁病因。
 
 `CASE_LEADS.LOG` 在第一条 baseline 后显示两条 syndrome-neutral 假设：`H-FIELDS / H-MODEL`。每个轴通过 `hypothesisAxisStatus()` 累积全部受控实验，而不是让最后一次结果覆盖此前证据：未测试为 `OPEN`，只有 material change 为 `SUPPORTED`，只有 <12pt 弱变化为 `WEAKENED`，同一轴两类结果都出现则为 `CONTESTED`。`CONTESTED` 明确告诉玩家该因素可能具有条件依赖性，需要回到不同实验的共同端点继续解释冲突；两个轴也都可能被支持。这个状态只由玩家自己的 run history 计算，不读取 `caseData.syndrome`。

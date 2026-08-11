@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：24 个测试文件、133 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CWwo-DxL.js` + `assets/index-CbJ-OooJ.css`（生产发布后再记录远端哈希）。
-- Playwright：31 条 Chromium E2E 全部通过（完整串行套件 31/31 首轮通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：24 个测试文件、135 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-DSELsEM_.js` + `assets/index-Dm6ApHLC.css`（生产发布后再记录远端哈希）。
+- Playwright：31 条 Chromium E2E 全部通过（完整串行套件 31/31 通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -79,6 +79,7 @@ Vitest 当前覆盖：
 - 无尽 session：当前为 `aia.endless-session.v6.<seed>`。v5/v4/v3 audit history 可迁移，但 causal-source finding 语义曾发生变化，因此迁移后 `inspectedCaseLeadIds` 会重置为空，要求玩家重新打开来源；迁移仍要求**先成功写 v6 再删除旧 key**，模拟 `QuotaExceededError` 时旧存档原件必须保留。v2 非 shift 仍可直接迁入 v6；v2 shift 因历史 field world 已变化继续明确作废；v1 继续不迁移。当前 v6 reader 还会拒绝重复 cause-source id，以及“已复核来源数超过 baseline + 新单变量配置实际赚取额度”的伪造 payload，localStorage 恢复不能绕过运行时封存节奏。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
 - answer-neutral 导航：baseline、预测、对照、诊断、诊断锁、零额度恢复均映射到可达下一动作；导航文本单测禁止出现四类 syndrome 答案词。
 - causal-source pacing：第一次 baseline 赚 1 次来源复核；之后只有**此前未审计过、且相对上一轮只改字段或只改模型**的新配置再赚 1 次。repeat、字段顺序交换与 fields+model mixed change 都不增加额度；已打开来源仍可回看，未使用额度可累计。运行时点击守卫与 v6 session validator 共用同一纯额度推导，单测同时覆盖重复/混合实验和伪造 localStorage 超额复核；浏览器路线断言 repeat/mixed 后剩余来源继续 SEALED，直到新的单变量对照完成。
+- causal-source pre-registration：每份 READY 来源在解封前必须先选择 `预测 SIGNAL / 预测 CLEAR`，否则复核按钮保持 disabled，runtime 也拒绝未预测的直接打开。预测在打开前可改、打开后锁定并显示 HIT/MISS；`caseLeadForecastStats()` 只统计真正打开过的来源。v6 session 以可选 `caseLeadPredictions` 向后兼容保存，专项测试覆盖合法往返、未知值拒绝、旧 v6 无字段继续恢复；Chromium 代表路线同时验证 CLEAR→CLEAR 与 SIGNAL→SIGNAL 两种命中。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。90 seed × 24 random-run 的统计压力测试显式使用 15s timeout，避免 CI / Chromium 并行负载下撞到 Vitest 默认 5s 假超时；本轮完整套件曾在 5.36s 触发该假超时，单独复验与放宽后全量复验均通过。
 - Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime；CASE 001 的 resume 摘要、checkpoint clear 与结案 checkpoint → Bureau progress reconciliation 都由 registry owning runtime 提供，App 不读取 Story session 内部结构。

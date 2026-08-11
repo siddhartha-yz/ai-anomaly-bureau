@@ -71,6 +71,20 @@ describe('endless local session persistence', () => {
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 
+  it('persists source forecasts without invalidating older v6 sessions', () => {
+    const storage = new MemoryStorage()
+    const value = { ...session(), caseLeadPredictions: { composition: 'signal' as const, batch: 'clear' as const } }
+    expect(writeEndlessSession(storage, value)).toBe(true)
+    expect(readEndlessSession(storage, 6000)?.caseLeadPredictions).toEqual(value.caseLeadPredictions)
+
+    storage.setItem(endlessSessionKey(6000), JSON.stringify({ ...value, caseLeadPredictions: { quality: 'maybe' } }))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const legacyCompatible = session()
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(legacyCompatible))
+    expect(readEndlessSession(storage, 6000)?.caseLeadPredictions).toBeUndefined()
+  })
+
   it('isolates progress by seed', () => {
     const storage = new MemoryStorage()
     writeEndlessSession(storage, session(6000))

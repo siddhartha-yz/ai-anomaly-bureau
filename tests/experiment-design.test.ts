@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { caseLeadForecastStats, causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -48,6 +48,17 @@ describe('endless experiment comparison metadata', () => {
     const contradictedLeads = [{ ...leads[0] }, { ...leads[1] }, { ...leads[2], result: 'clear' as const }]
     expect(diagnosisSourceStatus('overfit-noise', ['quality'], contradictedLeads)).toBe('contradicted')
     expect(diagnosisSourceSupported('overfit-noise', ['quality'], contradictedLeads)).toBe(false)
+  })
+
+  it('scores causal-source forecasts only after the corresponding source is opened', () => {
+    const leads = [
+      { id: 'composition', label: 'coverage', prompt: '', finding: '', result: 'signal' },
+      { id: 'batch', label: 'batch', prompt: '', finding: '', result: 'clear' },
+      { id: 'quality', label: 'quality', prompt: '', finding: '', result: 'signal' },
+    ] as const
+    const predictions = { composition: 'signal', batch: 'signal', quality: 'clear' } as const
+    expect(caseLeadForecastStats(predictions, [], [...leads])).toEqual({ total: 0, hits: 0, misses: 0 })
+    expect(caseLeadForecastStats(predictions, ['composition', 'batch'], [...leads])).toEqual({ total: 2, hits: 1, misses: 1 })
   })
 
   it('distinguishes controlled comparisons from changing everything at once', () => {
