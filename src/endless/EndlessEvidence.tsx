@@ -160,7 +160,7 @@ export function EndlessRunLog({
           <em>
             <span>
               {record.predictionHit ? '现场预测✓' : '现场预测×'} · {record.reliable ? '可靠✓' : '可靠×'}
-              {causalResult ? ` · 因果预测${causalResult.hit ? '✓' : '×'}：${causalResult.expected === 'improved' ? '应改善' : causalResult.expected === 'degraded' ? '应恶化' : causalResult.expected === 'material' ? '应明显变化' : '应基本不变'} → ${causalResult.observed === 'improved' ? '明显改善' : causalResult.observed === 'degraded' ? '明显恶化' : '基本不变'}` : ''}
+              {causalResult ? ` · 因果预测${causalResult.hit ? '✓' : '×'}：${causalResult.expected === 'improved' ? '应改善' : causalResult.expected === 'degraded' ? '应恶化' : causalResult.expected === 'material' ? '应明显变化' : '应基本不变'} → ${causalResult.observed === 'improved' ? '明显改善' : causalResult.observed === 'degraded' ? '明显恶化' : causalResult.observed === 'tradeoff' ? '指标冲突' : '基本不变'}` : ''}
             </span>
             {evidenceSelectable && onToggleEvidence && (
               <button

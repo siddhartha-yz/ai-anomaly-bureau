@@ -185,6 +185,24 @@ describe('endless experiment comparison metadata', () => {
     const degradedChange = { ...weakModelChange, test: .55, recall: { cat: .58, bread: .54 }, causalPrediction: 'degraded' as const }
     expect(causalPredictionResult(baseline, degradedChange)).toEqual({ expected: 'degraded', observed: 'degraded', hit: true })
 
+    const tradeoffChange = {
+      ...weakModelChange,
+      test: .88,
+      recall: { cat: .55, bread: .52 },
+      causalPrediction: 'improved' as const,
+    }
+    expect(discriminatingExperiment(baseline, tradeoffChange)).toMatchObject({
+      axis: 'model',
+      direction: 'tradeoff',
+      discriminating: true,
+    })
+    expect(causalPredictionResult(baseline, tradeoffChange)).toEqual({
+      expected: 'improved',
+      observed: 'tradeoff',
+      hit: false,
+    })
+    expect(preRegisteredNullResult(baseline, tradeoffChange)).toBe(false)
+
     // Old v6 sessions used `material`; they remain readable and preserve the old
     // coarse hit semantics, but the current UI no longer creates this value.
     expect(causalPredictionResult(baseline, { ...improvedChange, causalPrediction: 'material' })).toEqual({ expected: 'material', observed: 'improved', hit: true })

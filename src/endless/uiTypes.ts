@@ -43,7 +43,7 @@ export type ExperimentComparison = {
 export type DiscriminatingComparison = ExperimentComparison & {
   axis?: 'fields' | 'model'
   materialChange: number
-  direction: 'improved' | 'degraded' | 'flat'
+  direction: 'improved' | 'degraded' | 'flat' | 'tradeoff'
   discriminating: boolean
 }
 
@@ -127,11 +127,17 @@ export function discriminatingExperiment(first: EndlessRunRecord, second: Endles
     ? comparison.fieldDelta
     : comparison.minRecallDelta
   const materialChange = Math.abs(strongestDelta)
+  const metricTradeoff = Math.abs(comparison.fieldDelta) >= .12
+    && Math.abs(comparison.minRecallDelta) >= .12
+    && Math.sign(comparison.fieldDelta) !== Math.sign(comparison.minRecallDelta)
   return {
     ...comparison,
     axis,
     materialChange,
-    direction: strongestDelta > 0 ? 'improved' : strongestDelta < 0 ? 'degraded' : 'flat',
+    direction: metricTradeoff ? 'tradeoff'
+      : strongestDelta > 0 ? 'improved'
+        : strongestDelta < 0 ? 'degraded'
+          : 'flat',
     discriminating: Boolean(axis && materialChange >= .12),
   }
 }
@@ -139,8 +145,8 @@ export function discriminatingExperiment(first: EndlessRunRecord, second: Endles
 export function causalPredictionResult(first: EndlessRunRecord, second: EndlessRunRecord) {
   const comparison = discriminatingExperiment(first, second)
   if (!comparison.axis || !second.causalPrediction) return undefined
-  const observed: Exclude<CausalPrediction, 'material'> = comparison.discriminating
-    ? comparison.direction === 'improved' ? 'improved' : 'degraded'
+  const observed: Exclude<CausalPrediction, 'material'> | 'tradeoff' = comparison.discriminating
+    ? comparison.direction === 'flat' ? 'null' : comparison.direction
     : 'null'
   return {
     expected: second.causalPrediction,
