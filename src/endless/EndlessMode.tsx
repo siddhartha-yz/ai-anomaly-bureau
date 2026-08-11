@@ -163,7 +163,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
 
   const audit = () => {
     const planDelta = experimentPlanDelta(history.at(-1), model, features)
-    if (!trained || trainAccuracy === undefined || !prediction || credits <= 0) return
+    const controlledPlan = planDelta === 'fields-only' || planDelta === 'model-only'
+    if (!trained || trainAccuracy === undefined || !prediction || credits <= 0 || (controlledPlan && !causalPrediction)) return
     audio.play('audit')
     const result = caseData.audit(model, features)
     const record: EndlessRunRecord = {
@@ -175,7 +176,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       errors: result.errorCount,
       prediction,
       predictionHit: prediction === accuracyBand(result.accuracy),
-      ...((planDelta === 'fields-only' || planDelta === 'model-only') && causalPrediction ? { causalPrediction } : {}),
+      ...(controlledPlan && causalPrediction ? { causalPrediction } : {}),
       recall: result.recall,
       reliable: caseData.isReliable(result),
     }

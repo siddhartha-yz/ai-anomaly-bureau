@@ -33,6 +33,8 @@ export function EndlessControls({
   onEmergency: () => void
 }) {
   const planDelta = experimentPlanDelta(previousRun, model, features)
+  const controlledPlan = planDelta === 'fields-only' || planDelta === 'model-only'
+  const missingCausalPrediction = controlledPlan && !causalPrediction
   const plan = planDelta === 'repeat'
     ? { label: '复现实验', detail: '配置与上一条记录相同；可以检查稳定性，但不会增加新的配置证据。' }
     : planDelta === 'fields-only'
@@ -94,7 +96,7 @@ export function EndlessControls({
             <button type="button" className={prediction === 'mid' ? 'selected' : ''} onClick={() => onPrediction('mid')}>60–84% 勉强</button>
             <button type="button" className={prediction === 'low' ? 'selected' : ''} onClick={() => onPrediction('low')}>&lt;60% 翻车</button>
           </div>
-          {(planDelta === 'fields-only' || planDelta === 'model-only') && (
+          {controlledPlan && (
             <div className="endless-causal-prediction" aria-label="因果预注册">
               <small>CAUSAL PRE-REGISTRATION</small>
               <strong>只改这一个变量，FIELD / 最低召回应该明显变化吗？</strong>
@@ -102,10 +104,10 @@ export function EndlessControls({
                 <button type="button" className={causalPrediction === 'material' ? 'selected' : ''} onClick={() => onCausalPrediction('material')}>应该明显变化</button>
                 <button type="button" className={causalPrediction === 'null' ? 'selected' : ''} onClick={() => onCausalPrediction('null')}>应该基本不变</button>
               </div>
-              <span>若想让“几乎没变化”成为正式排除证据，必须先写下因果预期。审计后系统会封存“预期 / 实际”：猜错不会抹掉反证，但会留下可复盘的预测失误。</span>
+              <span>单变量正式审计必须先写下因果预期。审计后系统会封存“预期 / 实际”：猜错不会抹掉证据，但会留下可复盘的预测失误。</span>
             </div>
           )}
-          <button type="button" className="endless-primary" disabled={!prediction || credits <= 0} onClick={onAudit}>消耗 1 次额度 · 运行现场审计</button>
+          <button type="button" className="endless-primary" disabled={!prediction || missingCausalPrediction || credits <= 0} onClick={onAudit}>{missingCausalPrediction ? '先完成因果预注册' : '消耗 1 次额度 · 运行现场审计'}</button>
           {credits <= 0 && <button type="button" className="endless-emergency" onClick={onEmergency}>申请额外审计（评级扣分）</button>}
         </section>
       )}

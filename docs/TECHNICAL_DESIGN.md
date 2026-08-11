@@ -305,7 +305,7 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 
 baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家主动决定先核验哪一条 causal story；之后只有新增一个此前未审计过、且相对上一轮属于 fields-only / model-only 的配置才再获得一次来源解封额度。`experimentConfigKey()` 会把字段顺序归一化，所以重复同一配置或只交换两个显示槽位都不能刷来源；mixed change 同样不会奖励取证额度，因为它没有形成可归因的对照。`signal` 只是支持继续调查，`clear` 才承担“杀掉一个竞争解释”的反证作用。finding 不包含 syndrome 名称。
 
-诊断不再只要求“两个不同配置”。`discriminatingExperiment()` 只有在两条相邻正式记录属于 **fields-only 或 model-only**，且 `FIELD` 或最低类别召回的绝对变化达到 **12 个百分点**时，才认为它们真正区分了竞争解释；性能显著下降和显著改善都属于信息，因为 falsification 本来就可能通过“只改一个因素后结果崩掉”完成。受控实验训练完成后、正式审计前还可以写入 `causalPrediction: material | null`，把“这个单变量应该明显影响结果 / 应该基本不起作用”封存在 run record 与 session 中。repeat 只验证稳定性，mixed change 无法归因，都不能解锁病因。
+诊断不再只要求“两个不同配置”。`discriminatingExperiment()` 只有在两条相邻正式记录属于 **fields-only 或 model-only**，且 `FIELD` 或最低类别召回的绝对变化达到 **12 个百分点**时，才认为它们真正区分了竞争解释；性能显著下降和显著改善都属于信息，因为 falsification 本来就可能通过“只改一个因素后结果崩掉”完成。受控实验训练完成后、正式审计前必须写入 `causalPrediction: material | null`，把“这个单变量应该明显影响结果 / 应该基本不起作用”封存在 run record 与 session 中；运行时 guard 与按钮状态都阻止未预注册的 fields-only / model-only 审计。repeat 只验证稳定性，mixed change 无法归因，都不能解锁病因。
 
 `CASE_LEADS.LOG` 在第一条 baseline 后显示两条 syndrome-neutral 假设：`H-FIELDS / H-MODEL`。每个轴分别记住最近一次受控实验：未测试为 `OPEN`，material change 为 `SUPPORTED`，实际测试过但变化 <12pt 为 `WEAKENED`；两个轴都可能被支持，此时 UI 明确提示单一主因解释不足。这个状态由玩家自己的 run history 计算，不读取 `caseData.syndrome`。
 
