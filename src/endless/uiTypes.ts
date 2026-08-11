@@ -1,6 +1,6 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
-import type { EndlessSyndrome } from './generator'
+import type { EndlessCaseLead, EndlessCaseLeadId, EndlessSyndrome } from './generator'
 
 export type BandPrediction = 'high' | 'mid' | 'low'
 // `material` is retained only so in-progress v6 sessions created before directional
@@ -61,6 +61,24 @@ export function experimentConfigKey(model: ModelId, features: [FeatureKey, Featu
 
 export function diagnosisInterventionAxis(diagnosis: EndlessSyndrome): InterventionAxis {
   return diagnosis === 'overfit-noise' ? 'model' : 'fields'
+}
+
+export function diagnosisSourceLeadId(diagnosis: EndlessSyndrome): EndlessCaseLeadId | undefined {
+  if (diagnosis === 'overfit-noise') return 'quality'
+  if (diagnosis === 'distribution-shift') return 'batch'
+  if (diagnosis === 'class-imbalance') return 'composition'
+  return undefined
+}
+
+export function diagnosisSourceSupported(
+  diagnosis: EndlessSyndrome,
+  inspectedLeadIds: EndlessCaseLeadId[],
+  leadSources: EndlessCaseLead[],
+) {
+  const requiredLeadId = diagnosisSourceLeadId(diagnosis)
+  if (!requiredLeadId) return true
+  if (!inspectedLeadIds.includes(requiredLeadId)) return false
+  return leadSources.find((lead) => lead.id === requiredLeadId)?.result === 'signal'
 }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {

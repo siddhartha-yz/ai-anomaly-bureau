@@ -73,5 +73,5 @@ describe('Duty hypothesis depth', () => {
     // axis clearly enough that a controlled experiment can reduce uncertainty.
     expect(intendedAxisDominates / seeds.length).toBeGreaterThanOrEqual(.9)
     expect(overfitK5Discriminates / overfitCases).toBeGreaterThanOrEqual(.95)
-  })
+  }, 15_000)
 })

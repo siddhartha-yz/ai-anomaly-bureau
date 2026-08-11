@@ -199,6 +199,7 @@ export function EndlessDiagnosis({
   evidenceReady,
   falsificationReady,
   falsificationSummary,
+  sourceSupportReady,
   diagnosisAvailable,
   attention = false,
   onChange,
@@ -217,6 +218,7 @@ export function EndlessDiagnosis({
   evidenceReady: boolean
   falsificationReady: boolean
   falsificationSummary?: string
+  sourceSupportReady: boolean
   diagnosisAvailable: boolean
   attention?: boolean
   onChange: (value: EndlessSyndrome) => void
@@ -241,7 +243,9 @@ export function EndlessDiagnosis({
             ? '这组对照只有支持、没有独立反证。再用另一条干预轴做预注册 null test，或复核一份明确为 clear 的原因来源。'
             : !evidenceMatchesDiagnosis
               ? `当前引用实际支持 ${citedAxisLabel}，但你选择的病因需要 ${expectedAxisLabel} 的 material 因果支持。请更换诊断，或引用与该病因机制一致的单变量实验。`
-              : `这组支持证据已经配上独立反证：${falsificationSummary ?? '已记录'}。可以进入诊断。`}</span>
+              : !sourceSupportReady
+                ? '实验轴与诊断一致，但这项病因还缺少对应来源的正向事实。请回到 CASE LEADS 复核它声称的原因来源；不能只凭病因名称猜中结案。'
+                : `这组支持证据已经配上独立反证：${falsificationSummary ?? '已记录'}。可以进入诊断。`}</span>
       </div>
       {caseData.diagnosis.options.map((option) => (
         <button

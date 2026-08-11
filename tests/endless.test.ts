@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createEndlessCase, createEndlessCasePreview, enumerateEndlessSolutions, type EndlessCase } from '../src/endless/generator'
+import { diagnosisSourceLeadId } from '../src/endless/uiTypes'
 import type { FeatureKey } from '../src/ml/types'
 
 function keyWith(caseData: EndlessCase, text: string): FeatureKey {
@@ -68,6 +69,18 @@ describe('supervised endless case generator', () => {
     expect(shifted.batchContext?.history).toBeTruthy()
     expect(shifted.batchContext?.field).toBeTruthy()
     expect(shifted.batchContext?.history).not.toBe(shifted.batchContext?.field)
+  })
+
+  it('keeps every source-identifiable true diagnosis backed by its matching positive source', () => {
+    const seen = new Set<string>()
+    for (let seed = 6000; seed < 6400; seed += 1) {
+      const caseData = createEndlessCase(seed)
+      seen.add(caseData.syndrome)
+      const requiredLeadId = diagnosisSourceLeadId(caseData.syndrome)
+      if (!requiredLeadId) continue
+      expect(caseData.leadSources.find((lead) => lead.id === requiredLeadId)?.result, `seed ${seed} ${caseData.syndrome}`).toBe('signal')
+    }
+    expect(seen).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
   })
 
   it('generates solvable cases without making random configurations a reliable strategy', () => {

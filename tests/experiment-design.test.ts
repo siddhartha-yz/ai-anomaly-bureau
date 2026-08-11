@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -23,6 +23,28 @@ describe('endless experiment comparison metadata', () => {
     expect(diagnosisInterventionAxis('feature-gap')).toBe('fields')
     expect(diagnosisInterventionAxis('distribution-shift')).toBe('fields')
     expect(diagnosisInterventionAxis('class-imbalance')).toBe('fields')
+  })
+
+  it('requires source-identifiable diagnoses to inspect their matching positive cause source', () => {
+    const leads = [
+      { id: 'composition', label: 'coverage', prompt: '', finding: '', result: 'signal' },
+      { id: 'batch', label: 'batch', prompt: '', finding: '', result: 'signal' },
+      { id: 'quality', label: 'quality', prompt: '', finding: '', result: 'signal' },
+    ] as const
+
+    expect(diagnosisSourceLeadId('overfit-noise')).toBe('quality')
+    expect(diagnosisSourceLeadId('distribution-shift')).toBe('batch')
+    expect(diagnosisSourceLeadId('class-imbalance')).toBe('composition')
+    expect(diagnosisSourceLeadId('feature-gap')).toBeUndefined()
+
+    expect(diagnosisSourceSupported('overfit-noise', ['batch'], [...leads])).toBe(false)
+    expect(diagnosisSourceSupported('overfit-noise', ['quality'], [...leads])).toBe(true)
+    expect(diagnosisSourceSupported('distribution-shift', ['batch'], [...leads])).toBe(true)
+    expect(diagnosisSourceSupported('class-imbalance', ['composition'], [...leads])).toBe(true)
+    expect(diagnosisSourceSupported('feature-gap', [], [...leads])).toBe(true)
+    expect(diagnosisSourceSupported('overfit-noise', ['quality'], [
+      { ...leads[0] }, { ...leads[1] }, { ...leads[2], result: 'clear' },
+    ])).toBe(false)
   })
 
   it('distinguishes controlled comparisons from changing everything at once', () => {
