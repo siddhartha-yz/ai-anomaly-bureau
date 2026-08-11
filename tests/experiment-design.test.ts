@@ -44,7 +44,7 @@ describe('endless experiment comparison metadata', () => {
     expect(experimentPlanDelta(previous, 'tree', ['texture', 'aspect'])).toBe('mixed')
   })
 
-  it('requires two cited runs from genuinely different configurations', () => {
+  it('requires cited runs to be a genuinely executed sequential comparison', () => {
     const history = [
       record({ id: 1 }),
       record({ id: 2 }),
@@ -55,6 +55,13 @@ describe('endless experiment comparison metadata', () => {
     expect(diagnosisEvidenceStatus(history, [1, 3])).toMatchObject({
       distinctConfigurations: 2,
       includesFreshEvidence: true,
+      sequentialExperiment: false,
+      ready: false,
+    })
+    expect(diagnosisEvidenceStatus(history, [2, 3])).toMatchObject({
+      distinctConfigurations: 2,
+      includesFreshEvidence: true,
+      sequentialExperiment: true,
       ready: true,
     })
   })
@@ -67,11 +74,13 @@ describe('endless experiment comparison metadata', () => {
     ]
     expect(diagnosisEvidenceStatus(history, [1, 2], 2)).toMatchObject({
       includesFreshEvidence: false,
+      sequentialExperiment: true,
       ready: false,
     })
     expect(diagnosisEvidenceStatus(history, [2, 3], 2)).toMatchObject({
       distinctConfigurations: 2,
       includesFreshEvidence: true,
+      sequentialExperiment: true,
       ready: true,
     })
   })

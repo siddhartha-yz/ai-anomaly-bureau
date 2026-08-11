@@ -110,7 +110,9 @@ export function EndlessRunLog({
         ? '这两条记录属于同一配置；请引用一条不同配置的对照记录。'
         : !cited.includesFreshEvidence
           ? '下一份报告必须包含上次诊断后新增的实验记录。'
-          : citedDiscrimination?.delta === 'mixed'
+          : !cited.sequentialExperiment
+            ? '这两条记录不是一次实际连续执行的实验；请引用当时真正相邻的前后两条记录，不能事后跨实验拼接对照。'
+            : citedDiscrimination?.delta === 'mixed'
             ? '这两条记录同时改了字段和模型，无法知道是哪一个因素造成变化。'
             : citedDiscrimination?.delta === 'repeat'
               ? '同配置复现能检查稳定性，但不能区分 H-FIELDS 与 H-MODEL。'

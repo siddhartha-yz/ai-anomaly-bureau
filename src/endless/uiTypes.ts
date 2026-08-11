@@ -29,6 +29,7 @@ export type DiagnosisEvidenceStatus = {
   records: EndlessRunRecord[]
   distinctConfigurations: number
   includesFreshEvidence: boolean
+  sequentialExperiment: boolean
   ready: boolean
 }
 
@@ -99,11 +100,15 @@ export function diagnosisEvidenceStatus(
   const records = history.filter((record) => selected.has(record.id))
   const distinctConfigurations = new Set(records.map((record) => experimentConfigKey(record.model, record.features))).size
   const includesFreshEvidence = lastDiagnosisRunCount === 0 || records.some((record) => record.id > lastDiagnosisRunCount)
+  const firstIndex = records.length === 2 ? history.indexOf(records[0]) : -1
+  const secondIndex = records.length === 2 ? history.indexOf(records[1]) : -1
+  const sequentialExperiment = firstIndex >= 0 && secondIndex === firstIndex + 1
   return {
     records,
     distinctConfigurations,
     includesFreshEvidence,
-    ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence,
+    sequentialExperiment,
+    ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence && sequentialExperiment,
   }
 }
 

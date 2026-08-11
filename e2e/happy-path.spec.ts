@@ -833,8 +833,17 @@ test('repeating the same endless configuration is replication, not new diagnosti
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('同一配置')
   await expect(page.getByLabel('已引用实验对照')).toContainText('同配置复现')
   await expect(page.getByRole('button', { name: /观察特征没有抓住真正差异/ })).toBeDisabled()
+  // E01 and E03 happen to look like the same fields-only contrast, but E03 was
+  // actually run against E02. A diagnosis may not synthesize the skipped E01→E03
+  // comparison after seeing the outcomes.
   await page.locator('.endless-run-log').getByRole('button', { name: /已引用 E02/ }).click()
   await citeEndlessRuns(page, 3)
+  await expect(page.getByLabel('诊断证据引用状态')).toContainText('不是一次实际连续执行的实验')
+  await expect(page.getByRole('button', { name: /观察特征没有抓住真正差异/ })).toBeDisabled()
+
+  // Cite the real executed E02→E03 intervention instead.
+  await page.locator('.endless-run-log').getByRole('button', { name: /已引用 E01/ }).click()
+  await citeEndlessRuns(page, 2)
   await expect(page.getByLabel('诊断证据引用状态')).toContainText('证据包就绪')
   await expect(page.getByRole('button', { name: /观察特征没有抓住真正差异/ })).toBeEnabled()
 })
@@ -1440,7 +1449,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(page.locator('.endless-run-log article').nth(3)).toHaveAttribute('data-delta', 'fields-only')
   await expect(page.getByLabel('竞争假设')).toContainText(/现场证据下降|SUPPORTED/)
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
-  await citeEndlessRuns(page, 2, 4)
+  await citeEndlessRuns(page, 3, 4)
   await expect(page.getByLabel('已引用实验对照')).toContainText('只换字段')
   await expect(page.getByText(/新证据已经写入报告/)).toBeVisible()
   await page.getByRole('button', { name: '观察特征没有抓住真正差异' }).click()
@@ -1453,7 +1462,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(closureReport).toContainText('FINAL CONFIG')
   await expect(closureReport).toContainText(/单变量对照/)
   await expect(closureReport).toContainText('EVIDENCE CHAIN')
-  await expect(closureReport).toContainText('E02 + E04')
+  await expect(closureReport).toContainText('E03 + E04')
   await expect(closureReport).toContainText('只换字段')
   await expect(closureReport).toContainText('FALSIFICATION')
   await expect(closureReport).toContainText('历史质量记录返回 CLEAR')
@@ -1481,7 +1490,7 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(resolvedSavedCase).toContainText('CASE 6000')
   await page.getByRole('button', { name: /查看 CASE 6000 结案报告/ }).click()
   await expect(page.getByText('CASE RESOLVED')).toBeVisible()
-  await expect(page.getByLabel('无尽案件结案报告')).toContainText('E02 + E04')
+  await expect(page.getByLabel('无尽案件结案报告')).toContainText('E03 + E04')
   await expect(page.getByLabel('无尽案件结案报告')).toContainText('历史质量记录返回 CLEAR')
 
   // Endless still means the next case is generated without a backend.
