@@ -191,7 +191,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
   const sourceFalsification = inspectedCaseLeadIds.some((id) => caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear')
-  const interventionFalsification = competingAxisNullResult(history, discriminatingEvidence?.comparison.axis)
+  const interventionFalsification = competingAxisNullResult(history, discriminatingEvidence)
   const falsificationReady = sourceFalsification || Boolean(interventionFalsification)
   const diagnosisAvailable = distinctConfigCount >= 2
     && Boolean(discriminatingEvidence)
@@ -205,7 +205,9 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     : undefined
   const evidenceReady = citedEvidence.ready && Boolean(citedDiscrimination?.discriminating)
   const citedFalsificationReady = sourceFalsification
-    || Boolean(competingAxisNullResult(history, citedDiscrimination?.axis))
+    || Boolean(competingAxisNullResult(history, citedDiscrimination && citedEvidence.records.length === 2
+      ? { first: citedEvidence.records[0], second: citedEvidence.records[1], comparison: citedDiscrimination }
+      : undefined))
   const reportReady = evidenceReady && citedFalsificationReady
   const canSubmitDiagnosis = diagnosisAvailable && reportReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable

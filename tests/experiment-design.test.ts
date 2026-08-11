@@ -138,17 +138,29 @@ describe('endless experiment comparison metadata', () => {
     const modelNull = record({ id: 4, model: 'tree', features: ['warmth', 'roundness'], test: .88, recall: { cat: .88, bread: .88 }, causalPrediction: 'null' })
 
     expect(preRegisteredNullResult(fieldsSupport, fieldsNull)).toBe(true)
-    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull], 'fields')).toBeUndefined()
-    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], 'fields')).toMatchObject({
+    const fieldsEvidence = { first: baseline, second: fieldsSupport, comparison: discriminatingExperiment(baseline, fieldsSupport) }
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull], fieldsEvidence)).toBeUndefined()
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], fieldsEvidence)).toMatchObject({
       first: { id: 3 },
       second: { id: 4 },
       comparison: { axis: 'model', discriminating: false },
     })
-    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], 'model')).toMatchObject({
+    const modelEvidence = { first: fieldsNull, second: modelNull, comparison: discriminatingExperiment(fieldsNull, modelNull) }
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], modelEvidence)).toMatchObject({
       first: { id: 2 },
       second: { id: 3 },
       comparison: { axis: 'fields', discriminating: false },
     })
+  })
+
+  it('does not let an unrelated competing-axis null falsify a material intervention', () => {
+    const baseline = record({ id: 1, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 } })
+    const fieldsSupport = record({ id: 2, model: 'linear', features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 } })
+    const unrelatedFields = record({ id: 3, model: 'linear', features: ['warmth', 'texture'], test: .72, recall: { cat: .72, bread: .72 }, causalPrediction: 'null' })
+    const unrelatedModelNull = record({ id: 4, model: 'tree', features: ['warmth', 'texture'], test: .73, recall: { cat: .73, bread: .72 }, causalPrediction: 'null' })
+    const support = { first: baseline, second: fieldsSupport, comparison: discriminatingExperiment(baseline, fieldsSupport) }
+
+    expect(competingAxisNullResult([baseline, fieldsSupport, unrelatedFields, unrelatedModelNull], support)).toBeUndefined()
   })
 
   it('only lets a weak controlled result count as falsification when its causal expectation was registered first', () => {

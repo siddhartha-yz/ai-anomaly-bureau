@@ -151,13 +151,19 @@ export function preRegisteredNullResult(first: EndlessRunRecord, second: Endless
 
 export function competingAxisNullResult(
   history: EndlessRunRecord[],
-  supportedAxis: 'fields' | 'model' | undefined,
+  support: { first: EndlessRunRecord; second: EndlessRunRecord; comparison: DiscriminatingComparison } | undefined,
 ) {
+  const supportedAxis = support?.comparison.axis
   if (!supportedAxis) return undefined
   const competingAxis = supportedAxis === 'fields' ? 'model' : 'fields'
   for (let index = history.length - 1; index > 0; index -= 1) {
     const comparison = discriminatingExperiment(history[index - 1], history[index])
     if (comparison.axis !== competingAxis) continue
+    const anchored = supportedAxis === 'fields'
+      ? sameFeatureSet(history[index].features, support.first.features)
+        || sameFeatureSet(history[index].features, support.second.features)
+      : history[index].model === support.first.model || history[index].model === support.second.model
+    if (!anchored) continue
     if (preRegisteredNullResult(history[index - 1], history[index])) {
       return { first: history[index - 1], second: history[index], comparison }
     }
