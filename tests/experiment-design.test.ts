@@ -162,14 +162,25 @@ describe('endless experiment comparison metadata', () => {
     })
   })
 
-  it('does not let an unrelated competing-axis null falsify a material intervention', () => {
+  it('does not let a disconnected competing-axis null falsify a material intervention', () => {
     const baseline = record({ id: 1, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 } })
     const fieldsSupport = record({ id: 2, model: 'linear', features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 } })
-    const unrelatedFields = record({ id: 3, model: 'linear', features: ['warmth', 'texture'], test: .72, recall: { cat: .72, bread: .72 }, causalPrediction: 'null' })
-    const unrelatedModelNull = record({ id: 4, model: 'tree', features: ['warmth', 'texture'], test: .73, recall: { cat: .73, bread: .72 }, causalPrediction: 'null' })
+    const sameFieldsOtherModel = record({ id: 3, model: 'tree', features: ['texture', 'aspect'], test: .72, recall: { cat: .72, bread: .72 }, causalPrediction: 'degraded' })
+    const disconnectedModelNull = record({ id: 4, model: 'knn-1', features: ['texture', 'aspect'], test: .73, recall: { cat: .73, bread: .72 }, causalPrediction: 'null' })
     const support = { first: baseline, second: fieldsSupport, comparison: discriminatingExperiment(baseline, fieldsSupport) }
 
-    expect(competingAxisNullResult([baseline, fieldsSupport, unrelatedFields, unrelatedModelNull], support)).toBeUndefined()
+    expect(competingAxisNullResult([baseline, fieldsSupport, sameFieldsOtherModel, disconnectedModelNull], support)).toBeUndefined()
+
+    const modelSupportStart = record({ id: 5, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 } })
+    const modelSupportEnd = record({ id: 6, model: 'tree', features: ['warmth', 'roundness'], test: .90, recall: { cat: .90, bread: .90 } })
+    const unrelatedFieldsStart = record({ id: 7, model: 'tree', features: ['texture', 'aspect'], test: .72, recall: { cat: .72, bread: .72 }, causalPrediction: 'degraded' })
+    const disconnectedFieldsNull = record({ id: 8, model: 'tree', features: ['warmth', 'texture'], test: .73, recall: { cat: .73, bread: .72 }, causalPrediction: 'null' })
+    const modelSupport = { first: modelSupportStart, second: modelSupportEnd, comparison: discriminatingExperiment(modelSupportStart, modelSupportEnd) }
+
+    expect(competingAxisNullResult(
+      [modelSupportStart, modelSupportEnd, unrelatedFieldsStart, disconnectedFieldsNull],
+      modelSupport,
+    )).toBeUndefined()
   })
 
   it('keeps an earlier complete causal package valid after a later unrelated material experiment', () => {

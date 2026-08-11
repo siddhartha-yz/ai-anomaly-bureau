@@ -189,11 +189,14 @@ export function competingAxisNullResult(
     if (history[index].id <= afterRunId) continue
     const comparison = discriminatingExperiment(history[index - 1], history[index])
     if (comparison.axis !== competingAxis) continue
-    const anchored = supportedAxis === 'fields'
-      ? sameFeatureSet(history[index].features, support.first.features)
-        || sameFeatureSet(history[index].features, support.second.features)
-      : history[index].model === support.first.model || history[index].model === support.second.model
-    if (!anchored) continue
+    const nullFirst = history[index - 1]
+    const nullSecond = history[index]
+    const sharesSupportEndpoint = [nullFirst, nullSecond].some((record) =>
+      [support.first, support.second].some((endpoint) =>
+        record.model === endpoint.model && sameFeatureSet(record.features, endpoint.features),
+      ),
+    )
+    if (!sharesSupportEndpoint) continue
     if (preRegisteredNullResult(history[index - 1], history[index])) {
       return { first: history[index - 1], second: history[index], comparison }
     }
