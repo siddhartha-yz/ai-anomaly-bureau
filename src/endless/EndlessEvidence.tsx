@@ -191,6 +191,7 @@ export function EndlessDiagnosis({
   lastOutcome,
   evidenceRecords,
   evidenceReady,
+  falsificationReady,
   diagnosisAvailable,
   attention = false,
   onChange,
@@ -207,6 +208,7 @@ export function EndlessDiagnosis({
   lastOutcome?: 'wrong' | 'needs-reliable'
   evidenceRecords: EndlessRunRecord[]
   evidenceReady: boolean
+  falsificationReady: boolean
   diagnosisAvailable: boolean
   attention?: boolean
   onChange: (value: EndlessSyndrome) => void
@@ -217,17 +219,21 @@ export function EndlessDiagnosis({
     <section className={`endless-diagnosis ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>04 / DIAGNOSIS</span><strong>提交病因</strong></div>
       <p>先从实验日志引用两条能区分解释的单变量对照，再把它们写成病因判断。原样复现或同时改字段与模型，都不能说明究竟是哪一个因素改变了结果。</p>
-      <div className={`diagnosis-evidence-packet ${evidenceReady ? 'ready' : ''}`}>
+      <div className={`diagnosis-evidence-packet ${evidenceReady && falsificationReady ? 'ready' : ''}`}>
         <small>引用证据</small>
         <strong>{evidenceRecords.length ? evidenceRecords.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '尚未建立证据包'}</strong>
-        <span>{evidenceReady ? '两条对照记录已进入本次诊断报告。' : '返回 EXPERIMENTS.LOG 选择两条有效记录。'}</span>
+        <span>{!evidenceReady
+          ? '返回 EXPERIMENTS.LOG 选择两条有效记录。'
+          : falsificationReady
+            ? '这组支持证据已经配上独立反证，可以进入诊断。'
+            : '这组对照只有支持、没有独立反证。再用另一条干预轴做预注册 null test，或复核一份明确为 clear 的原因来源。'}</span>
       </div>
       {caseData.diagnosis.options.map((option) => (
         <button
           type="button"
           key={option.id}
           className={value === option.id ? 'selected' : ''}
-          disabled={!diagnosisAvailable || !evidenceReady}
+          disabled={!diagnosisAvailable || !evidenceReady || !falsificationReady}
           onClick={() => onChange(option.id)}
         >
           {option.label}

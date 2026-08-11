@@ -149,6 +149,22 @@ export function preRegisteredNullResult(first: EndlessRunRecord, second: Endless
   return Boolean(result && result.observed === 'null')
 }
 
+export function competingAxisNullResult(
+  history: EndlessRunRecord[],
+  supportedAxis: 'fields' | 'model' | undefined,
+) {
+  if (!supportedAxis) return undefined
+  const competingAxis = supportedAxis === 'fields' ? 'model' : 'fields'
+  for (let index = history.length - 1; index > 0; index -= 1) {
+    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    if (comparison.axis !== competingAxis) continue
+    if (preRegisteredNullResult(history[index - 1], history[index])) {
+      return { first: history[index - 1], second: history[index], comparison }
+    }
+  }
+  return undefined
+}
+
 export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
   for (let index = history.length - 1; index > 0; index -= 1) {
     if (history[index].id <= afterRunId) continue

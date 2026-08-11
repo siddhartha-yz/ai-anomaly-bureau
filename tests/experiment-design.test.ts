@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalPredictionResult, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -129,6 +129,26 @@ describe('endless experiment comparison metadata', () => {
 
     expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed])?.comparison.axis).toBe('fields')
     expect(latestDiscriminatingExperiment([baseline, fieldsOnly, mixed], 2)).toBeUndefined()
+  })
+
+  it('only lets a preregistered null falsify the competing intervention axis', () => {
+    const baseline = record({ id: 1, model: 'linear', features: ['warmth', 'roundness'], test: .70, recall: { cat: .70, bread: .70 } })
+    const fieldsSupport = record({ id: 2, model: 'linear', features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 }, causalPrediction: 'material' })
+    const fieldsNull = record({ id: 3, model: 'linear', features: ['warmth', 'roundness'], test: .89, recall: { cat: .89, bread: .89 }, causalPrediction: 'null' })
+    const modelNull = record({ id: 4, model: 'tree', features: ['warmth', 'roundness'], test: .88, recall: { cat: .88, bread: .88 }, causalPrediction: 'null' })
+
+    expect(preRegisteredNullResult(fieldsSupport, fieldsNull)).toBe(true)
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull], 'fields')).toBeUndefined()
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], 'fields')).toMatchObject({
+      first: { id: 3 },
+      second: { id: 4 },
+      comparison: { axis: 'model', discriminating: false },
+    })
+    expect(competingAxisNullResult([baseline, fieldsSupport, fieldsNull, modelNull], 'model')).toMatchObject({
+      first: { id: 2 },
+      second: { id: 3 },
+      comparison: { axis: 'fields', discriminating: false },
+    })
   })
 
   it('only lets a weak controlled result count as falsification when its causal expectation was registered first', () => {

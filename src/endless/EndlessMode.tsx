@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestControlledExperiment, latestDiscriminatingExperiment, preRegisteredNullResult, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -191,11 +191,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
   const sourceFalsification = inspectedCaseLeadIds.some((id) => caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear')
-  const interventionFalsification = (['fields', 'model'] as const).some((axis) => {
-    const controlled = latestControlledExperiment(history, axis)
-    return Boolean(controlled && preRegisteredNullResult(controlled.first, controlled.second))
-  })
-  const falsificationReady = sourceFalsification || interventionFalsification
+  const interventionFalsification = competingAxisNullResult(history, discriminatingEvidence?.comparison.axis)
+  const falsificationReady = sourceFalsification || Boolean(interventionFalsification)
   const diagnosisAvailable = distinctConfigCount >= 2
     && Boolean(discriminatingEvidence)
     && Boolean(bestReliable)
@@ -207,14 +204,17 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     ? discriminatingExperiment(citedEvidence.records[0], citedEvidence.records[1])
     : undefined
   const evidenceReady = citedEvidence.ready && Boolean(citedDiscrimination?.discriminating)
-  const canSubmitDiagnosis = diagnosisAvailable && evidenceReady
+  const citedFalsificationReady = sourceFalsification
+    || Boolean(competingAxisNullResult(history, citedDiscrimination?.axis))
+  const reportReady = evidenceReady && citedFalsificationReady
+  const canSubmitDiagnosis = diagnosisAvailable && reportReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
   const objective = objectiveFor({
     trained,
     auditComplete: Boolean(auditResult),
     history,
     diagnosisAvailable,
-    evidenceReady,
+    evidenceReady: reportReady,
     diagnosisLocked,
     credits,
     inspectedCaseLeadCount: inspectedCaseLeadIds.length,
@@ -495,6 +495,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
                 lastOutcome={lastDiagnosisOutcome}
                 evidenceRecords={citedEvidence.records}
                 evidenceReady={evidenceReady}
+                falsificationReady={citedFalsificationReady}
                 diagnosisAvailable={diagnosisAvailable}
                 attention={objective.target === 'diagnosis' || objective.target === 'recovery'}
                 onChange={(value) => { audio.play('select'); setDiagnosis(value) }}
