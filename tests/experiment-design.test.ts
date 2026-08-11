@@ -179,6 +179,23 @@ describe('endless experiment comparison metadata', () => {
     expect(latestFalsifiedDiscriminatingExperiment(history, 2)).toBeUndefined()
   })
 
+  it('does not let a fresh retry support reuse a null falsification from before the failed diagnosis', () => {
+    const baseline = record({ id: 1, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 } })
+    const oldModelNull = record({ id: 2, model: 'tree', features: ['warmth', 'roundness'], test: .61, recall: { cat: .61, bread: .60 }, causalPrediction: 'null' })
+    const resetModel = record({ id: 3, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 }, causalPrediction: 'null' })
+    const freshFieldsSupport = record({ id: 4, model: 'linear', features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 }, causalPrediction: 'improved' })
+    const support = { first: resetModel, second: freshFieldsSupport, comparison: discriminatingExperiment(resetModel, freshFieldsSupport) }
+    const history = [baseline, oldModelNull, resetModel, freshFieldsSupport]
+
+    expect(competingAxisNullResult(history, support)).toMatchObject({
+      first: { id: 2 },
+      second: { id: 3 },
+      comparison: { axis: 'model', discriminating: false },
+    })
+    expect(competingAxisNullResult(history, support, 3)).toBeUndefined()
+    expect(latestFalsifiedDiscriminatingExperiment(history, 3)).toBeUndefined()
+  })
+
   it('summarizes directional causal forecast calibration without counting baseline or mixed runs', () => {
     const baseline = record({ id: 1, test: .70, recall: { cat: .70, bread: .70 } })
     const fieldsHit = record({ id: 2, features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 }, causalPrediction: 'improved' })

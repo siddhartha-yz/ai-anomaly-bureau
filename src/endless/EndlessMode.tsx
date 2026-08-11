@@ -210,7 +210,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const evidenceReady = citedEvidence.ready && Boolean(citedDiscrimination?.discriminating)
   const citedInterventionFalsification = competingAxisNullResult(history, citedDiscrimination && citedEvidence.records.length === 2
     ? { first: citedEvidence.records[0], second: citedEvidence.records[1], comparison: citedDiscrimination }
-    : undefined)
+    : undefined, lastDiagnosisRunCount)
   const citedFalsificationReady = sourceFalsification || Boolean(citedInterventionFalsification)
   const citedFalsificationSummary = sourceFalsificationLead
     ? `${sourceFalsificationLead.label}返回 CLEAR`

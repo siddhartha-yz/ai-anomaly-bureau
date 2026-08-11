@@ -175,11 +175,13 @@ export function preRegisteredNullResult(first: EndlessRunRecord, second: Endless
 export function competingAxisNullResult(
   history: EndlessRunRecord[],
   support: { first: EndlessRunRecord; second: EndlessRunRecord; comparison: DiscriminatingComparison } | undefined,
+  afterRunId = 0,
 ) {
   const supportedAxis = support?.comparison.axis
   if (!supportedAxis) return undefined
   const competingAxis = supportedAxis === 'fields' ? 'model' : 'fields'
   for (let index = history.length - 1; index > 0; index -= 1) {
+    if (history[index].id <= afterRunId) continue
     const comparison = discriminatingExperiment(history[index - 1], history[index])
     if (comparison.axis !== competingAxis) continue
     const anchored = supportedAxis === 'fields'
@@ -209,7 +211,7 @@ export function latestFalsifiedDiscriminatingExperiment(history: EndlessRunRecor
     const comparison = discriminatingExperiment(history[index - 1], history[index])
     if (!comparison.discriminating) continue
     const support = { first: history[index - 1], second: history[index], comparison }
-    const falsification = competingAxisNullResult(history, support)
+    const falsification = competingAxisNullResult(history, support, afterRunId)
     if (falsification) return { support, falsification }
   }
   return undefined
