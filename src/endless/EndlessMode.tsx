@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -195,8 +195,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     .map((id) => caseData.leadSources.find((lead) => lead.id === id))
     .find((lead) => lead?.result === 'clear')
   const sourceFalsification = Boolean(sourceFalsificationLead)
-  const interventionFalsification = competingAxisNullResult(history, discriminatingEvidence)
-  const falsificationReady = sourceFalsification || Boolean(interventionFalsification)
+  const falsifiedInterventionEvidence = latestFalsifiedDiscriminatingExperiment(history, lastDiagnosisRunCount)
+  const falsificationReady = sourceFalsification || Boolean(falsifiedInterventionEvidence)
   const diagnosisAvailable = distinctConfigCount >= 2
     && Boolean(discriminatingEvidence)
     && Boolean(bestReliable)

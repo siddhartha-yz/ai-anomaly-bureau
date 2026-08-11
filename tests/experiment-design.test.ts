@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -161,6 +161,22 @@ describe('endless experiment comparison metadata', () => {
     const support = { first: baseline, second: fieldsSupport, comparison: discriminatingExperiment(baseline, fieldsSupport) }
 
     expect(competingAxisNullResult([baseline, fieldsSupport, unrelatedFields, unrelatedModelNull], support)).toBeUndefined()
+  })
+
+  it('keeps an earlier complete causal package valid after a later unrelated material experiment', () => {
+    const baseline = record({ id: 1, model: 'linear', features: ['warmth', 'roundness'], test: .60, recall: { cat: .60, bread: .60 } })
+    const fieldsSupport = record({ id: 2, model: 'linear', features: ['texture', 'aspect'], test: .90, recall: { cat: .90, bread: .90 }, causalPrediction: 'improved' })
+    const modelNull = record({ id: 3, model: 'tree', features: ['texture', 'aspect'], test: .91, recall: { cat: .91, bread: .90 }, causalPrediction: 'null' })
+    const laterModelMaterial = record({ id: 4, model: 'knn-1', features: ['texture', 'aspect'], test: .70, recall: { cat: .70, bread: .69 }, causalPrediction: 'degraded' })
+    const history = [baseline, fieldsSupport, modelNull, laterModelMaterial]
+
+    expect(latestDiscriminatingExperiment(history)?.second.id).toBe(4)
+    expect(competingAxisNullResult(history, latestDiscriminatingExperiment(history))).toBeUndefined()
+    expect(latestFalsifiedDiscriminatingExperiment(history)).toMatchObject({
+      support: { first: { id: 1 }, second: { id: 2 }, comparison: { axis: 'fields', discriminating: true } },
+      falsification: { first: { id: 2 }, second: { id: 3 }, comparison: { axis: 'model', discriminating: false } },
+    })
+    expect(latestFalsifiedDiscriminatingExperiment(history, 2)).toBeUndefined()
   })
 
   it('summarizes directional causal forecast calibration without counting baseline or mixed runs', () => {

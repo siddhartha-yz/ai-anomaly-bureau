@@ -203,6 +203,18 @@ export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afte
   return undefined
 }
 
+export function latestFalsifiedDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
+  for (let index = history.length - 1; index > 0; index -= 1) {
+    if (history[index].id <= afterRunId) continue
+    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    if (!comparison.discriminating) continue
+    const support = { first: history[index - 1], second: history[index], comparison }
+    const falsification = competingAxisNullResult(history, support)
+    if (falsification) return { support, falsification }
+  }
+  return undefined
+}
+
 export function latestControlledExperiment(
   history: EndlessRunRecord[],
   axis: 'fields' | 'model',
