@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -48,7 +48,7 @@ describe('endless experiment comparison metadata', () => {
     const history = [
       record({ id: 1 }),
       record({ id: 2 }),
-      record({ id: 3, features: ['texture', 'aspect'] }),
+      record({ id: 3, features: ['texture', 'aspect'], reliable: true }),
     ]
     expect(diagnosisEvidenceStatus(history, [1]).ready).toBe(false)
     expect(diagnosisEvidenceStatus(history, [1, 2]).ready).toBe(false)
@@ -70,7 +70,7 @@ describe('endless experiment comparison metadata', () => {
     const history = [
       record({ id: 1 }),
       record({ id: 2, features: ['texture', 'aspect'] }),
-      record({ id: 3, model: 'tree', features: ['texture', 'aspect'] }),
+      record({ id: 3, model: 'tree', features: ['texture', 'aspect'], reliable: true }),
     ]
     expect(diagnosisEvidenceStatus(history, [1, 2], 2)).toMatchObject({
       includesFreshEvidence: false,
@@ -81,6 +81,41 @@ describe('endless experiment comparison metadata', () => {
       distinctConfigurations: 2,
       includesFreshEvidence: true,
       sequentialExperiment: true,
+      ready: true,
+    })
+  })
+
+  it('does not let a disconnected material comparison explain an unrelated reliable solution', () => {
+    const baseline = record({ id: 1, test: .55, recall: { cat: .55, bread: .55 } })
+    const materialButStillBroken = record({
+      id: 2,
+      features: ['texture', 'aspect'],
+      test: .72,
+      recall: { cat: .72, bread: .72 },
+      causalPrediction: 'improved',
+    })
+    const unrelatedReliable = record({
+      id: 3,
+      model: 'tree',
+      features: ['warmth', 'texture'],
+      test: .92,
+      recall: { cat: .92, bread: .90 },
+      reliable: true,
+    })
+    const history = [baseline, materialButStillBroken, unrelatedReliable]
+
+    expect(latestDiscriminatingExperiment(history)).toMatchObject({ second: { id: 2 } })
+    expect(latestReliableDiscriminatingExperiment(history)).toBeUndefined()
+    expect(diagnosisEvidenceStatus(history, [1, 2])).toMatchObject({
+      sequentialExperiment: true,
+      reachesReliableEndpoint: false,
+      ready: false,
+    })
+
+    const repaired = { ...materialButStillBroken, reliable: true, test: .9, recall: { cat: .9, bread: .9 } }
+    expect(latestReliableDiscriminatingExperiment([baseline, repaired])).toMatchObject({ second: { id: 2 } })
+    expect(diagnosisEvidenceStatus([baseline, repaired], [1, 2])).toMatchObject({
+      reachesReliableEndpoint: true,
       ready: true,
     })
   })
@@ -196,6 +231,13 @@ describe('endless experiment comparison metadata', () => {
       support: { first: { id: 1 }, second: { id: 2 }, comparison: { axis: 'fields', discriminating: true } },
       falsification: { first: { id: 2 }, second: { id: 3 }, comparison: { axis: 'model', discriminating: false } },
     })
+    expect(latestFalsifiedDiscriminatingExperiment(history, 0, true)).toBeUndefined()
+    expect(latestFalsifiedDiscriminatingExperiment([
+      baseline,
+      { ...fieldsSupport, reliable: true },
+      modelNull,
+      laterModelMaterial,
+    ], 0, true)).toMatchObject({ support: { second: { id: 2, reliable: true } } })
     expect(latestFalsifiedDiscriminatingExperiment(history, 2)).toBeUndefined()
   })
 

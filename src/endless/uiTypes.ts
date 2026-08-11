@@ -30,6 +30,7 @@ export type DiagnosisEvidenceStatus = {
   distinctConfigurations: number
   includesFreshEvidence: boolean
   sequentialExperiment: boolean
+  reachesReliableEndpoint: boolean
   ready: boolean
 }
 
@@ -103,12 +104,14 @@ export function diagnosisEvidenceStatus(
   const firstIndex = records.length === 2 ? history.indexOf(records[0]) : -1
   const secondIndex = records.length === 2 ? history.indexOf(records[1]) : -1
   const sequentialExperiment = firstIndex >= 0 && secondIndex === firstIndex + 1
+  const reachesReliableEndpoint = records.some((record) => record.reliable)
   return {
     records,
     distinctConfigurations,
     includesFreshEvidence,
     sequentialExperiment,
-    ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence && sequentialExperiment,
+    reachesReliableEndpoint,
+    ready: records.length === 2 && distinctConfigurations === 2 && includesFreshEvidence && sequentialExperiment && reachesReliableEndpoint,
   }
 }
 
@@ -213,12 +216,26 @@ export function latestDiscriminatingExperiment(history: EndlessRunRecord[], afte
   return undefined
 }
 
-export function latestFalsifiedDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
+export function latestReliableDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0) {
   for (let index = history.length - 1; index > 0; index -= 1) {
     if (history[index].id <= afterRunId) continue
-    const comparison = discriminatingExperiment(history[index - 1], history[index])
+    const first = history[index - 1]
+    const second = history[index]
+    const comparison = discriminatingExperiment(first, second)
+    if (comparison.discriminating && (first.reliable || second.reliable)) return { first, second, comparison }
+  }
+  return undefined
+}
+
+export function latestFalsifiedDiscriminatingExperiment(history: EndlessRunRecord[], afterRunId = 0, requireReliableEndpoint = false) {
+  for (let index = history.length - 1; index > 0; index -= 1) {
+    if (history[index].id <= afterRunId) continue
+    const first = history[index - 1]
+    const second = history[index]
+    const comparison = discriminatingExperiment(first, second)
     if (!comparison.discriminating) continue
-    const support = { first: history[index - 1], second: history[index], comparison }
+    if (requireReliableEndpoint && !first.reliable && !second.reliable) continue
+    const support = { first, second, comparison }
     const falsification = competingAxisNullResult(history, support, afterRunId)
     if (falsification) return { support, falsification }
   }

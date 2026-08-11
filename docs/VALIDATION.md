@@ -144,7 +144,7 @@ Vitest 当前覆盖：
 - 正式审计结果只给总体 / 两类 recall 的 PASS/FAIL 门槛，不自动解释成过拟合、漂移或类别不平衡；`TRAIN / FIELD / 召回` 仅有字面指标词典。
 - 正式审计返回的错误卡可点击，选中后对应 public `field-*` 点会滚入 `FIELD_MATRIX` 并高亮；只有亲手检查的错误才进入 `CASE_LEADS.LOG`。
 - `EXPERIMENTS.LOG` 记录 baseline、只换字段、只换模型、混合改动与复现实验；下一次训练前先显示当前配置相对上一条记录的变化类型。
-- 两个不同配置本身不再足够：有效引用必须是 material fields-only / model-only comparison；同配置、mixed change、变化太小的单变量对照都会被拒绝。有效引用只生成字段 / 模型 / 指标变化，不替玩家解释 syndrome。
+- 两个不同配置本身不再足够：有效引用必须是 material fields-only / model-only comparison；同配置、mixed change、变化太小的单变量对照都会被拒绝。有效引用还必须触及至少一个可靠端点，防止把历史中无关的可靠 mixed 配置与另一组 material 对照事后拼成结案解释。回归测试专门构造“E01→E02 material 但仍不可靠，E03 通过无关 mixed 路径可靠”的断链历史，要求诊断引用保持未就绪；把 E02 本身改成可靠端点后才恢复就绪。有效引用只生成字段 / 模型 / 指标变化，不替玩家解释 syndrome。
 - 错误诊断后，原样复现不会解锁改口；必须产生新的 material controlled evidence，而且下一份证据包必须包含这条新记录；若依赖 intervention falsification，则配套 competing-axis null 也必须在上一次诊断后新取得，旧 null 不可复用。浏览器测试还专门验证“从可靠方案只改一个因素后性能显著下降”同样能作为 falsification 证据重新开放报告。
 - 诊断锁且额度为 0 时，sticky 导航会直接定位到“申请 1 次补充审计”，验证有限预算不形成软锁。
 - 正式无尽 session 按 seed 保存在本地：普通刷新不会返还正式审计额度；错误诊断锁、引用状态和已检查证据也会恢复。模式入口显式显示未结案件 / 剩余额度，生成全新案件需要二次确认。

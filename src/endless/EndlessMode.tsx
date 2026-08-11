@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -191,14 +191,15 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const bestReliable = history.filter((record) => record.reliable).sort((a, b) => b.test - a.test)[0]
   const distinctConfigCount = new Set(history.map((record) => experimentConfigKey(record.model, record.features))).size
   const discriminatingEvidence = latestDiscriminatingExperiment(history, lastDiagnosisRunCount)
+  const resolutionEvidence = latestReliableDiscriminatingExperiment(history, lastDiagnosisRunCount)
   const sourceFalsificationLead = inspectedCaseLeadIds
     .map((id) => caseData.leadSources.find((lead) => lead.id === id))
     .find((lead) => lead?.result === 'clear')
   const sourceFalsification = Boolean(sourceFalsificationLead)
-  const falsifiedInterventionEvidence = latestFalsifiedDiscriminatingExperiment(history, lastDiagnosisRunCount)
+  const falsifiedInterventionEvidence = latestFalsifiedDiscriminatingExperiment(history, lastDiagnosisRunCount, true)
   const falsificationReady = sourceFalsification || Boolean(falsifiedInterventionEvidence)
   const diagnosisAvailable = distinctConfigCount >= 2
-    && Boolean(discriminatingEvidence)
+    && Boolean(resolutionEvidence)
     && Boolean(bestReliable)
     && inspectedCaseLeadIds.length > 0
     && falsificationReady

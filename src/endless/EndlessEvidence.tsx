@@ -113,10 +113,14 @@ export function EndlessRunLog({
           : !cited.sequentialExperiment
             ? '这两条记录不是一次实际连续执行的实验；请引用当时真正相邻的前后两条记录，不能事后跨实验拼接对照。'
             : citedDiscrimination?.delta === 'mixed'
-            ? '这两条记录同时改了字段和模型，无法知道是哪一个因素造成变化。'
-            : citedDiscrimination?.delta === 'repeat'
-              ? '同配置复现能检查稳定性，但不能区分 H-FIELDS 与 H-MODEL。'
-              : `这是单变量对照，但现场证据只变化 ${Math.round((citedDiscrimination?.materialChange ?? 0) * 100)}pt；还不足以削弱另一条解释。`
+              ? '这两条记录同时改了字段和模型，无法知道是哪一个因素造成变化。'
+              : citedDiscrimination?.delta === 'repeat'
+                ? '同配置复现能检查稳定性，但不能区分 H-FIELDS 与 H-MODEL。'
+                : !citedDiscrimination?.discriminating
+                  ? `这是单变量对照，但现场证据只变化 ${Math.round((citedDiscrimination?.materialChange ?? 0) * 100)}pt；还不足以削弱另一条解释。`
+                  : !cited.reachesReliableEndpoint
+                    ? '这组因果对照没有触及任何可靠配置；它能说明某个因素会改变结果，但还不能解释你最终为什么修好了系统。请引用一组以可靠方案为端点的单变量对照。'
+                    : '这组记录尚不能作为诊断证据。'
   return (
     <section className={`endless-run-log ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>EXPERIMENTS.LOG</span><strong>{history.length} 次审计 · {configurationCount} 种配置</strong></div>
