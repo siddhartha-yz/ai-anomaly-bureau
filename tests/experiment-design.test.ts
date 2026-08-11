@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -18,6 +18,13 @@ function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
 }
 
 describe('endless experiment comparison metadata', () => {
+  it('maps each diagnosis to the intervention axis that can causally support it', () => {
+    expect(diagnosisInterventionAxis('overfit-noise')).toBe('model')
+    expect(diagnosisInterventionAxis('feature-gap')).toBe('fields')
+    expect(diagnosisInterventionAxis('distribution-shift')).toBe('fields')
+    expect(diagnosisInterventionAxis('class-imbalance')).toBe('fields')
+  })
+
   it('distinguishes controlled comparisons from changing everything at once', () => {
     const baseline = record()
     expect(experimentDelta(undefined, baseline)).toBe('baseline')

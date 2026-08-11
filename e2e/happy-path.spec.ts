@@ -903,13 +903,20 @@ test('wrong endless diagnosis remains locked across refresh until fresh evidence
   await citeEndlessRuns(page, 1, 2)
 
   await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
+  await expect(page.getByText(/当前引用实际支持 H-FIELDS.*需要 H-MODEL/)).toBeVisible()
+  await expect(page.getByRole('button', { name: '提交诊断' })).toBeDisabled()
+
+  // A wrong diagnosis may still be submitted when it is at least causally
+  // compatible with the cited H-FIELDS experiment; the report is wrong, but not
+  // internally self-contradictory.
+  await page.getByRole('button', { name: '训练环境与现场环境发生了分布变化' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
   await expect(page.getByText(/报告已暂时锁定/)).toBeVisible()
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 3')
 
   await page.reload()
   await expect(page.getByLabel('已恢复本案进度')).toBeInViewport()
-  await expect(page.getByText(/刚提交：模型把训练噪声和偶然点记得太死/)).toBeVisible()
+  await expect(page.getByText(/刚提交：训练环境与现场环境发生了分布变化/)).toBeVisible()
   await expect(page.getByText(/报告已暂时锁定/)).toBeVisible()
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 3')
@@ -1420,10 +1427,10 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' })).toBeEnabled()
   await qaShot(page, '32b-endless-cited-evidence')
 
-  // A wrong diagnosis cannot be brute-forced into the next option without new evidence.
-  await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
+  // A wrong but causally compatible diagnosis cannot be brute-forced into the next option without new evidence.
+  await page.getByRole('button', { name: '训练环境与现场环境发生了分布变化' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
-  await expect(page.getByText(/刚提交：模型把训练噪声和偶然点记得太死/)).toBeVisible()
+  await expect(page.getByText(/刚提交：训练环境与现场环境发生了分布变化/)).toBeVisible()
   await expect(page.getByText(/当前证据不支持这项病因判断/)).toBeVisible()
   await expect(page.getByText(/原样复现不会提供新的区分证据/)).toBeVisible()
   await expect(page.getByRole('button', { name: '观察特征没有抓住真正差异' })).toBeDisabled()
@@ -1514,9 +1521,9 @@ test('endless audit budget has a costly recovery path instead of a dead end', as
   }
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 0')
   await citeEndlessRuns(page, 1, 2)
-  await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
+  await page.getByRole('button', { name: '训练环境与现场环境发生了分布变化' }).click()
   await page.getByRole('button', { name: '提交诊断' }).click()
-  await expect(page.getByText(/刚提交：模型把训练噪声和偶然点记得太死/)).toBeVisible()
+  await expect(page.getByText(/刚提交：训练环境与现场环境发生了分布变化/)).toBeVisible()
   const diagnosisRecovery = page.locator('.endless-diagnosis').getByRole('button', { name: /申请 1 次补充审计/ })
   await expect(diagnosisRecovery).toBeVisible()
   await expect(page.getByLabel('当前调查目标')).toContainText(/诊断要改口，但审计额度已经耗尽/)

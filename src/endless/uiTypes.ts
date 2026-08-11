@@ -1,5 +1,6 @@
 import type { ModelId } from '../ml/registry'
 import type { FeatureKey, Label } from '../ml/types'
+import type { EndlessSyndrome } from './generator'
 
 export type BandPrediction = 'high' | 'mid' | 'low'
 // `material` is retained only so in-progress v6 sessions created before directional
@@ -24,6 +25,7 @@ export type InspectedFieldError = { runId: number; sampleId: string; actual: Lab
 
 export type ExperimentDelta = 'baseline' | 'repeat' | 'fields-only' | 'model-only' | 'mixed'
 export type HypothesisAxisStatus = 'open' | 'supported' | 'weakened' | 'contested'
+export type InterventionAxis = 'fields' | 'model'
 
 export type DiagnosisEvidenceStatus = {
   records: EndlessRunRecord[]
@@ -55,6 +57,10 @@ function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]
 
 export function experimentConfigKey(model: ModelId, features: [FeatureKey, FeatureKey]) {
   return `${model}:${[...features].sort().join('+')}`
+}
+
+export function diagnosisInterventionAxis(diagnosis: EndlessSyndrome): InterventionAxis {
+  return diagnosis === 'overfit-noise' ? 'model' : 'fields'
 }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {

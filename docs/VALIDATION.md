@@ -276,6 +276,8 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 
 为了同时兼容 localhost 与 GitHub Pages 子路径，E2E 使用相对 query 导航；Playwright 配置支持通过 `PLAYWRIGHT_BASE_URL` 验证外部部署，设置后不会额外启动本地 Vite。
 
+- 2026-08-11，本轮 Duty 结案因果一致性收紧：最终选择的 syndrome 必须与所引用 material 单变量证据的干预轴一致（`overfit-noise → H-MODEL`，其余当前 syndrome → `H-FIELDS`）。新增 unit regression 固化映射，并把真实错误诊断恢复 E2E 改为“错误但因果轴一致”的诊断；浏览器同时验证 `H-FIELDS` 证据选择 overfit 时会显示证据—结论矛盾且 `提交诊断` 保持 disabled。最终本地验证为 ESLint 通过、TypeScript 通过、24 个 Vitest 文件 **129 / 129**、production build 通过、完整 Chromium E2E **30 / 30**。
+
 ## CSS / App.tsx 维护债务审计
 
 本轮做了分析，但没有进行大规模样式重构。

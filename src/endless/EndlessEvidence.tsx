@@ -1,7 +1,7 @@
 import { MODEL_META } from '../ml/registry'
 import type { EndlessAudit } from './EndlessPlot'
 import type { EndlessCase, EndlessSyndrome } from './generator'
-import { causalPredictionResult, compareExperimentRecords, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
+import { causalPredictionResult, compareExperimentRecords, diagnosisEvidenceStatus, diagnosisInterventionAxis, discriminatingExperiment, experimentConfigKey, experimentDelta, type EndlessRunRecord } from './uiTypes'
 
 function signedPoints(value: number) {
   const points = Math.round(value * 100)
@@ -223,6 +223,11 @@ export function EndlessDiagnosis({
   onSubmit: () => void
   onEmergency: () => void
 }) {
+  const citedComparison = evidenceRecords.length === 2 ? discriminatingExperiment(evidenceRecords[0], evidenceRecords[1]) : undefined
+  const expectedAxis = value ? diagnosisInterventionAxis(value) : undefined
+  const evidenceMatchesDiagnosis = !expectedAxis || citedComparison?.axis === expectedAxis
+  const citedAxisLabel = citedComparison?.axis === 'model' ? 'H-MODEL' : citedComparison?.axis === 'fields' ? 'H-FIELDS' : undefined
+  const expectedAxisLabel = expectedAxis === 'model' ? 'H-MODEL' : expectedAxis === 'fields' ? 'H-FIELDS' : undefined
   return (
     <section className={`endless-diagnosis ${attention ? 'objective-focus' : ''}`}>
       <div className="endless-panel-head"><span>04 / DIAGNOSIS</span><strong>提交病因</strong></div>
@@ -232,9 +237,11 @@ export function EndlessDiagnosis({
         <strong>{evidenceRecords.length ? evidenceRecords.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '尚未建立证据包'}</strong>
         <span>{!evidenceReady
           ? '返回 EXPERIMENTS.LOG 选择两条有效记录。'
-          : falsificationReady
-            ? `这组支持证据已经配上独立反证：${falsificationSummary ?? '已记录'}。可以进入诊断。`
-            : '这组对照只有支持、没有独立反证。再用另一条干预轴做预注册 null test，或复核一份明确为 clear 的原因来源。'}</span>
+          : !falsificationReady
+            ? '这组对照只有支持、没有独立反证。再用另一条干预轴做预注册 null test，或复核一份明确为 clear 的原因来源。'
+            : !evidenceMatchesDiagnosis
+              ? `当前引用实际支持 ${citedAxisLabel}，但你选择的病因需要 ${expectedAxisLabel} 的 material 因果支持。请更换诊断，或引用与该病因机制一致的单变量实验。`
+              : `这组支持证据已经配上独立反证：${falsificationSummary ?? '已记录'}。可以进入诊断。`}</span>
       </div>
       {caseData.diagnosis.options.map((option) => (
         <button

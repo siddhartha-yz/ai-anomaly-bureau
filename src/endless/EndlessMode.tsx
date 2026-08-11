@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -219,7 +219,8 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       ? `E${String(citedInterventionFalsification.first.id).padStart(2, '0')} + E${String(citedInterventionFalsification.second.id).padStart(2, '0')} 的${citedInterventionFalsification.comparison.axis === 'fields' ? '字段' : '模型'}轴 null 对照`
       : undefined
   const reportReady = evidenceReady && citedFalsificationReady
-  const canSubmitDiagnosis = diagnosisAvailable && reportReady
+  const diagnosisEvidenceAligned = !diagnosis || citedDiscrimination?.axis === diagnosisInterventionAxis(diagnosis)
+  const canSubmitDiagnosis = diagnosisAvailable && reportReady && diagnosisEvidenceAligned
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
   const objective = objectiveFor({
     trained,
