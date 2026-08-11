@@ -229,6 +229,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     history,
     diagnosisAvailable,
     evidenceReady: reportReady,
+    diagnosisSourceReady,
     diagnosisLocked,
     credits,
     inspectedCaseLeadCount: inspectedCaseLeadIds.length,

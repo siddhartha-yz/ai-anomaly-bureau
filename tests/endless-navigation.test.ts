@@ -91,6 +91,25 @@ describe('formal endless process navigator', () => {
     expect(`${cite.detail}${diagnose.detail}`).not.toMatch(/过拟合|特征不足|分布|类别不平衡/)
   })
 
+  it('routes a source-incomplete diagnosis back to causal leads instead of claiming the report is ready', () => {
+    const supportSource = objectiveFor({
+      trained: true,
+      auditComplete: true,
+      history: [record(1), record(2)],
+      diagnosisAvailable: true,
+      evidenceReady: true,
+      diagnosisSourceReady: false,
+      diagnosisLocked: false,
+      credits: 3,
+    })
+    expect(supportSource.focus).toBe('review')
+    expect(supportSource.code).toBe('CAUSE / SUPPORT')
+    expect(supportSource.title).toContain('正向来源')
+    expect(supportSource.detail).toMatch(/因果线索|复核对应来源|改掉病因判断/)
+    expect(supportSource.target).toBe('lead-board')
+    expect(`${supportSource.title}${supportSource.detail}`).not.toMatch(/过拟合|特征不足|分布漂移|类别不平衡/)
+  })
+
   it('turns a locked diagnosis into a request for new evidence, never an answer hint', () => {
     const configure = objectiveFor({ trained: false, auditComplete: true, history: [record(1), record(2)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: true, credits: 3 })
     expect(configure.focus).toBe('configure')
