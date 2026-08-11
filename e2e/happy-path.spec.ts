@@ -587,6 +587,11 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
   await qaShot(page, '55-endless-predict')
   await page.locator('.endless-band-picks button').first().click()
   await runDutyAudit(page)
+  await expect(page.getByLabel('当前调查目标')).toContainText('先看一条真实误判')
+  const baselineMistake = page.getByRole('button', { name: /调查现场误判 field-/ }).first()
+  await expect(baselineMistake).toBeVisible()
+  await baselineMistake.click()
+  await expect(page.getByLabel('现场误判调查记录')).toBeVisible()
   await expect(page.getByLabel('当前调查目标')).toContainText('先决定查哪一种原因')
   await expect(page.getByLabel('竞争假设')).toContainText('H-FIELDS')
   await expect(page.getByLabel('竞争假设')).toContainText('H-MODEL')
@@ -1407,14 +1412,17 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await page.getByRole('button', { name: /<60% 翻车/ }).click()
   await runDutyAudit(page)
   await expect(page.locator('.endless-run-log article')).toHaveCount(1)
-  await inspectCausalLead(page, /历史质量记录/)
-  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
   await expect(page.getByLabel('指标读法')).toContainText('某一类真实样本中，被模型正确识别出来的比例')
   await expect(page.getByLabel('当前实验计划对照')).toContainText('复现实验')
+  await expect(page.getByLabel('当前调查目标')).toContainText('先看一条真实误判')
+  await expect(page.getByLabel('当前调查目标')).toContainText('FIELD / INSPECT FAILURE')
+  await page.getByRole('button', { name: '定位下一步操作' }).click()
+  await expect(page.locator('.endless-field-errors')).toBeInViewport()
   await qaShot(page, '31-endless-first-audit')
   await expect(page.locator('.endless-objective b')).toHaveText('审计额度 4')
 
-  // Returned audit mistakes are investigation objects, not passive cards.
+  // Returned audit mistakes are investigation objects, not passive cards. The
+  // primary Duty route now asks for one concrete failure before source triage.
   const firstFieldError = page.getByRole('button', { name: /调查现场误判 field-/ }).first()
   await expect(firstFieldError).toBeVisible()
   const firstFieldErrorName = await firstFieldError.getAttribute('aria-label')
@@ -1426,6 +1434,9 @@ test('endless supervised mode rewards evidence-led experiments over random click
   await expect(page.getByLabel('现场误判调查记录')).toContainText(/PREDICTED/)
   await expect(page.locator('.endless-lead-board')).toContainText('已检查现场误判')
   if (firstFieldErrorName) await expect(page.locator('.endless-lead-board')).toContainText(firstFieldErrorName.split(' ').at(-1)!.toUpperCase())
+  await expect(page.getByLabel('当前调查目标')).toContainText('先决定查哪一种原因')
+  await inspectCausalLead(page, /历史质量记录/)
+  await expect(page.getByLabel('因果线索来源')).toContainText(/没有标出需要人工复核/)
   await qaShot(page, '31b-endless-field-error')
 
   // Evidence-led repair: install the stable pair and keep the simple linear model.

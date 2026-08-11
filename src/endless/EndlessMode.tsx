@@ -225,6 +225,11 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
   const diagnosisSourceContradicted = diagnosisSourceState === 'contradicted'
   const canSubmitDiagnosis = diagnosisAvailable && reportReady && diagnosisEvidenceAligned && diagnosisSourceReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
+  const latestRunId = history.at(-1)?.id
+  const needsFieldInspection = history.length === 1
+    && Boolean(auditResult?.mistakes.length)
+    && Boolean(latestRunId)
+    && !inspectedFieldErrors.some((item) => item.runId === latestRunId)
   const objective = objectiveFor({
     trained,
     auditComplete: Boolean(auditResult),
@@ -235,6 +240,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     diagnosisSourceContradicted,
     diagnosisLocked,
     credits,
+    needsFieldInspection,
     inspectedCaseLeadCount: inspectedCaseLeadIds.length,
     needsFalsification: Boolean(bestReliable && discriminatingEvidence && inspectedCaseLeadIds.length > 0 && !falsificationReady),
   })
@@ -416,8 +422,10 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               ? '.diagnosis-emergency'
               : objective.target === 'train'
                 ? '.objective-action'
-                : objective.target === 'lead-board'
-                  ? '.endless-causal-leads'
+                : objective.target === 'field-error'
+                  ? '.endless-field-errors'
+                  : objective.target === 'lead-board'
+                    ? '.endless-causal-leads'
                 : objective.target === 'audit'
                   ? '.experiment-console'
                   : objective.target === 'run-log'

@@ -3,7 +3,7 @@ import type { EndlessCase, EndlessCaseLeadId, EndlessSyndrome } from './generato
 import { discriminatingExperiment, earnedCaseLeadReviewCount, hypothesisAxisStatus, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export type EndlessFocus = 'baseline' | 'configure' | 'predict' | 'review' | 'diagnose'
-export type EndlessObjectiveTarget = 'train' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
+export type EndlessObjectiveTarget = 'train' | 'field-error' | 'lead-board' | 'configure' | 'audit' | 'run-log' | 'diagnosis' | 'recovery'
 export type EndlessObjectiveState = { focus: EndlessFocus; code: string; title: string; detail: string; target: EndlessObjectiveTarget }
 
 export function canInspectCaseLead(history: EndlessRunRecord[], inspectedLeadCount: number, alreadyInspected: boolean) {
@@ -21,6 +21,7 @@ export function objectiveFor({
   diagnosisSourceContradicted = false,
   diagnosisLocked,
   credits,
+  needsFieldInspection = false,
   inspectedCaseLeadCount = 0,
   needsFalsification = false,
 }: {
@@ -33,6 +34,7 @@ export function objectiveFor({
   diagnosisSourceContradicted?: boolean
   diagnosisLocked: boolean
   credits: number
+  needsFieldInspection?: boolean
   inspectedCaseLeadCount?: number
   needsFalsification?: boolean
 }): EndlessObjectiveState {
@@ -67,6 +69,15 @@ export function objectiveFor({
   }
   if (diagnosisAvailable && evidenceReady) {
     return { focus: 'diagnose', code: 'DIAGNOSIS / READY', title: '证据包已就绪，形成病因判断', detail: '用刚引用的两条实验记录解释系统为什么会坏，而不是只看其中最高的一次分数。', target: 'diagnosis' }
+  }
+  if (auditComplete && needsFieldInspection) {
+    return {
+      focus: 'review',
+      code: 'FIELD / INSPECT FAILURE',
+      title: '先看一条真实误判，再去猜原因',
+      detail: '总体分数只告诉你“坏了多少”。打开一条 FIELD_ERRORS.LOG，把真实类别、模型判断和当前字段值看清楚，再决定优先追哪条因果线索。',
+      target: 'field-error',
+    }
   }
   if (auditComplete && history.length > 0 && inspectedCaseLeadCount === 0) {
     return {
@@ -116,7 +127,8 @@ export function EndlessObjective({ objective, credits, historyCount, configurati
 }) {
   const locateLabel = objective.target === 'recovery' ? '定位：补充审计'
     : objective.target === 'train' ? '定位：训练当前方案'
-      : objective.target === 'lead-board' ? '定位：因果线索'
+      : objective.target === 'field-error' ? '定位：现场误判'
+        : objective.target === 'lead-board' ? '定位：因果线索'
       : objective.target === 'audit' ? '定位：预测与审计'
         : objective.target === 'run-log' ? '定位：引用实验记录'
           : objective.target === 'diagnosis' ? '定位：诊断报告'

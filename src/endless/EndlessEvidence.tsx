@@ -39,7 +39,7 @@ export function EndlessAuditPanel({ caseData, audit, trainAccuracy, features, la
         </div>
       </section>
       {audit.mistakes.length > 0 && (
-        <section className="endless-evidence">
+        <section className="endless-evidence endless-field-errors">
           <div className="endless-panel-head"><span>FIELD_ERRORS.LOG</span><strong>点击检查 · 前 {Math.min(4, audit.mistakes.length)} 条错误</strong></div>
           <div className="endless-error-grid">
             {audit.mistakes.slice(0, 4).map((mistake) => (

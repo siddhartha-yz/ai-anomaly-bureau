@@ -295,7 +295,7 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 1. `EndlessIntro` 只解释“配置 → 预测 → 审计 → 对照 → 诊断”的操作循环。
 2. `BootCase 000` 使用真实程序化数据、真实分类器和真实 audit 数值完成一条控制变量教学路线；教程解释在此结束。
 
-正式 `EndlessMode` 只保留 answer-neutral 导航：`objectiveFor()` 根据训练、审计、不同配置数、诊断锁和剩余额度返回下一动作目标。`NEXT OBJECTIVE` sticky 在视口顶部，并能定位到实际可操作组件；例如诊断锁且额度为 0 时会直接定位诊断框里的补充审计按钮，而不是把玩家带到实验日志。
+正式 `EndlessMode` 只保留 answer-neutral 导航：`objectiveFor()` 根据训练、审计、不同配置数、诊断锁和剩余额度返回下一动作目标。`NEXT OBJECTIVE` sticky 在视口顶部，并能定位到实际可操作组件；例如诊断锁且额度为 0 时会直接定位诊断框里的补充审计按钮，而不是把玩家带到实验日志。第一次 baseline 审计若存在现场错误且玩家尚未检查当前 run 的任何误判，导航会先返回 `FIELD / INSPECT FAILURE` 并定位 `FIELD_ERRORS.LOG`；点击任一误判后才恢复到 causal-source 选择。这一状态只改变引导，不参与诊断 gate，因此不会把历史错误卡变成不可恢复的硬前置条件。
 
 正式案件的 syndrome 不直接写进 incident，而且 cause-specific 原始事实也不再自动出现在开局 UI。`generator.ts` 为每宗案生成三份 `leadSources`：
 

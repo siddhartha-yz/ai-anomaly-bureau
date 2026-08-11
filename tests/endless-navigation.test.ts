@@ -48,11 +48,19 @@ describe('formal endless process navigator', () => {
     expect(objective.target).toBe('train')
   })
 
-  it('moves from train to prediction to choosing one causal lead before the next experiment', () => {
+  it('moves from train to prediction to one concrete field failure before choosing a causal lead', () => {
     const predict = objectiveFor({ trained: true, auditComplete: false, history: [], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 5 })
     expect(predict.focus).toBe('predict')
     expect(predict.title).toContain('预测')
     expect(predict.target).toBe('audit')
+
+    const inspectFailure = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4, needsFieldInspection: true })
+    expect(inspectFailure.focus).toBe('review')
+    expect(inspectFailure.code).toBe('FIELD / INSPECT FAILURE')
+    expect(inspectFailure.title).toContain('真实误判')
+    expect(inspectFailure.detail).toMatch(/FIELD_ERRORS\.LOG|真实类别|模型判断/)
+    expect(inspectFailure.target).toBe('field-error')
+    expect(`${inspectFailure.title}${inspectFailure.detail}`).not.toMatch(/过拟合|特征不足|分布漂移|类别不平衡/)
 
     const inspect = objectiveFor({ trained: true, auditComplete: true, history: [record(1)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: false, credits: 4 })
     expect(inspect.focus).toBe('review')
