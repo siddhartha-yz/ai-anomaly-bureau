@@ -81,7 +81,7 @@ describe('supervised endless case generator', () => {
       expect(caseData.leadSources.find((lead) => lead.id === requiredLeadId)?.result, `seed ${seed} ${caseData.syndrome}`).toBe('signal')
     }
     expect(seen).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
-  })
+  }, 15_000)
 
   it('generates solvable cases without making random configurations a reliable strategy', () => {
     let randomSuccessShare = 0

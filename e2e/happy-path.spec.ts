@@ -888,6 +888,31 @@ test('endless investigation survives refresh without refunding audit budget', as
   await expect(page.getByLabel('已恢复本案进度')).toHaveCount(0)
 })
 
+test('Duty distinguishes a missing positive source from one that directly refutes the selected diagnosis', async ({ page }) => {
+  await page.goto('?mode=endless&seed=6000')
+
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await runDutyAudit(page)
+  await inspectCausalLead(page, /历史质量记录/)
+  await chooseEndlessFeatures(page, '发件人可信度', '正文重复度')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.locator('.endless-band-picks button').first().click()
+  await runDutyAudit(page)
+  await citeEndlessRuns(page, 1, 2)
+
+  await page.getByRole('button', { name: '训练环境与现场环境发生了分布变化' }).click()
+  await expect(page.getByText(/还缺少对应来源的正向事实/)).toBeVisible()
+  await expect(page.getByLabel('当前调查目标')).toContainText('当前病因还缺一条正向来源事实')
+  await expect(page.getByRole('button', { name: '定位下一步操作' })).toContainText('定位：因果线索')
+
+  await inspectCausalLead(page, /采集批次记录/)
+  await expect(page.getByText(/该来源明确为 CLEAR.*当前病因被直接反驳/)).toBeVisible()
+  await expect(page.getByLabel('当前调查目标')).toContainText('当前病因被已复核来源直接反驳')
+  await expect(page.getByRole('button', { name: '定位下一步操作' })).toContainText('定位：诊断报告')
+  await expect(page.getByRole('button', { name: '提交诊断' })).toBeDisabled()
+})
+
 test('wrong endless diagnosis remains locked across refresh until fresh evidence is cited', async ({ page }) => {
   await page.goto('?mode=endless&seed=6000')
 

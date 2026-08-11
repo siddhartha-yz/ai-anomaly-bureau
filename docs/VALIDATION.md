@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：24 个测试文件、132 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BuSublbG.js` + `assets/index-CbJ-OooJ.css`（生产发布后再记录远端哈希）。
-- Playwright：30 条 Chromium E2E 全部通过（完整串行套件 30/30 首轮通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：24 个测试文件、133 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-xAY5JT2D.js` + `assets/index-CbJ-OooJ.css`（生产发布后再记录远端哈希）。
+- Playwright：31 条 Chromium E2E 全部通过（完整串行套件 31/31 首轮通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -73,7 +73,7 @@ Vitest 当前覆盖：
 - 无尽实验设计：同一配置重复审计识别为 replication；只换字段 / 只换模型 / 混合改动均有确定分类。只有 fields-only / model-only 且 FIELD 或最低 recall 绝对变化 ≥12pt 才是 discriminating evidence；显著改善和显著恶化都可以减少不确定性，repeat / mixed 不能。
 - 竞争假设状态：`H-FIELDS / H-MODEL` 各自只读取玩家 run history，并累积该轴全部受控实验；未测试为 OPEN，只有 material controlled change 为 SUPPORTED，只有不足 12pt 的弱变化为 WEAKENED，同时存在 material 与弱变化则为 CONTESTED。这样后做的一次局部 null 不会覆盖先前真实支持，反之亦然；UI 会要求解释为何同一因素在不同配置附近表现不同。两个轴仍可以同时 SUPPORTED，此时 UI 明确提示单一主因解释不足。causal pre-registration 对 fields-only / model-only 正式审计是必填项：未选择“应该明显改善 / 应该明显恶化 / 应该基本不变”时审计按钮保持 disabled，运行时 `audit()` 也会拒绝绕过 UI 的调用；弱变化只有在审计前已留下该因果预期时，才可通过 `preRegisteredNullResult()` 作为正式 falsification gate，禁止看完结果后再把普通 null result 包装成反证。实验日志现在同时封存方向预期与实际 `improved / degraded / tradeoff / null` 结果，并标记预测命中或失误；因此玩家不仅要预注册“会不会变”，还要在 material prediction 时判断变化方向。若 FIELD 与最低 recall 都达到 12pt material change 但方向相反，结果必须是 `tradeoff`：仍属于 discriminating evidence，但改善/恶化预注册均判 miss，且不能作为 null falsification。旧 v6 session 中的 `material` 仍可恢复并保持原有粗粒度命中语义，但当前 UI 不再生成该值。
 - 诊断 gate 现在要求 **reliable solution + material discriminating experiment + 至少一份主动 causal-source review + falsification**。falsification 可以是 source `clear`（例如质量记录无异常 / 批次无实质切换），也可以是真正测试过但变化 <12pt 的预注册单变量 null result；但干预型 null 必须来自当前 material support 的**竞争轴**，并且与该 support 的某个端点共享完整相同配置，再沿竞争轴改变一个变量。即 fields-only support 的 model-only null 必须直接从其旧端点或新端点换模型，model-only support 的 fields-only null 必须直接从其旧端点或新端点换字段；仅共享字段或模型这一条固定轴、但两个 null 端点都不是 support 端点的“断链”实验不再算独立反证。同一轴的一次 material + 一次 null、第三套无关配置上的竞争轴 null 也仍然无效。引用的两条 run 也会按自身 material axis 重新校验这一条件，并且必须在 run history 中真实相邻，防止玩家跨过中间实验事后拼接一个从未执行过的合成对照；`diagnosisEvidenceStatus()` 的回归测试同时覆盖 non-sequential pair 拒绝与相邻 pair 接受。若证据包只有支持而没有独立反证，诊断区会明确提示去测试另一条轴或寻找 `clear` source。干预型 gate 不再只检查“最后一次 material 实验”：`latestFalsifiedDiscriminatingExperiment()` 会寻找最近一组仍完整的 support + competing-axis null 因果包，因此玩家在证据已经自洽后继续做另一项 material 探索，不会无故把 syndrome 重新锁住；且 `afterRunId` 同时约束 support 与 competing-axis null：错误诊断后即使重新取得 fresh material support，也不能复用诊断前的旧 null 反证绕过 fresh-evidence 要求。**一旦反证成立，诊断区与 CASE RESOLVED 报告都会显式写出究竟是哪份 CLEAR 来源、或哪两条 E 记录组成了竞争轴 null 对照**，使结案证据链可复盘，而不是只在内部布尔 gate 中消失。
-- 诊断来源一致性：`diagnosisSourceSupported()` 要求 `overfit-noise / distribution-shift / class-imbalance` 分别亲自复核 `H-RECORDS / H-CONTEXT / H-COVERAGE`，且对应来源实际为 `signal` 才能提交；另一份无关 `clear` 来源只能承担竞争解释反证，不能替代当前病因的正向来源事实。`feature-gap` 没有专属来源，保持由字段轴 material support + 独立反证成立。专项单测同时覆盖未复核、错误来源、正确 signal 与对应来源为 clear 的拒绝路径；另以 400 个连续 seed 校验所有可由来源辨识的真实病因始终生成对应 positive source，防止未来生成器改动把案件变成无法合法结案。真实 Chromium retry 路线还会先选择一个因果轴匹配但尚未复核正向来源的病因，断言提交锁定，再打开对应 `signal` 来源后才开放提交。
+- 诊断来源一致性：`diagnosisSourceStatus()` 将 required source 分成 `not-required / missing / contradicted / supported`；`diagnosisSourceSupported()` 要求 `overfit-noise / distribution-shift / class-imbalance` 分别亲自复核 `H-RECORDS / H-CONTEXT / H-COVERAGE`，且对应来源实际为 `signal` 才能提交。另一份无关 `clear` 来源只能承担竞争解释反证，不能替代当前病因的正向来源事实；已复核的 required source 若为 `clear`，则属于 `contradicted`，必须明确反馈“当前病因被直接反驳”，不能继续伪装成“还缺证据”。`feature-gap` 没有专属来源，保持由字段轴 material support + 独立反证成立。专项单测覆盖四种来源状态；另以 400 个连续 seed 校验所有可由来源辨识的真实病因始终生成对应 positive source，防止未来生成器改动把案件变成无法合法结案。该 400-seed 压力测试显式使用 15s timeout，避免与 Chromium/CI 负载并行时撞上 Vitest 默认 5s 假超时。真实 Chromium 路线同时覆盖 missing→signal 解锁与 missing→CLEAR contradiction 两种路径。
 - Duty 导航与诊断 gate 保持同一事实来源：当引用实验已经就绪、玩家也选定病因，但该病因缺少对应 positive source 时，`NEXT OBJECTIVE` 不再误报 `DIAGNOSIS / READY`，而是切换为 `CAUSE / SUPPORT` 并把定位按钮指回因果线索板；对应来源复核完成后才恢复诊断就绪。单元测试检查该状态不泄露 syndrome 答案词，真实 Chromium retry 路线检查前后两个导航状态与定位目标都同步变化。
 - 引用实验对照：`compareExperimentRecords()` 只返回 TRAIN / FIELD / 最低类别召回 / 错误数与配置变化，不推断 syndrome；`discriminatingExperiment()` 只回答“这个受控实验有没有让世界明显变化”。
 - 无尽 session：当前为 `aia.endless-session.v6.<seed>`。v5/v4/v3 audit history 可迁移，但 causal-source finding 语义曾发生变化，因此迁移后 `inspectedCaseLeadIds` 会重置为空，要求玩家重新打开来源；迁移仍要求**先成功写 v6 再删除旧 key**，模拟 `QuotaExceededError` 时旧存档原件必须保留。v2 非 shift 仍可直接迁入 v6；v2 shift 因历史 field world 已变化继续明确作废；v1 继续不迁移。当前 v6 reader 还会拒绝重复 cause-source id，以及“已复核来源数超过 baseline + 新单变量配置实际赚取额度”的伪造 payload，localStorage 恢复不能绕过运行时封存节奏。存档仍不包含内部 `test-cat/test-bread` ID 或 syndrome answer。
@@ -88,7 +88,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 **30 条**真实 Chromium 路线；本轮冻结源码完整执行 30/30，首轮全部通过。
+`e2e/happy-path.spec.ts` 当前包含 **31 条**真实 Chromium 路线；本轮冻结源码完整执行 31/31，首轮全部通过。
 
 调查局宏观框架单独验证：
 

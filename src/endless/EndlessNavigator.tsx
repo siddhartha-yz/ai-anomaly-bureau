@@ -18,6 +18,7 @@ export function objectiveFor({
   diagnosisAvailable,
   evidenceReady,
   diagnosisSourceReady = true,
+  diagnosisSourceContradicted = false,
   diagnosisLocked,
   credits,
   inspectedCaseLeadCount = 0,
@@ -29,6 +30,7 @@ export function objectiveFor({
   diagnosisAvailable: boolean
   evidenceReady: boolean
   diagnosisSourceReady?: boolean
+  diagnosisSourceContradicted?: boolean
   diagnosisLocked: boolean
   credits: number
   inspectedCaseLeadCount?: number
@@ -47,13 +49,21 @@ export function objectiveFor({
     return { focus: 'diagnose', code: 'EVIDENCE / CITE', title: '从实验记录引用两条证据', detail: '选择两条来自不同配置的实验记录。诊断必须明确建立在你亲手取得的对照证据上。', target: 'run-log' }
   }
   if (diagnosisAvailable && evidenceReady && !diagnosisSourceReady) {
-    return {
-      focus: 'review',
-      code: 'CAUSE / SUPPORT',
-      title: '当前病因还缺一条正向来源事实',
-      detail: '实验已经支持这条机制，但报告还缺它声称的直接来源。回到因果线索，复核对应来源；如果来源不支持，就应改掉病因判断。',
-      target: 'lead-board',
-    }
+    return diagnosisSourceContradicted
+      ? {
+          focus: 'review',
+          code: 'CAUSE / CONTRADICTED',
+          title: '当前病因被已复核来源直接反驳',
+          detail: '实验轴虽然匹配，但对应来源已经给出明确阴性事实。不要继续补同一个故事；回到诊断报告，换一个能同时解释实验与来源事实的病因。',
+          target: 'diagnosis',
+        }
+      : {
+          focus: 'review',
+          code: 'CAUSE / SUPPORT',
+          title: '当前病因还缺一条正向来源事实',
+          detail: '实验已经支持这条机制，但报告还缺它声称的直接来源。回到因果线索，复核对应来源；如果来源不支持，就应改掉病因判断。',
+          target: 'lead-board',
+        }
   }
   if (diagnosisAvailable && evidenceReady) {
     return { focus: 'diagnose', code: 'DIAGNOSIS / READY', title: '证据包已就绪，形成病因判断', detail: '用刚引用的两条实验记录解释系统为什么会坏，而不是只看其中最高的一次分数。', target: 'diagnosis' }

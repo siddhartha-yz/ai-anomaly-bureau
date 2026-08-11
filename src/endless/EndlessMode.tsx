@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -220,7 +220,9 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       : undefined
   const reportReady = evidenceReady && citedFalsificationReady
   const diagnosisEvidenceAligned = !diagnosis || citedDiscrimination?.axis === diagnosisInterventionAxis(diagnosis)
+  const diagnosisSourceState = diagnosis ? diagnosisSourceStatus(diagnosis, inspectedCaseLeadIds, caseData.leadSources) : 'not-required'
   const diagnosisSourceReady = !diagnosis || diagnosisSourceSupported(diagnosis, inspectedCaseLeadIds, caseData.leadSources)
+  const diagnosisSourceContradicted = diagnosisSourceState === 'contradicted'
   const canSubmitDiagnosis = diagnosisAvailable && reportReady && diagnosisEvidenceAligned && diagnosisSourceReady
   const diagnosisLocked = diagnosisAttempts > 0 && !diagnosisAvailable
   const objective = objectiveFor({
@@ -230,6 +232,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
     diagnosisAvailable,
     evidenceReady: reportReady,
     diagnosisSourceReady,
+    diagnosisSourceContradicted,
     diagnosisLocked,
     credits,
     inspectedCaseLeadCount: inspectedCaseLeadIds.length,
@@ -517,6 +520,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
                 falsificationReady={citedFalsificationReady}
                 falsificationSummary={citedFalsificationSummary}
                 sourceSupportReady={diagnosisSourceReady}
+                sourceSupportContradicted={diagnosisSourceContradicted}
                 diagnosisAvailable={diagnosisAvailable}
                 attention={objective.target === 'diagnosis' || objective.target === 'recovery'}
                 onChange={(value) => { audio.play('select'); setDiagnosis(value) }}

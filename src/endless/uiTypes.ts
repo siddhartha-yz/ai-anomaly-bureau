@@ -70,15 +70,26 @@ export function diagnosisSourceLeadId(diagnosis: EndlessSyndrome): EndlessCaseLe
   return undefined
 }
 
+export type DiagnosisSourceStatus = 'not-required' | 'missing' | 'contradicted' | 'supported'
+
+export function diagnosisSourceStatus(
+  diagnosis: EndlessSyndrome,
+  inspectedLeadIds: EndlessCaseLeadId[],
+  leadSources: EndlessCaseLead[],
+): DiagnosisSourceStatus {
+  const requiredLeadId = diagnosisSourceLeadId(diagnosis)
+  if (!requiredLeadId) return 'not-required'
+  if (!inspectedLeadIds.includes(requiredLeadId)) return 'missing'
+  return leadSources.find((lead) => lead.id === requiredLeadId)?.result === 'signal' ? 'supported' : 'contradicted'
+}
+
 export function diagnosisSourceSupported(
   diagnosis: EndlessSyndrome,
   inspectedLeadIds: EndlessCaseLeadId[],
   leadSources: EndlessCaseLead[],
 ) {
-  const requiredLeadId = diagnosisSourceLeadId(diagnosis)
-  if (!requiredLeadId) return true
-  if (!inspectedLeadIds.includes(requiredLeadId)) return false
-  return leadSources.find((lead) => lead.id === requiredLeadId)?.result === 'signal'
+  const status = diagnosisSourceStatus(diagnosis, inspectedLeadIds, leadSources)
+  return status === 'supported' || status === 'not-required'
 }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {

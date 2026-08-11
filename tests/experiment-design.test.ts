@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -37,14 +37,17 @@ describe('endless experiment comparison metadata', () => {
     expect(diagnosisSourceLeadId('class-imbalance')).toBe('composition')
     expect(diagnosisSourceLeadId('feature-gap')).toBeUndefined()
 
+    expect(diagnosisSourceStatus('overfit-noise', ['batch'], [...leads])).toBe('missing')
+    expect(diagnosisSourceStatus('overfit-noise', ['quality'], [...leads])).toBe('supported')
     expect(diagnosisSourceSupported('overfit-noise', ['batch'], [...leads])).toBe(false)
     expect(diagnosisSourceSupported('overfit-noise', ['quality'], [...leads])).toBe(true)
     expect(diagnosisSourceSupported('distribution-shift', ['batch'], [...leads])).toBe(true)
     expect(diagnosisSourceSupported('class-imbalance', ['composition'], [...leads])).toBe(true)
+    expect(diagnosisSourceStatus('feature-gap', [], [...leads])).toBe('not-required')
     expect(diagnosisSourceSupported('feature-gap', [], [...leads])).toBe(true)
-    expect(diagnosisSourceSupported('overfit-noise', ['quality'], [
-      { ...leads[0] }, { ...leads[1] }, { ...leads[2], result: 'clear' },
-    ])).toBe(false)
+    const contradictedLeads = [{ ...leads[0] }, { ...leads[1] }, { ...leads[2], result: 'clear' as const }]
+    expect(diagnosisSourceStatus('overfit-noise', ['quality'], contradictedLeads)).toBe('contradicted')
+    expect(diagnosisSourceSupported('overfit-noise', ['quality'], contradictedLeads)).toBe(false)
   })
 
   it('distinguishes controlled comparisons from changing everything at once', () => {

@@ -110,6 +110,26 @@ describe('formal endless process navigator', () => {
     expect(`${supportSource.title}${supportSource.detail}`).not.toMatch(/过拟合|特征不足|分布漂移|类别不平衡/)
   })
 
+  it('routes an already-refuted diagnosis back to the report instead of asking for impossible source support', () => {
+    const contradicted = objectiveFor({
+      trained: true,
+      auditComplete: true,
+      history: [record(1), record(2)],
+      diagnosisAvailable: true,
+      evidenceReady: true,
+      diagnosisSourceReady: false,
+      diagnosisSourceContradicted: true,
+      diagnosisLocked: false,
+      credits: 3,
+    })
+    expect(contradicted.focus).toBe('review')
+    expect(contradicted.code).toBe('CAUSE / CONTRADICTED')
+    expect(contradicted.title).toContain('直接反驳')
+    expect(contradicted.detail).toMatch(/阴性事实|换一个.*病因/)
+    expect(contradicted.target).toBe('diagnosis')
+    expect(`${contradicted.title}${contradicted.detail}`).not.toMatch(/过拟合|特征不足|分布漂移|类别不平衡/)
+  })
+
   it('turns a locked diagnosis into a request for new evidence, never an answer hint', () => {
     const configure = objectiveFor({ trained: false, auditComplete: true, history: [record(1), record(2)], diagnosisAvailable: false, evidenceReady: false, diagnosisLocked: true, credits: 3 })
     expect(configure.focus).toBe('configure')
