@@ -91,9 +91,11 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(config.stages[0].evidence?.rows).toEqual([
       ['20%', '25', '8%'], ['40%', '25', '36%'], ['60%', '25', '68%'], ['80%', '25', '92%'],
     ])
+    expect(config.stages[1].evidence?.columns).toEqual(['RAW SCORE', 'PATIENTS', 'OBSERVED'])
     expect(config.stages[1].evidence?.rows).toEqual([
-      ['20%', '10', '10%', '10%'], ['40%', '10', '30%', '30%'], ['60%', '10', '70%', '70%'], ['80%', '10', '90%', '90%'],
+      ['20%', '10', '10%'], ['40%', '10', '30%'], ['60%', '10', '70%'], ['80%', '10', '90%'],
     ])
+    expect(config.stages[1].evidence?.columns).not.toContain('FITTED OUTPUT')
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
     expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
   })

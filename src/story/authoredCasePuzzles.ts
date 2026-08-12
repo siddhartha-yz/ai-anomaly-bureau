@@ -615,13 +615,13 @@ const case005: AuthoredPuzzleConfig = {
       actionLabel: '运行校准审计',
       evidence: {
         title: 'CALIBRATION_SPLIT / 仅用于拟合',
-        note: '这 40 名病人与最终审计集完全分离。OBSERVED 决定单调映射，不能拿最终审计频率反过来调映射。',
-        columns: ['RAW SCORE', 'PATIENTS', 'OBSERVED', 'FITTED OUTPUT'],
-        rows: CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), String(bucket.count), pct(bucket.positives / bucket.count), pct(CALIBRATION_MAP.calibrated[String(bucket.score).replace(/^0/, '')])]),
+        note: '这 40 名病人与最终审计集完全分离。只用 RAW SCORE 与 OBSERVED 决定映射；最终输出要由你先选方案，再去独立审计集验证。',
+        columns: ['RAW SCORE', 'PATIENTS', 'OBSERVED'],
+        rows: CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), String(bucket.count), pct(bucket.positives / bucket.count)]),
       },
       options: [
         { id: 'raw', label: '继续使用原始 0.2 / 0.4 / 0.6 / 0.8', detail: '排序不变，概率也完全不修。', resultTitle: '排序还在，刻度仍偏', resultMetrics: calibrationMetrics('raw'), resultNote: '独立审计 ECE 仍为 9%。这不是分类失败，而是概率输出仍不适合承担风险语义。' },
-        { id: 'calibrated', label: '用独立校准集拟合单调映射，再冻结后审计', detail: '把四档映射到 0.1 / 0.3 / 0.7 / 0.9，保持风险排序不变。', resultTitle: '概率刻度明显改善', resultMetrics: calibrationMetrics('calibrated'), resultNote: '映射只看过校准集；到了另一批审计病人上 ECE 仍从 9% 降到 3%，Brier 也改善。没有追求“审计集 0 误差”，因为那会重新制造数据泄漏。' },
+        { id: 'calibrated', label: '让每档输出贴近校准集中的真实发生频率，并保持单调', detail: '只根据这 40 人拟合概率刻度；冻结映射后再去独立审计集验收。', resultTitle: '概率刻度明显改善', resultMetrics: calibrationMetrics('calibrated'), resultNote: '你从校准集得到 10% / 30% / 70% / 90% 的单调映射；到了另一批审计病人上 ECE 仍从 9% 降到 3%，Brier 也改善。没有追求“审计集 0 误差”，因为那会重新制造数据泄漏。' },
         { id: 'hard', label: '把低两档改成 0%，高两档改成 100%', detail: '让模型显得更“确定”。', resultTitle: '更自信，不等于更可信', resultMetrics: calibrationMetrics('hard'), resultNote: '概率被压成极端值后 ECE 和 Brier 都更差。校准不是把输出推向 0/1。' },
       ],
       correctIds: ['calibrated'],
