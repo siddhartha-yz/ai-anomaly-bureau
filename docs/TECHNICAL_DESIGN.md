@@ -20,7 +20,7 @@ src/
   story/
     StoryCase001Runtime.tsx  # CASE 001 长篇 onboarding UI / micro-beat 编排
     StoryPuzzleRuntime.tsx   # CASE 002+ 数据驱动系统谜题 runtime
-    authoredCasePuzzles.ts   # CASE 002/003/004 的真实计算、阶段与可接受解
+    authoredCasePuzzles.ts   # CASE 002/003/004/005 的真实计算、阶段与可接受解
     puzzleSession.ts         # 紧凑 case-local 谜题 checkpoint
     registry.tsx             # 正式案件 runtime：组件 / resume / clear / reconciliation
   training/
@@ -190,7 +190,7 @@ interface FittedClassifier {
 
 ## 调查局 Meta 层
 
-`src/bureau/catalog.ts` 是手工内容身份的唯一注册点。当前 `FORMAL_CASE_CATALOG` 含 CASE 001/002/003/004，并用 `unlockAfter` 声明前置链；`TRAINING_CASE_CATALOG` 仍只含 Training 000。Hub、Resume、archive provenance 与 runtime registry 读取同一目录，避免新增正式案件时复制编号 / 标题 / briefing / 解锁关系。
+`src/bureau/catalog.ts` 是手工内容身份的唯一注册点。当前 `FORMAL_CASE_CATALOG` 含 CASE 001/002/003/004/005，并用 `unlockAfter` 声明前置链；`TRAINING_CASE_CATALOG` 仍只含 Training 000。Hub、Resume、archive provenance 与 runtime registry 读取同一目录，避免新增正式案件时复制编号 / 标题 / briefing / 解锁关系。
 
 手工内容的“身份”和“怎么运行”分离：`src/story/registry.tsx` 要求每个 `FormalCaseId` 注册 `Component / readResume / clearSession / reconcileProgress`；`src/training/registry.tsx` 要求每个 `TrainingCaseId` 注册自己的 runtime component。Vitest 会比较 catalog 与 runtime registry 的 key 集，新增 catalog 条目却忘记接 runtime 会直接失败。`App.tsx` 因此只选择 case id 和模式，不直接 import `StoryCase001Runtime`、Training 000 runtime 或 Story checkpoint reader。
 
@@ -216,13 +216,13 @@ type BureauProgress = {
 
 key 为 `aia.bureau-progress.v2`。它只回答“哪些案件已经结案 / 哪些知识已经遇到”，不会复制 Story reducer、Endless experiment history、隐藏测试标签或 behavior log。reader 会校验并迁移旧 `aia.bureau-progress.v1`；未知 catalog id、非法评级 / 时间或重复 Duty seed 会被拒绝。v2 JSON 若损坏，会先清掉坏 key 再尝试仍完整的 v1，因此格式升级不会让一个可恢复旧存档被新的坏 payload 遮住；损坏 v1 也做 best-effort 清理。Training 000 旧完成 key 仅保留为迁移输入，新完成记录只写入 `trainingCases[TRAINING_CASE_000.id]`。
 
-应用启动的持久化 composition 不再写在 `App.tsx`：`src/app/bootstrap.ts#bootstrapBureauProgress()` 读取 canonical Bureau v2，并遍历 `FORMAL_CASE_CATALOG` 让每个 runtime reconcile 自己的已结案 checkpoint，再把历史 `aia.boot-case-000.v2` 完成事实归并进 `trainingCases`。后续案件的结案事实仍受 catalog prerequisite 约束，手改一个后续 solved checkpoint 不能越过 `CASE 001 → 002 → 003 → 004` 的前置链。旧 Training key 只有在 v2 成功写入后才删除；若浏览器对 Storage 抛 `SecurityError`，bootstrap 返回可用的空长期进度而不是让应用启动崩溃。
+应用启动的持久化 composition 不再写在 `App.tsx`：`src/app/bootstrap.ts#bootstrapBureauProgress()` 读取 canonical Bureau v2，并遍历 `FORMAL_CASE_CATALOG` 让每个 runtime reconcile 自己的已结案 checkpoint，再把历史 `aia.boot-case-000.v2` 完成事实归并进 `trainingCases`。后续案件的结案事实仍受 catalog prerequisite 约束，手改一个后续 solved checkpoint 不能越过 `CASE 001 → 002 → 003 → 004 → 005` 的前置链。旧 Training key 只有在 v2 成功写入后才删除；若浏览器对 Storage 抛 `SecurityError`，bootstrap 返回可用的空长期进度而不是让应用启动崩溃。
 
 App 路由的正常产品语义是：
 
 - 未完成 CASE 001：默认进入 formal-case runtime，新人没有 Duty UI 入口；
 - CASE 001 首次结案：写入长期进度，随后默认进入 Bureau Hub，并显示一次性 induction；
-- 已入职：默认进入 Hub；案件板按 `CASE 001 → 002 → 003 → 004` 顺序开放，未满足前置的正式案件显示 SEALED；Formal Case / Training / Duty 都从 Hub 出发并返回 Hub；Hub 的当前部门由 App 层保存，因此 Training / Duty 临时离开后返回原部门而不是重置案件板；
+- 已入职：默认进入 Hub；案件板按 `CASE 001 → 002 → 003 → 004 → 005` 顺序开放，未满足前置的正式案件显示 SEALED；Formal Case / Training / Duty 都从 Hub 出发并返回 Hub；Hub 的当前部门由 App 层保存，因此 Training / Duty 临时离开后返回原部门而不是重置案件板；
 - App 内部模式使用 `formal-case / training / endless` 语义；历史 explicit query `?mode=story`、`?mode=boot` 继续映射到对应 runtime，`?mode=endless` / `?mode=hub` 也保持开发 / 复现兼容；这些直达不会凭空授予 Duty meta 进度，历史 `?debug=1` 参数同样不改变应用权限；
 - Formal Case seed 与 Duty seed 分开保存。切换 Duty seed 不会让案件板改用另一个 Story checkpoint key；浏览器回归会真实跨 Duty 往返后重新打开原 CASE 001 结案案卷。
 
@@ -236,7 +236,7 @@ App 路由的正常产品语义是：
 
 ## 手工案件 runtime 分层
 
-CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
+CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004/005 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。CASE 005 用 4 个概率 bucket 的 40 份独立审计样本实时计算 ECE / Brier，再比较原始概率、保持排序的校准映射和硬标签伪概率；最终把固定 65% 风险政策作用在原始或校准概率上，直接计算干预人数与高风险召回。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
 
 这类短案件使用独立 `aia.formal-puzzle.v1.<caseId>.<seed>` checkpoint，只保存 stage / checks / mistakes / 当前选择 / 最近一次结果 / solved，不复制 CASE 001 的 fitted model 或匿名行为日志。`FormalCaseResumeSummary` 允许 runtime 自己提供 `CHECKS / REVISIONS` 等语义标签，因此通用恢复页不会假装每个案件都有“审计额度”。
 
@@ -373,7 +373,7 @@ type BehaviorEvent = {
 
 - 普通 URL 不显示测试入口；显式 `?qa=1` 才在右下角显示 `QA BENCH / OPEN`，也可继续用 Backquote / Ctrl+Shift+K。
 - 第一次执行任何会改状态的命令（除 `HELP`）时，`qa/testBench.ts` 会把当前全部 `aia.*` localStorage key（不含自身 backup）保存到 `aia.qa-backup.v1`，同时记录测试开始 URL。第二次跳转复用原快照，绝不把测试中的脏状态覆盖成“原存档”。
-- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE 002/003/004 既可从头进入，也可直接跳到阈值、稳定传感器、重切分、干净验证、最终规则等中间 stage；另保留 Bureau、Training、四类代表 Duty 卡片和“任意 Duty seed”数字输入。authored-case stage jump 不是裸改 `stage`：`createPuzzleCheatSession()` 会按目标 stage 重建满足正式 validator 的 accepted-check 数，再由普通 `writePuzzleSession()` 写入，因此刷新 / resume 仍走同一 session reader。
+- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE 002/003/004/005 既可从头进入，也可直接跳到阈值、稳定传感器、重切分、干净验证、概率校准、风险政策等中间 stage；另保留 Bureau、Training、四类代表 Duty 卡片和“任意 Duty seed”数字输入。authored-case stage jump 不是裸改 `stage`：`createPuzzleCheatSession()` 会按目标 stage 重建满足正式 validator 的 accepted-check 数，再由普通 `writePuzzleSession()` 写入，因此刷新 / resume 仍走同一 session reader。
 - 测试会话中右下角持续显示 `QA TEST / SAVE SAFE`；“全新用户状态”只有在有效 backup 存在时才允许清掉当前 `aia.*` working state。
 - “恢复原存档并结束测试”先删除测试产生的游戏 key，再逐字恢复原 entries，最后才删除 backup 并返回原 URL；若恢复写入失败，backup 保留以便重试。
 - `CASE001 ...` 仍使用真实 reducer、模型训练、审计和实验记录构造版本化 Story checkpoint；`BUREAU UNLOCK` 仍走正式 `BureauProgress`；`TRAINING` 打开 Training 000；`DUTY <seed>` 清理该测试 seed 的 Endless session 后进入正式案件。命令执行后通过正常路由重载，不在 React 内存里注入一套作弊 state。

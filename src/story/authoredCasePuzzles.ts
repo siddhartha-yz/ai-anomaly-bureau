@@ -1,4 +1,4 @@
-import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, type FormalCaseDefinition } from '../bureau/catalog'
+import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005, type FormalCaseDefinition } from '../bureau/catalog'
 
 export type PuzzleMetric = {
   label: string
@@ -513,8 +513,127 @@ const case004: AuthoredPuzzleConfig = {
   takeaways: ['验证集和训练集必须在部署语义上独立', '同一实体的多条记录跨 split 会造成数据泄漏', '按实体分组切分能暴露身份记忆型模型', '评估设计本身也是实验系统的一部分'],
 }
 
+
+type CalibrationBucket = { score: number; count: number; positives: number }
+const CASE_005_BUCKETS: readonly CalibrationBucket[] = [
+  { score: .2, count: 10, positives: 1 },
+  { score: .4, count: 10, positives: 3 },
+  { score: .6, count: 10, positives: 7 },
+  { score: .8, count: 10, positives: 9 },
+]
+
+type CalibrationStrategy = 'raw' | 'calibrated' | 'hard'
+const CALIBRATION_MAP: Record<CalibrationStrategy, Record<string, number>> = {
+  raw: { '.2': .2, '.4': .4, '.6': .6, '.8': .8 },
+  calibrated: { '.2': .1, '.4': .3, '.6': .7, '.8': .9 },
+  hard: { '.2': 0, '.4': 0, '.6': 1, '.8': 1 },
+}
+
+export function evaluateCalibration(strategy: CalibrationStrategy) {
+  const total = CASE_005_BUCKETS.reduce((sum, bucket) => sum + bucket.count, 0)
+  let ece = 0
+  let brier = 0
+  for (const bucket of CASE_005_BUCKETS) {
+    const probability = CALIBRATION_MAP[strategy][String(bucket.score).replace(/^0/, '')]
+    const observedRate = bucket.positives / bucket.count
+    ece += bucket.count / total * Math.abs(probability - observedRate)
+    brier += (bucket.positives * (1 - probability) ** 2 + (bucket.count - bucket.positives) * probability ** 2) / total
+  }
+  return { ece, brier }
+}
+
+function calibrationMetrics(strategy: CalibrationStrategy): readonly PuzzleMetric[] {
+  const result = evaluateCalibration(strategy)
+  return [
+    { label: '校准误差 ECE', value: pct(result.ece), pass: result.ece <= .05 },
+    { label: 'Brier 误差', value: result.brier.toFixed(2), pass: result.brier <= .15 },
+    { label: '排序', value: strategy === 'hard' ? '被压成两档' : '保持不变', pass: strategy !== 'hard' },
+  ]
+}
+
+function decisionMetrics(strategy: 'raw-policy' | 'calibrated-policy' | 'lower-raw-threshold'): readonly PuzzleMetric[] {
+  const probabilities = strategy === 'calibrated-policy' ? CALIBRATION_MAP.calibrated : CALIBRATION_MAP.raw
+  const threshold = strategy === 'lower-raw-threshold' ? .55 : .65
+  let treated = 0
+  let caught = 0
+  const positives = CASE_005_BUCKETS.reduce((sum, bucket) => sum + bucket.positives, 0)
+  for (const bucket of CASE_005_BUCKETS) {
+    const probability = probabilities[String(bucket.score).replace(/^0/, '')]
+    if (probability >= threshold) {
+      treated += bucket.count
+      caught += bucket.positives
+    }
+  }
+  return [
+    { label: '政策风险阈值', value: strategy === 'lower-raw-threshold' ? '被偷偷改成 55%' : '保持 65%', pass: strategy !== 'lower-raw-threshold' },
+    { label: '高风险召回', value: pct(caught / positives), pass: caught / positives >= .75 },
+    { label: '需要干预', value: `${treated} / 40` },
+  ]
+}
+
+const case005: AuthoredPuzzleConfig = {
+  definition: STORY_CASE_005,
+  stages: [
+    {
+      id: 'reliability',
+      kicker: 'PRIMITIVE 05 / PROBABILITY MEANING',
+      title: '“60% 风险”真的意味着十个人里六个吗？',
+      brief: '模型仍能把更危险的人排在更前面，但医生要用输出概率做处置。先看独立审计中的可靠性表：每一行都是 10 名此前未参与训练或校准的病人。',
+      prompt: '这张表最直接暴露了什么？',
+      actionLabel: '读取可靠性表',
+      evidence: {
+        title: 'RELIABILITY_TABLE / 独立审计',
+        note: 'CONFIDENCE 是模型输出；OBSERVED 是这一档里真实恶化的频率。',
+        columns: ['CONFIDENCE', 'PATIENTS', 'OBSERVED'],
+        rows: [['20%', '10', '10%'], ['40%', '10', '30%'], ['60%', '10', '70%'], ['80%', '10', '90%']],
+      },
+      options: [
+        { id: 'miscalibrated', label: '排序仍有用，但这些数字不能直接当真实发生概率', detail: '比较每个 confidence bucket 与实际频率，而不是只看谁排在前面。', resultTitle: '概率语义失真', resultMetrics: calibrationMetrics('raw'), resultNote: '四个区间的预测概率都偏离实际频率约 10 个百分点。分类排序可以仍然有用，但“0.8 = 80% 会发生”并不成立。' },
+        { id: 'ranking-broken', label: '模型连风险排序也完全反了', detail: '如果排序反了，分数越高应该越不危险。', resultTitle: '与表格不符', resultNote: '真实恶化率仍随模型分数升高而升高：10% → 30% → 70% → 90%。坏的是概率刻度，不是排序方向。' },
+        { id: 'accuracy-only', label: '只要最终分类准确率够高，概率偏一点无所谓', detail: '分类正确就足以支持所有后续决策。', resultTitle: '混淆了两种任务', resultNote: '当下游规则明确写“风险 ≥65% 才干预”时，概率本身就是决策输入。分类对不等于概率可信。' },
+      ],
+      correctIds: ['miscalibrated'],
+      success: '新原语解锁：校准。一个 70% 的概率如果长期可信，应当在许多相似样本中大约七成发生。',
+    },
+    {
+      id: 'calibrate',
+      kicker: 'CONTROLLED CHANGE / SCALE ONLY',
+      title: '保持排序不变，只修正概率刻度',
+      brief: 'CASE 004 的规则继续生效：校准映射在独立 CALIBRATION split 上拟合，再拿从未参与拟合的审计集验证。不要为了概率好看重新训练分类器。',
+      prompt: '选择一种概率输出方案，在同一批独立审计样本上比较。',
+      actionLabel: '运行校准审计',
+      options: [
+        { id: 'raw', label: '继续使用原始 0.2 / 0.4 / 0.6 / 0.8', detail: '排序不变，概率也完全不修。', resultTitle: '排序还在，刻度仍偏', resultMetrics: calibrationMetrics('raw'), resultNote: 'ECE 仍为 10%。这不是分类失败，而是概率输出仍不适合承担风险语义。' },
+        { id: 'calibrated', label: '用独立校准集拟合单调映射，再冻结后审计', detail: '把四档映射到 0.1 / 0.3 / 0.7 / 0.9，保持风险排序不变。', resultTitle: '概率刻度恢复可信', resultMetrics: calibrationMetrics('calibrated'), resultNote: '在这份独立审计上，每档概率与实际频率对齐，同时没有改变谁比谁更危险。' },
+        { id: 'hard', label: '把低两档改成 0%，高两档改成 100%', detail: '让模型显得更“确定”。', resultTitle: '更自信，不等于更可信', resultMetrics: calibrationMetrics('hard'), resultNote: '概率被压成极端值后 ECE 和 Brier 都更差。校准不是把输出推向 0/1。' },
+      ],
+      correctIds: ['calibrated'],
+      success: '你只改了概率刻度，没有偷换分类器、排序或验证对象。CASE 004 的独立验证原则被复用到了校准。',
+    },
+    {
+      id: 'policy',
+      kicker: 'COMPOSE / CALIBRATION + THRESHOLD',
+      title: '风险阈值应该改，还是概率应该先可信？',
+      brief: '医院政策由处置成本确定：估计真实恶化风险 ≥65% 就进入干预。原始 60% 档实际有 70% 恶化；校准后它会被映射为 70%。',
+      prompt: '怎样既遵守 65% 风险政策，又不把 CASE 002 的阈值调参和概率含义混在一起？',
+      actionLabel: '执行处置策略',
+      options: [
+        { id: 'raw-policy', label: '原始概率直接套 65% 阈值', detail: '仍把未经校准的输出当真实风险。', resultTitle: '漏掉一整档真实高风险病人', resultMetrics: decisionMetrics('raw-policy'), resultNote: '原始 60% 档没有进入干预，但它的真实恶化率是 70%。高风险召回只有 45%。' },
+        { id: 'calibrated-policy', label: '先校准概率，再保持 65% 政策阈值', detail: '让风险数字先恢复语义，再按既定成本规则行动。', resultTitle: '概率与决策重新对齐', resultMetrics: decisionMetrics('calibrated-policy'), resultNote: '校准后的 70% 档会被正确纳入干预，高风险召回提升到 80%，同时政策阈值没有被偷偷改写。' },
+        { id: 'lower-raw-threshold', label: '不校准，直接把原始阈值降到 55%', detail: '通过调按钮碰巧把 60% 档也纳入。', resultTitle: '动作碰巧一样，语义却坏了', resultMetrics: decisionMetrics('lower-raw-threshold'), resultNote: '这批数据上处置结果碰巧与校准方案相同，但你已经把“65% 真实风险政策”偷换成“55% 模型分数”。换模型或环境后这个数字没有可迁移含义。' },
+      ],
+      correctIds: ['calibrated-policy'],
+      success: 'CASE 005 证据链完成：未知审计 → 可靠性表 → 独立校准 → 保持排序 → 概率阈值决策。',
+    },
+  ],
+  closureTitle: '80% 终于重新表示 80%',
+  closureSummary: '你没有靠更高 Accuracy 掩盖问题，也没有随手重调阈值，而是先让概率恢复可解释的频率含义，再让既定风险政策作用在可信概率上。',
+  takeaways: ['分类排序正确不等于概率已经校准', '概率校准要在独立数据上拟合并再次审计', '校准可以保持排序不变，只修正概率刻度', '决策阈值描述政策成本；模型分数只有校准后才适合直接解释成风险概率'],
+}
+
 export const AUTHORED_PUZZLE_CASES = {
   [STORY_CASE_002.id]: case002,
   [STORY_CASE_003.id]: case003,
   [STORY_CASE_004.id]: case004,
+  [STORY_CASE_005.id]: case005,
 } as const

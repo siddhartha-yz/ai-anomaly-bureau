@@ -21,6 +21,8 @@ describe('cheat code parser', () => {
     expect(parseCheatCode('boot')).toEqual({ ok: true, instruction: { kind: 'training' } })
     expect(parseCheatCode('case004')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: undefined } })
     expect(parseCheatCode('case004 model')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: 'clean-model' } })
+    expect(parseCheatCode('case005')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId: undefined } })
+    expect(parseCheatCode('case005 policy')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId: 'policy' } })
     expect(parseCheatCode('duty 6003')).toEqual({ ok: true, instruction: { kind: 'duty', seed: 6003 } })
   })
 
@@ -28,6 +30,7 @@ describe('cheat code parser', () => {
     expect(parseCheatCode('duty nope')).toMatchObject({ ok: false })
     expect(parseCheatCode('story overfit -1')).toMatchObject({ ok: false })
     expect(parseCheatCode('case004 nope')).toMatchObject({ ok: false })
+    expect(parseCheatCode('case005 nope')).toMatchObject({ ok: false })
     expect(parseCheatCode('teleport moon')).toMatchObject({ ok: false })
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004 } from '../src/bureau/catalog'
-import { AUTHORED_PUZZLE_CASES, evaluateLeakageModel, evaluateLeakageSplit, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
+import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005 } from '../src/bureau/catalog'
+import { AUTHORED_PUZZLE_CASES, evaluateCalibration, evaluateLeakageModel, evaluateLeakageSplit, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
 import { puzzleCaseScore } from '../src/story/StoryPuzzleRuntime'
 import { clearPuzzleSession, createPuzzleCheatSession, puzzleSessionHasProgress, puzzleSessionKey, readPuzzleSession, writePuzzleSession, type PuzzleSession } from '../src/story/puzzleSession'
 
@@ -77,6 +77,17 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(provenance?.evidence?.rows.filter((row) => row[1] === 'OBJ-09').map((row) => row[2])).toEqual(['TRAIN', 'VALIDATION'])
     expect(resplit?.correctIds).toEqual(['entity'])
     expect(model?.correctIds).toEqual(['stable'])
+  })
+
+  it('makes CASE 005 separate ranking from probability calibration before reusing a fixed risk policy', () => {
+    expect(evaluateCalibration('raw')).toMatchObject({ ece: .1, brier: .16 })
+    expect(evaluateCalibration('calibrated')).toMatchObject({ ece: 0, brier: .15 })
+    expect(evaluateCalibration('hard').ece).toBeCloseTo(.2)
+    expect(evaluateCalibration('hard').brier).toBeCloseTo(.2)
+    const config = AUTHORED_PUZZLE_CASES[STORY_CASE_005.id]
+    expect(config.stages.map((stage) => stage.id)).toEqual(['reliability', 'calibrate', 'policy'])
+    expect(config.stages[1].correctIds).toEqual(['calibrated'])
+    expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
   })
 
   it('persists compact case-specific checkpoints and rejects mismatched case identities', () => {

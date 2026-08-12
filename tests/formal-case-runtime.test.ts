@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FORMAL_CASE_CATALOG, STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004 } from '../src/bureau/catalog'
+import { FORMAL_CASE_CATALOG, STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005 } from '../src/bureau/catalog'
 import { createBureauProgress, formalCaseProgress, recordFormalCaseResolution } from '../src/bureau/progress'
 import { createStoryCheatSession } from '../src/game/cheats'
 import { storySessionKey, writeStorySession } from '../src/game/session'
@@ -42,7 +42,7 @@ describe('formal case runtime registry', () => {
     expect(storage.getItem(storySessionKey(checkpoint.seed))).toBeNull()
   })
 
-  it('owns independent CASE 002 / CASE 003 / CASE 004 puzzle checkpoints through the same registry', () => {
+  it('owns independent CASE 002 / CASE 003 / CASE 004 / CASE 005 puzzle checkpoints through the same registry', () => {
     const storage = new MemoryStorage()
     expect(writePuzzleSession(storage as unknown as Storage, {
       version: 1,
@@ -64,6 +64,7 @@ describe('formal case runtime registry', () => {
     })
     expect(formalCaseRuntime(STORY_CASE_003.id).readResume(storage as unknown as Storage, 20260809)).toBeUndefined()
     expect(formalCaseRuntime(STORY_CASE_004.id).readResume(storage as unknown as Storage, 20260809)).toBeUndefined()
+    expect(formalCaseRuntime(STORY_CASE_005.id).readResume(storage as unknown as Storage, 20260809)).toBeUndefined()
 
     formalCaseRuntime(STORY_CASE_002.id).clearSession(storage as unknown as Storage, 20260809)
     expect(storage.getItem(puzzleSessionKey(STORY_CASE_002.id, 20260809))).toBeNull()

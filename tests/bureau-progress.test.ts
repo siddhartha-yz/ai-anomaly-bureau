@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import {
   BUREAU_PROGRESS_KEY,
   BUREAU_PROGRESS_VERSION,
@@ -54,6 +54,7 @@ describe('Bureau meta progression', () => {
     expect(isFormalCaseAvailable(progress, STORY_CASE_002)).toBe(true)
     expect(isFormalCaseAvailable(progress, STORY_CASE_003)).toBe(false)
     expect(isFormalCaseAvailable(progress, STORY_CASE_004)).toBe(false)
+    expect(isFormalCaseAvailable(progress, STORY_CASE_005)).toBe(false)
 
     progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'S', 100)
     expect(isFormalCaseAvailable(progress, STORY_CASE_003)).toBe(true)
@@ -66,8 +67,13 @@ describe('Bureau meta progression', () => {
     expect(bureauArchive(progress).find((item) => item.id === 'controlled-experiment')?.discovered).toBe(true)
 
     progress = recordFormalCaseResolution(progress, STORY_CASE_004.id, 'S', 100)
+    expect(isFormalCaseAvailable(progress, STORY_CASE_005)).toBe(true)
     expect(bureauArchive(progress).find((item) => item.id === 'data-leakage')).toMatchObject({ discovered: true, source: 'CASE 004' })
     expect(bureauArchive(progress).find((item) => item.id === 'group-split')).toMatchObject({ discovered: true, source: 'CASE 004' })
+
+    progress = recordFormalCaseResolution(progress, STORY_CASE_005.id, 'A', 92)
+    expect(bureauArchive(progress).find((item) => item.id === 'calibration')).toMatchObject({ discovered: true, source: 'CASE 005' })
+    expect(bureauArchive(progress).find((item) => item.id === 'reliability')).toMatchObject({ discovered: true, source: 'CASE 005' })
   })
 
   it('preserves first closure time while keeping one coherent strongest formal-case report', () => {

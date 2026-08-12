@@ -73,6 +73,11 @@ export function parseCheatCode(raw: string): CheatParseResult {
     if (parts[1] && !stageId) return { ok: false, message: 'CASE004 跳转支持 PROVENANCE / RESPLIT / MODEL / COMPOSE。' }
     return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId } }
   }
+  if (parts[0] === 'CASE005') {
+    const stageId = ({ RELIABILITY: 'reliability', CALIBRATE: 'calibrate', POLICY: 'policy' } as const)[parts[1] as 'RELIABILITY' | 'CALIBRATE' | 'POLICY']
+    if (parts[1] && !stageId) return { ok: false, message: 'CASE005 跳转支持 RELIABILITY / CALIBRATE / POLICY。' }
+    return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId } }
+  }
 
   if (parts[0] === 'BUREAU' || parts[0] === 'OFFICE') {
     if (parts[1] === 'UNLOCK') return { ok: true, instruction: { kind: 'bureau-unlock' } }

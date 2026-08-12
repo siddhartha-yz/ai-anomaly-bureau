@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
-import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import { BUREAU_PROGRESS_KEY, createBureauProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion } from '../src/bureau/progress'
 import { endlessSessionKey } from '../src/endless/session'
 import { createStoryCheatSession } from '../src/game/cheats'
@@ -210,6 +210,12 @@ test('QA Test Bench protects normal saves across Story and Duty jumps, then rest
 
   await page.getByRole('button', { name: '打开 QA 测试工作台' }).click()
   terminal = page.getByRole('dialog', { name: '作弊码终端' })
+  await terminal.getByLabel('QA 测试工作台').getByRole('button', { name: /CASE 005 · 校准谜题/ }).click()
+  await expect(page.getByLabel('CASE 005 调查终端')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '“60% 风险”真的意味着十个人里六个吗？' })).toBeVisible()
+
+  await page.getByRole('button', { name: '打开 QA 测试工作台' }).click()
+  terminal = page.getByRole('dialog', { name: '作弊码终端' })
   await terminal.getByLabel('QA 测试工作台').getByRole('button', { name: /DUTY · Shift/ }).click()
   await expect(page.getByRole('heading', { name: '监督学习 · 无尽调查' })).toBeVisible()
   await expect(page.getByText('SEED 6006')).toBeVisible()
@@ -250,6 +256,7 @@ test('qa=1 exposes a visible Test Bench launcher while normal player URLs remain
   await expect(terminal.getByRole('button', { name: /CASE 002 · 指标谜题/ })).toBeVisible()
   await expect(terminal.getByRole('button', { name: /CASE 003 · 环境谜题/ })).toBeVisible()
   await expect(terminal.getByRole('button', { name: /CASE 004 · 泄漏谜题/ })).toBeVisible()
+  await expect(terminal.getByRole('button', { name: /CASE 005 · 校准谜题/ })).toBeVisible()
   await terminal.getByRole('button', { name: /CASE 004 · 干净验证/ }).click()
   await expect(page.getByLabel('CASE 004 调查终端')).toBeVisible()
   await expect(page.getByRole('heading', { name: '在干净验证集上，谁真的学会了规律？' })).toBeVisible()
@@ -290,7 +297,7 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await page.getByRole('button', { name: '接收调查员证件' }).click()
   await expect(page.getByLabel('正式调查员权限已开放')).toHaveCount(0)
   await expect(page.getByLabel('调查员状态')).toContainText('正式调查员')
-  await expect(hub).toContainText('1 / 4 CLOSED')
+  await expect(hub).toContainText('1 / 5 CLOSED')
   await expect(page.getByText('失控的分类器')).toBeVisible()
   await expect(page.getByText('A · 91/100')).toBeVisible()
   await expect(page.getByRole('button', { name: '打开结案案卷' })).toBeVisible()
@@ -303,6 +310,7 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(page.getByRole('button', { name: '接收 CASE 002' })).toBeVisible()
   await expect(page.locator('.bureau-case-file').filter({ has: page.getByText('CASE 003', { exact: true }) }).getByRole('button', { name: '案件封存中' })).toBeDisabled()
   await expect(page.locator('.bureau-case-file').filter({ has: page.getByText('CASE 004', { exact: true }) }).getByRole('button', { name: '案件封存中' })).toBeDisabled()
+  await expect(page.locator('.bureau-case-file').filter({ has: page.getByText('CASE 005', { exact: true }) }).getByRole('button', { name: '案件封存中' })).toBeDisabled()
   await qaShot(page, '50-bureau-hub')
 
   await bureauDepartment(page, /调查档案/).click()
@@ -345,7 +353,7 @@ test('Bureau Hub turns solved content into one persistent investigation workspac
   await expect(page.getByLabel('AI异常调查局主页')).toBeVisible()
 })
 
-test('authored CASE 002 through CASE 004 grow one reusable investigation primitive at a time', async ({ page }) => {
+test('authored CASE 002 through CASE 005 grow one reusable investigation primitive at a time', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   const seed = 20260809
   const progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 91)
@@ -356,14 +364,15 @@ test('authored CASE 002 through CASE 004 grow one reusable investigation primiti
 
   const hub = page.getByLabel('AI异常调查局主页')
   await expect(hub).toBeVisible()
-  await expect(hub).toContainText('1 / 4 CLOSED')
+  await expect(hub).toContainText('1 / 5 CLOSED')
   await expect(page.getByRole('heading', { name: '被平均数藏起来的人' })).toBeVisible()
   await expect(page.getByRole('button', { name: '接收 CASE 002' })).toBeEnabled()
   await expect(page.getByRole('heading', { name: '只在白天正确' })).toBeVisible()
   const sealedCases = page.getByRole('button', { name: '案件封存中' })
-  await expect(sealedCases).toHaveCount(2)
+  await expect(sealedCases).toHaveCount(3)
   await expect(sealedCases.first()).toBeDisabled()
   await expect(sealedCases.nth(1)).toBeDisabled()
+  await expect(sealedCases.nth(2)).toBeDisabled()
 
   await page.getByRole('button', { name: '接收 CASE 002' }).click()
   await expect(page.getByLabel('CASE 002 调查终端')).toBeVisible()
@@ -410,7 +419,7 @@ test('authored CASE 002 through CASE 004 grow one reusable investigation primiti
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 
   await expect(hub).toBeVisible()
-  await expect(hub).toContainText('2 / 4 CLOSED')
+  await expect(hub).toContainText('2 / 5 CLOSED')
   await expect(page.getByRole('button', { name: '接收 CASE 003' })).toBeEnabled()
   await bureauDepartment(page, /调查档案/).click()
   await expect(page.getByText('分类别召回')).toBeVisible()
@@ -442,7 +451,7 @@ test('authored CASE 002 through CASE 004 grow one reusable investigation primiti
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 
   await expect(hub).toBeVisible()
-  await expect(hub).toContainText('3 / 4 CLOSED')
+  await expect(hub).toContainText('3 / 5 CLOSED')
   await expect(page.getByRole('button', { name: '接收 CASE 004' })).toBeEnabled()
   await page.getByRole('button', { name: '接收 CASE 004' }).click()
   await expect(page.getByLabel('CASE 004 调查终端')).toBeVisible()
@@ -486,12 +495,54 @@ test('authored CASE 002 through CASE 004 grow one reusable investigation primiti
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 
   await expect(hub).toBeVisible()
-  await expect(hub).toContainText('4 / 4 CLOSED')
+  await expect(hub).toContainText('4 / 5 CLOSED')
+  await expect(page.getByRole('button', { name: '接收 CASE 005' })).toBeEnabled()
+  await page.getByRole('button', { name: '接收 CASE 005' }).click()
+  await expect(page.getByLabel('CASE 005 调查终端')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
+  const reliability = page.getByLabel('“60% 风险”真的意味着十个人里六个吗？ 证据档案')
+  await expect(reliability).toContainText('RELIABILITY_TABLE')
+  await expect(reliability).toContainText('60%')
+  await expect(reliability).toContainText('70%')
+
+  await page.getByRole('button', { name: /排序仍有用，但这些数字不能直接当真实发生概率/ }).click()
+  await page.getByRole('button', { name: '读取可靠性表' }).click()
+  await expect(page.getByLabel('本次调查结果')).toContainText('校准误差 ECE')
+  await expect(page.getByLabel('本次调查结果')).toContainText('10%')
+  await page.getByRole('button', { name: '封存证据 · 进入下一谜题' }).click()
+
+  await page.getByRole('button', { name: /继续使用原始 0\.2/ }).click()
+  await page.getByRole('button', { name: '运行校准审计' }).click()
+  await expect(page.getByLabel('本次调查结果')).toContainText('HYPOTHESIS REJECTED')
+  await page.getByRole('button', { name: /用独立校准集拟合单调映射/ }).click()
+  await page.getByRole('button', { name: '运行校准审计' }).click()
+  await expect(page.getByLabel('本次调查结果')).toContainText('概率刻度恢复可信')
+  await expect(page.getByLabel('本次调查结果')).toContainText('0%')
+  await page.getByRole('button', { name: '封存证据 · 进入下一谜题' }).click()
+
+  await page.getByRole('button', { name: /不校准，直接把原始阈值降到 55%/ }).click()
+  await page.getByRole('button', { name: '执行处置策略' }).click()
+  await expect(page.getByLabel('本次调查结果')).toContainText('HYPOTHESIS REJECTED')
+  await expect(page.getByLabel('本次调查结果')).toContainText('被偷偷改成 55%')
+  await page.getByRole('button', { name: /先校准概率，再保持 65% 政策阈值/ }).click()
+  await page.getByRole('button', { name: '执行处置策略' }).click()
+  await expect(page.getByLabel('本次调查结果')).toContainText('高风险召回')
+  await expect(page.getByLabel('本次调查结果')).toContainText('80%')
+  await page.getByRole('button', { name: '封存证据并结案' }).click()
+  await expect(page.getByLabel('CASE 005 已结案')).toContainText('B')
+  await expect(page.getByLabel('CASE 005 已结案')).toContainText('84/100')
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), puzzleSessionKey(STORY_CASE_005.id, seed))).not.toBeNull()
+  await page.getByRole('button', { name: '归档并返回调查局' }).click()
+
+  await expect(hub).toBeVisible()
+  await expect(hub).toContainText('5 / 5 CLOSED')
   await bureauDepartment(page, /调查档案/).click()
   await expect(page.getByText('分布变化')).toBeVisible()
   await expect(page.getByText('控制变量实验')).toBeVisible()
   await expect(page.getByText('数据泄漏')).toBeVisible()
   await expect(page.getByText('分组切分')).toBeVisible()
+  await expect(page.getByText('概率校准')).toBeVisible()
+  await expect(page.getByText('可靠性图 / 频率语义')).toBeVisible()
 })
 
 test('Bureau recovers valid legacy progress when the newer v2 payload is corrupted', async ({ page }) => {

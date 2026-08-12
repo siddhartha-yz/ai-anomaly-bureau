@@ -81,6 +81,22 @@ export const STORY_CASE_004 = {
   unlockAfter: STORY_CASE_003.id,
 } as const satisfies FormalCaseDefinition
 
+
+export const STORY_CASE_005 = {
+  id: 'story-005',
+  number: '005',
+  title: '80% 到底是什么意思',
+  classification: 'PROBABILITY CALIBRATION INCIDENT',
+  dispatchTime: '09:40',
+  dispatchLocation: '校医院分诊台',
+  incident: '分诊模型的排序看起来合理，但医生发现“80% 风险”的病人并没有按 80% 的频率真正恶化，固定风险阈值因此做出了错误处置。',
+  objective: '把“分得开”与“概率可信”拆开检查，在独立校准数据上修正概率，再保留真实风险阈值做决策。',
+  assignment: '正式案件 · 概率校准',
+  tags: ['剧情谜题', '概率校准', '可靠性图', '决策阈值'],
+  icon: ['0.8', '≠', '80%'],
+  unlockAfter: STORY_CASE_004.id,
+} as const satisfies FormalCaseDefinition
+
 export const TRAINING_CASE_000 = {
   id: 'training-000',
   number: '000',
@@ -92,7 +108,7 @@ export const TRAINING_CASE_000 = {
 // Authored cases form a prerequisite chain: each case adds one investigation
 // primitive and expects the player to reuse earlier ones, rather than acting as
 // isolated tutorials.
-export const FORMAL_CASE_CATALOG = [STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004] as const
+export const FORMAL_CASE_CATALOG = [STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, STORY_CASE_005] as const
 export const TRAINING_CASE_CATALOG = [TRAINING_CASE_000] as const
 
 export type FormalCaseId = (typeof FORMAL_CASE_CATALOG)[number]['id']
