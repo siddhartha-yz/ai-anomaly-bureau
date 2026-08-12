@@ -19,7 +19,7 @@ npm run test:e2e
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
 - Vitest：25 个测试文件、148 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-De3fBO3z.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CO7GrR37.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
 - Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → Bureau Hub、四类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
@@ -83,10 +83,10 @@ Vitest 当前覆盖：
 - causal-source forecast：READY 来源可以直接复核；`预测 SIGNAL / 预测 CLEAR` 改为可选的打开前直觉记录，不再阻塞取证。原因是 benign source confound 的部分结果由未公开 seed bucket 决定，强制二选一会制造无信息点击。若玩家主动预测，打开后仍锁定并显示 HIT/MISS；`caseLeadForecastStats()` 只统计真正打开且确有预测的来源。v6 session 继续以可选 `caseLeadPredictions` 向后兼容保存，专项测试覆盖合法往返、未知值拒绝、旧 v6 无字段继续恢复；Chromium 同时验证“无预判直接复核”以及 CLEAR→CLEAR / SIGNAL→SIGNAL 可选命中路线。
 - 类别不平衡：存在总体 Accuracy ≥90% 但最低类别 recall <75% 的真实假好方案，同时存在可靠解。
 - 自动玩法平衡：批量 seed 上 evidence-policy 必须显著优于 5 次 random-clicker。90 seed × 24 random-run 的统计压力测试显式使用 15s timeout，避免 CI / Chromium 并行负载下撞到 Vitest 默认 5s 假超时；本轮完整套件曾在 5.36s 触发该假超时，单独复验与放宽后全量复验均通过。
-- Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime。CASE 001 保留自己的长篇 reducer runtime；CASE 002/003 共用 `StoryPuzzleRuntime`，但各自拥有独立 `aia.formal-puzzle.v1.<caseId>.<seed>` checkpoint。reader 会按实际关卡配置重算 option 是否属于当前 stage、correct 标记是否真实、成功检查数是否足以到达当前 stage，伪造 `correct: true` 或直接把 stage 改到结案都会被拒绝；resume 摘要、clear 与 checkpoint→Bureau reconciliation 全由 registry owner 提供。
+- Formal Case runtime registry：catalog 中每个正式案件都必须有 runtime。CASE 001 保留自己的长篇 reducer runtime；CASE 002/003/004 共用 `StoryPuzzleRuntime`，但各自拥有独立 `aia.formal-puzzle.v1.<caseId>.<seed>` checkpoint。reader 会按实际关卡配置重算 option 是否属于当前 stage、correct 标记是否真实、成功检查数是否足以到达当前 stage，伪造 `correct: true` 或直接把 stage 改到结案都会被拒绝；resume 摘要、clear 与 checkpoint→Bureau reconciliation 全由 registry owner 提供。
 - Training runtime registry：catalog 中每个训练案件都必须有 runtime；Training 000 已迁到 `src/training/TrainingCase000Runtime.tsx`，并继续复用真实 Endless generator / audit，而不是作为 `src/endless/` 的特殊教程组件存在。
 - Bureau Duty adapter：`createDutyCasePreview()` 的回归测试只允许 `caseNo / incident / reportedFacts / seed / title` 五类公开字段，并明确拒绝 syndrome / diagnosis / publicTest / audit；`readDutyResume()` 只暴露 `seed / historyCount / remainingCredits / solved`，`clearDutyProgress()` 负责清档。Hub 已不直接 import 完整 generator，App 也不再直接 import Endless session。
-- App bootstrap：启动时遍历完整 `FORMAL_CASE_CATALOG`，CASE 001 长篇 checkpoint 与 CASE 002/003 solved puzzle checkpoint 都能归并进 canonical Bureau v2，但 later-case reconciliation 仍受 prerequisite 约束；历史 Training 完成 key 继续迁移且只有在 v2 写成功后才删除。模拟所有 Storage 操作抛 `SecurityError` 时，bootstrap 仍返回空长期进度并允许应用继续启动。
+- App bootstrap：启动时遍历完整 `FORMAL_CASE_CATALOG`，CASE 001 长篇 checkpoint 与 CASE 002/003/004 solved puzzle checkpoint 都能归并进 canonical Bureau v2，但 later-case reconciliation 仍受 prerequisite 约束；历史 Training 完成 key 继续迁移且只有在 v2 写成功后才删除。模拟所有 Storage 操作抛 `SecurityError` 时，bootstrap 仍返回空长期进度并允许应用继续启动。
 
 ## Playwright 浏览器 E2E
 
@@ -102,7 +102,7 @@ Vitest 当前覆盖：
 - Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷；显式 `?mode=endless` 开发直达即使完成案件，也不会在未入职 profile 中写入 Duty 长期进度。
 - 存在未结 Duty session 时，Hub 只引导继续旧案；新报告不能静默覆盖现有 session。
 - Formal Case seed 与 Duty seed 已分离：浏览器路线预先保存一份由正式 writer 净化的 CASE 001 结案 checkpoint，随后接取不同 seed 的 Duty 并返回 Hub，案件板仍必须显示 `打开结案案卷`，且能够重新进入原 `CASE CLOSED`；Duty seed 变化不能改变 Story checkpoint 身份。
-- Hub / 工单队列在 1280×720 下无横向溢出，四个部门都可操作；CASE 002/003 的新系统谜题整案浏览器路线也固定在 1280×720，入口、三段谜题、结果指标与结案均无横向溢出。
+- Hub / 工单队列在 1280×720 下无横向溢出，四个部门都可操作；CASE 002/003/004 的新系统谜题整案浏览器路线也固定在 1280×720，入口、谜题、结果指标与结案均无横向溢出。CASE 004 第一阶段的 E2E 还要求从原始台账中点出真实跨 split 实体，而不是直接接受系统给出的“存在泄漏”结论。
 
 零基础玩家完整案件：
 

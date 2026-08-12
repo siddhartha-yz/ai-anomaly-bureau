@@ -446,10 +446,10 @@ test('authored CASE 002 through CASE 004 grow one reusable investigation primiti
   await expect(splitLedger).toContainText('TRAIN')
   await expect(splitLedger).toContainText('VALIDATION')
 
-  await page.getByRole('button', { name: /训练 \/ 验证是否出现同一件物品/ }).click()
+  await page.getByRole('button', { name: 'OBJ-09' }).click()
   await page.getByRole('button', { name: '检查切分记录' }).click()
   await expect(page.getByLabel('本次调查结果')).toContainText('100%')
-  await expect(page.getByLabel('本次调查结果')).toContainText('身份泄漏')
+  await expect(page.getByLabel('本次调查结果')).toContainText('跨 split 的同一实体')
   await page.getByRole('button', { name: '封存证据 · 进入下一谜题' }).click()
 
   // Keep the model fixed and try an incomplete fix first: date splitting still

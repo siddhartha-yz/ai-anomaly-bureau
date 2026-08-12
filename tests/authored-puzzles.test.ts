@@ -72,6 +72,9 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
 
     const resplit = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id].stages.find((stage) => stage.id === 'resplit')
     const model = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id].stages.find((stage) => stage.id === 'clean-model')
+    const provenance = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id].stages.find((stage) => stage.id === 'provenance')
+    expect(provenance?.correctIds).toEqual(['obj-09'])
+    expect(provenance?.evidence?.rows.filter((row) => row[1] === 'OBJ-09').map((row) => row[2])).toEqual(['TRAIN', 'VALIDATION'])
     expect(resplit?.correctIds).toEqual(['entity'])
     expect(model?.correctIds).toEqual(['stable'])
   })
