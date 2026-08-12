@@ -19,14 +19,18 @@ export function FormalCaseResume({ definition, summary, onContinue, onDiscard, o
           <span className="story-resume-case-id">{formalCaseCode(definition)}</span>
           <div>
             <h1>{summary.solved ? '上次调查已经结案。' : '上次调查还没有结束。'}</h1>
-            <p>{summary.solved ? '结案案卷仍保存在这台浏览器。你可以重新打开结果，也可以清除后从头调查。' : '本地检查点保存了你已经揭示的证据、实验记录和匿名行为日志。继续不会返还正式审计额度。'}</p>
+            <p>{summary.solved
+              ? '结案案卷仍保存在这台浏览器。你可以重新打开结果，也可以清除后从头调查。'
+              : summary.activityLabel === 'CHECKS'
+                ? '本地检查点保存了已经完成的谜题、检查次数与修正记录。继续会回到同一调查步骤。'
+                : '本地检查点保存了你已经揭示的证据、实验记录和匿名行为日志。继续不会返还正式审计额度。'}</p>
           </div>
         </div>
 
         <div className="story-resume-stats" aria-label="剧情案件存档摘要">
           <span><small>CURRENT STEP</small><strong>{summary.stageLabel}</strong></span>
-          <span><small>EXPERIMENTS</small><strong>{summary.experimentCount}</strong></span>
-          <span><small>AUDITS LEFT</small><strong>{summary.remainingCredits}</strong></span>
+          <span><small>{summary.activityLabel ?? 'EXPERIMENTS'}</small><strong>{summary.experimentCount}</strong></span>
+          <span><small>{summary.resourceLabel ?? 'AUDITS LEFT'}</small><strong>{summary.remainingCredits}</strong></span>
         </div>
 
         <div className="story-resume-actions">

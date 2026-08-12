@@ -15,6 +15,7 @@ import './styles/narrative-expansion.css'
 import './styles/endless-mode.css'
 import './styles/endless-onboarding.css'
 import './styles/bureau-hub.css'
+import './styles/story-puzzle.css'
 import './styles/cheat-terminal.css'
 
 createRoot(document.getElementById('root')!).render(

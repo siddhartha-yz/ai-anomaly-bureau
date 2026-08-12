@@ -1,4 +1,4 @@
-import { STORY_CASE_001 } from '../bureau/catalog'
+import { FORMAL_CASE_CATALOG, STORY_CASE_001 } from '../bureau/catalog'
 import { readBureauProgress, reconcileLegacyProgress, writeBureauProgress, type BureauProgress } from '../bureau/progress'
 import { formalCaseRuntime } from '../story/registry'
 
@@ -16,7 +16,9 @@ export function bootstrapBureauProgress(storage: Storage, seed: number): BureauP
   const inductionRuntime = formalCaseRuntime(STORY_CASE_001.id)
   const legacyBootCompleted = readLegacyBootCompletion(storage)
   let progress = readBureauProgress(storage)
-  progress = inductionRuntime.reconcileProgress(storage, seed, progress)
+  for (const definition of FORMAL_CASE_CATALOG) {
+    progress = formalCaseRuntime(definition.id).reconcileProgress(storage, seed, progress)
+  }
   progress = reconcileLegacyProgress(progress, {
     storyResolved: Boolean(inductionRuntime.readResume(storage, seed)?.solved),
     bootCompleted: legacyBootCompleted,

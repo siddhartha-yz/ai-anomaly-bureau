@@ -1,16 +1,21 @@
 import type { ComponentType } from 'react'
-import { STORY_CASE_001, type FormalCaseDefinition, type FormalCaseId } from '../bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, type FormalCaseDefinition, type FormalCaseId } from '../bureau/catalog'
 import { isFormalCaseResolved, recordFormalCaseResolution, type BureauProgress, type InvestigationGrade } from '../bureau/progress'
 import { calculateCaseScore } from '../components/CaseRating'
 import { STAGE_CONTENT } from '../content/level1'
 import { clearStorySession, readStorySession, storyAuditCredits, storySessionHasProgress, type StorageLike } from '../game/session'
+import { AUTHORED_PUZZLE_CASES, type AuthoredPuzzleConfig } from './authoredCasePuzzles'
 import { StoryCase001Runtime } from './StoryCase001Runtime'
+import { puzzleCaseScore, StoryPuzzleRuntime } from './StoryPuzzleRuntime'
+import { clearPuzzleSession, puzzleSessionHasProgress, readPuzzleSession } from './puzzleSession'
 
 export type FormalCaseResumeSummary = {
   stageLabel: string
   experimentCount: number
   remainingCredits: number
   solved: boolean
+  activityLabel?: string
+  resourceLabel?: string
 }
 
 export type FormalCaseRuntimeProps = {
@@ -62,8 +67,42 @@ const CASE_001_RUNTIME: FormalCaseRuntimeDefinition = {
   },
 }
 
+function createPuzzleRuntime(config: AuthoredPuzzleConfig): FormalCaseRuntimeDefinition {
+  const caseId = config.definition.id as FormalCaseId
+  return {
+    definition: config.definition,
+    Component: (props) => <StoryPuzzleRuntime config={config} {...props} />,
+    readResume(storage, seed) {
+      const saved = readPuzzleSession(storage, config, seed)
+      if (!saved || !puzzleSessionHasProgress(saved)) return undefined
+      return {
+        stageLabel: saved.solved ? '调查完成' : config.stages[saved.stage].title,
+        experimentCount: saved.checks,
+        remainingCredits: saved.mistakes,
+        solved: saved.solved,
+        activityLabel: 'CHECKS',
+        resourceLabel: 'REVISIONS',
+      }
+    },
+    clearSession(storage, seed) {
+      clearPuzzleSession(storage, caseId, seed)
+    },
+    reconcileProgress(storage, seed, progress) {
+      const saved = readPuzzleSession(storage, config, seed)
+      if (!saved?.solved || isFormalCaseResolved(progress, caseId)) return progress
+      const rating = puzzleCaseScore(saved.mistakes)
+      return recordFormalCaseResolution(progress, caseId, rating.grade, rating.score)
+    },
+  }
+}
+
+const CASE_002_RUNTIME = createPuzzleRuntime(AUTHORED_PUZZLE_CASES[STORY_CASE_002.id])
+const CASE_003_RUNTIME = createPuzzleRuntime(AUTHORED_PUZZLE_CASES[STORY_CASE_003.id])
+
 export const FORMAL_CASE_RUNTIME_REGISTRY = {
   [STORY_CASE_001.id]: CASE_001_RUNTIME,
+  [STORY_CASE_002.id]: CASE_002_RUNTIME,
+  [STORY_CASE_003.id]: CASE_003_RUNTIME,
 } satisfies Record<FormalCaseId, FormalCaseRuntimeDefinition>
 
 export function formalCaseRuntime(id: FormalCaseId): FormalCaseRuntimeDefinition {

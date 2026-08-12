@@ -1,0 +1,115 @@
+import { describe, expect, it } from 'vitest'
+import { STORY_CASE_002, STORY_CASE_003 } from '../src/bureau/catalog'
+import { AUTHORED_PUZZLE_CASES, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
+import { puzzleCaseScore } from '../src/story/StoryPuzzleRuntime'
+import { clearPuzzleSession, puzzleSessionHasProgress, puzzleSessionKey, readPuzzleSession, writePuzzleSession, type PuzzleSession } from '../src/story/puzzleSession'
+
+class MemoryStorage {
+  values = new Map<string, string>()
+  getItem(key: string) { return this.values.get(key) ?? null }
+  setItem(key: string, value: string) { this.values.set(key, value) }
+  removeItem(key: string) { this.values.delete(key) }
+}
+
+describe('authored CASE 002 / 003 puzzle progression', () => {
+  it('turns class imbalance into a threshold constraint puzzle instead of an accuracy lecture', () => {
+    const conservative = evaluateScreeningThreshold(.8)
+    const edgeSafe = evaluateScreeningThreshold(.6)
+    const balanced = evaluateScreeningThreshold(.55)
+    const overSensitive = evaluateScreeningThreshold(.35)
+
+    expect(conservative.accuracy).toBeGreaterThan(.9)
+    expect(conservative.urgentRecall).toBe(.25)
+    expect(edgeSafe.accuracy).toBeGreaterThanOrEqual(.8)
+    expect(edgeSafe.urgentRecall).toBe(.75)
+    expect(balanced.accuracy).toBeGreaterThanOrEqual(.8)
+    expect(balanced.urgentRecall).toBe(1)
+    expect(overSensitive.urgentRecall).toBe(1)
+    expect(overSensitive.accuracy).toBeLessThan(.8)
+
+    const thresholdStage = AUTHORED_PUZZLE_CASES[STORY_CASE_002.id].stages.find((stage) => stage.id === 'threshold')
+    expect(thresholdStage?.correctIds).toEqual(['t60', 't55'])
+  })
+
+  it('makes CASE 003 reuse per-class reliability while isolating environment-sensitive sensors', () => {
+    const brightness = evaluateShiftSensor('brightness')
+    const texture = evaluateShiftSensor('texture')
+    const shape = evaluateShiftSensor('shape')
+
+    expect(brightness.historyAccuracy).toBe(1)
+    expect(brightness.fieldAccuracy).toBe(.5)
+    expect(brightness.minFieldRecall).toBe(0)
+    expect(texture.fieldAccuracy).toBeGreaterThanOrEqual(.8)
+    expect(texture.minFieldRecall).toBeGreaterThanOrEqual(.75)
+    expect(shape.fieldAccuracy).toBe(1)
+    expect(shape.minFieldRecall).toBe(1)
+
+    const sensorStage = AUTHORED_PUZZLE_CASES[STORY_CASE_003.id].stages.find((stage) => stage.id === 'stable-sensor')
+    expect(sensorStage?.correctIds).toEqual(['texture', 'shape'])
+  })
+
+  it('persists compact case-specific checkpoints and rejects mismatched case identities', () => {
+    const storage = new MemoryStorage()
+    const session: PuzzleSession = {
+      version: 1,
+      caseId: STORY_CASE_002.id,
+      seed: 20260809,
+      stage: 1,
+      checks: 3,
+      mistakes: 1,
+      selectedOptionId: 't55',
+      lastRun: { stage: 1, optionId: 't55', correct: true },
+      solved: false,
+    }
+    expect(writePuzzleSession(storage as unknown as Storage, session)).toBe(true)
+    expect(puzzleSessionHasProgress(session)).toBe(true)
+    const case002 = AUTHORED_PUZZLE_CASES[STORY_CASE_002.id]
+    const case003 = AUTHORED_PUZZLE_CASES[STORY_CASE_003.id]
+    expect(readPuzzleSession(storage as unknown as Storage, case002, session.seed)).toEqual(session)
+    expect(readPuzzleSession(storage as unknown as Storage, case003, session.seed)).toBeUndefined()
+
+    storage.setItem(puzzleSessionKey(STORY_CASE_002.id, session.seed), JSON.stringify({ ...session, mistakes: 4 }))
+    expect(readPuzzleSession(storage as unknown as Storage, case002, session.seed)).toBeUndefined()
+
+    clearPuzzleSession(storage as unknown as Storage, STORY_CASE_002.id, session.seed)
+    expect(storage.getItem(puzzleSessionKey(STORY_CASE_002.id, session.seed))).toBeNull()
+  })
+
+  it('rejects forged solved checkpoints that skip authored puzzle gates', () => {
+    const storage = new MemoryStorage()
+    const case002 = AUTHORED_PUZZLE_CASES[STORY_CASE_002.id]
+    const key = puzzleSessionKey(STORY_CASE_002.id, 20260809)
+
+    storage.setItem(key, JSON.stringify({
+      version: 1,
+      caseId: STORY_CASE_002.id,
+      seed: 20260809,
+      stage: 2,
+      checks: 0,
+      mistakes: 0,
+      solved: true,
+    }))
+    expect(readPuzzleSession(storage as unknown as Storage, case002, 20260809)).toBeUndefined()
+
+    storage.setItem(key, JSON.stringify({
+      version: 1,
+      caseId: STORY_CASE_002.id,
+      seed: 20260809,
+      stage: 2,
+      checks: 3,
+      mistakes: 0,
+      selectedOptionId: 'accuracy-trust',
+      lastRun: { stage: 2, optionId: 'accuracy-trust', correct: true },
+      solved: true,
+    }))
+    expect(readPuzzleSession(storage as unknown as Storage, case002, 20260809)).toBeUndefined()
+  })
+
+  it('records evidence revisions in authored-case ratings without creating a grind loop', () => {
+    expect(puzzleCaseScore(0)).toEqual({ grade: 'S', score: 100 })
+    expect(puzzleCaseScore(1)).toEqual({ grade: 'A', score: 92 })
+    expect(puzzleCaseScore(2)).toEqual({ grade: 'B', score: 84 })
+    expect(puzzleCaseScore(4)).toEqual({ grade: 'C', score: 68 })
+    expect(puzzleCaseScore(99)).toEqual({ grade: 'C', score: 55 })
+  })
+})

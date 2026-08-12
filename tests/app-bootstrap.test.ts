@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { bootstrapBureauProgress } from '../src/app/bootstrap'
-import { STORY_CASE_001, TRAINING_CASE_000 } from '../src/bureau/catalog'
-import { BUREAU_PROGRESS_KEY, formalCaseProgress, trainingCaseProgress } from '../src/bureau/progress'
+import { STORY_CASE_001, STORY_CASE_002, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { BUREAU_PROGRESS_KEY, createBureauProgress, formalCaseProgress, recordFormalCaseResolution, trainingCaseProgress, writeBureauProgress } from '../src/bureau/progress'
 import { createStoryCheatSession } from '../src/game/cheats'
 import { writeStorySession, type StorageLike } from '../src/game/session'
+import { writePuzzleSession } from '../src/story/puzzleSession'
 
 class MemoryStorage implements StorageLike {
   values = new Map<string, string>()
@@ -27,6 +28,26 @@ describe('application Bureau bootstrap', () => {
     expect(trainingCaseProgress(progress, TRAINING_CASE_000.id).completed).toBe(true)
     expect(storage.getItem(BUREAU_PROGRESS_KEY)).not.toBeNull()
     expect(storage.getItem('aia.boot-case-000.v2')).toBeNull()
+  })
+
+  it('reconciles solved later authored-case checkpoints during bootstrap, not only CASE 001', () => {
+    const storage = new MemoryStorage()
+    const inducted = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
+    expect(writeBureauProgress(storage, inducted)).toBe(true)
+    expect(writePuzzleSession(storage, {
+      version: 1,
+      caseId: STORY_CASE_002.id,
+      seed: 20260809,
+      stage: 2,
+      checks: 3,
+      mistakes: 0,
+      selectedOptionId: 'accuracy-up',
+      lastRun: { stage: 2, optionId: 'accuracy-up', correct: true },
+      solved: true,
+    })).toBe(true)
+
+    const progress = bootstrapBureauProgress(storage as unknown as Storage, 20260809)
+    expect(formalCaseProgress(progress, STORY_CASE_002.id)).toMatchObject({ resolved: true, bestGrade: 'S', bestScore: 100 })
   })
 
   it('does not crash application startup when browser storage is unavailable', () => {

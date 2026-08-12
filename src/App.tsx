@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { bootstrapBureauProgress } from './app/bootstrap'
-import { STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId, type TrainingCaseId } from './bureau/catalog'
+import { FORMAL_CASE_CATALOG, STORY_CASE_001, TRAINING_CASE_000, type FormalCaseId, type TrainingCaseId } from './bureau/catalog'
 import { clearDutyProgress, readDutyResume } from './bureau/duty'
 import { acknowledgeBureauInduction, isBureauUnlocked, isTrainingCaseCompleted, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion, writeBureauProgress, type BureauProgress } from './bureau/progress'
 import { BureauHub, type HubSection } from './components/BureauHub'
 import { FormalCaseResume } from './components/FormalCaseResume'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
-import { CHEAT_AUTO_RESUME_KEY } from './game/cheats'
+import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY } from './game/cheats'
 import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
 import { trainingCaseRuntime } from './training/registry'
 
@@ -21,7 +21,13 @@ function App() {
   const [formalCaseSeed] = useState(initialSeed)
   const [dutySeed, setDutySeed] = useState(initialSeed)
   const [formalCaseSession, setFormalCaseSession] = useState(0)
-  const [formalCaseId, setFormalCaseId] = useState<FormalCaseId>(STORY_CASE_001.id)
+  const [formalCaseId, setFormalCaseId] = useState<FormalCaseId>(() => {
+    const pendingCaseId = window.sessionStorage.getItem(CHEAT_FORMAL_CASE_ID_KEY)
+    window.sessionStorage.removeItem(CHEAT_FORMAL_CASE_ID_KEY)
+    return FORMAL_CASE_CATALOG.some((definition) => definition.id === pendingCaseId)
+      ? pendingCaseId as FormalCaseId
+      : STORY_CASE_001.id
+  })
   const [trainingCaseId, setTrainingCaseId] = useState<TrainingCaseId>(TRAINING_CASE_000.id)
   const [mode, setMode] = useState<AppMode>(() => {
     if (requestedMode === 'hub') return 'hub'
@@ -62,9 +68,13 @@ function App() {
 
   const openFormalCaseFromHub = (caseId: FormalCaseId) => {
     const runtime = formalCaseRuntime(caseId)
+    const resume = runtime.readResume(window.localStorage, formalCaseSeed)
     setFormalCaseId(caseId)
     setHubSection('case-board')
-    setFormalCaseResumeAccepted(Boolean(runtime.readResume(window.localStorage, formalCaseSeed)?.solved))
+    // A brand-new case has no resume decision to make. Mark its gate accepted up
+    // front so later parent renders (for example, recording case closure) cannot
+    // mistake the child's newly-written checkpoint for an old interrupted save.
+    setFormalCaseResumeAccepted(!resume || resume.solved)
     setMode('formal-case')
   }
 

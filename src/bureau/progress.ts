@@ -2,10 +2,13 @@ import type { EndlessSyndrome } from '../endless/generator'
 import {
   FORMAL_CASE_CATALOG,
   STORY_CASE_001,
+  STORY_CASE_002,
+  STORY_CASE_003,
   TRAINING_CASE_CATALOG,
   TRAINING_CASE_000,
   formalCaseCode,
   trainingCaseCode,
+  type FormalCaseDefinition,
   type FormalCaseId,
   type TrainingCaseId,
 } from './catalog'
@@ -129,8 +132,14 @@ function isProgress(value: unknown): value is BureauProgress {
   if (!item.formalCases || typeof item.formalCases !== 'object' || Array.isArray(item.formalCases)) return false
   if (!item.trainingCases || typeof item.trainingCases !== 'object' || Array.isArray(item.trainingCases)) return false
 
-  for (const [id, caseProgress] of Object.entries(item.formalCases as Record<string, unknown>)) {
+  const formalCases = item.formalCases as Record<string, FormalCaseProgress>
+  for (const [id, caseProgress] of Object.entries(formalCases)) {
     if (!FORMAL_CASE_IDS.has(id) || !isFormalCaseProgress(caseProgress)) return false
+  }
+  for (const definition of FORMAL_CASE_CATALOG) {
+    const unlockAfter = 'unlockAfter' in definition ? definition.unlockAfter : undefined
+    if (!unlockAfter || !formalCases[definition.id]?.resolved) continue
+    if (!formalCases[unlockAfter]?.resolved) return false
   }
   for (const [id, caseProgress] of Object.entries(item.trainingCases as Record<string, unknown>)) {
     if (!TRAINING_CASE_IDS.has(id) || !isTrainingCaseProgress(caseProgress)) return false
@@ -236,6 +245,8 @@ export function recordFormalCaseResolution(
   score: number,
   now = new Date(),
 ): BureauProgress {
+  const definition = FORMAL_CASE_CATALOG.find((item) => item.id === id)
+  if (!definition || !isFormalCaseAvailable(progress, definition)) return progress
   const current = formalCaseProgress(progress, id)
   const gradeRank = (value?: InvestigationGrade) => value ? GRADES.indexOf(value) : Number.POSITIVE_INFINITY
   const currentRank = gradeRank(current.bestGrade)
@@ -255,6 +266,12 @@ export function recordFormalCaseResolution(
       },
     },
   }
+}
+
+export function isFormalCaseAvailable(progress: BureauProgress, definition: FormalCaseDefinition) {
+  if (!definition.unlockAfter) return true
+  if (!FORMAL_CASE_IDS.has(definition.unlockAfter)) return false
+  return isFormalCaseResolved(progress, definition.unlockAfter as FormalCaseId)
 }
 
 export function isBureauUnlocked(progress: BureauProgress) {
@@ -313,16 +330,18 @@ export function reconcileLegacyProgress(progress: BureauProgress, legacy: { stor
 export function bureauArchive(progress: BureauProgress) {
   const syndromes = new Set(progress.duty.resolutions.map((item) => item.syndrome))
   const storyResolved = isFormalCaseResolved(progress, STORY_CASE_001.id)
+  const case002Resolved = isFormalCaseResolved(progress, STORY_CASE_002.id)
+  const case003Resolved = isFormalCaseResolved(progress, STORY_CASE_003.id)
   const trainingCompleted = isTrainingCaseCompleted(progress, TRAINING_CASE_000.id)
   return [
     { id: 'train-test', title: '训练集 / 未知样本', discovered: storyResolved, source: formalCaseCode(STORY_CASE_001) },
     { id: 'generalization', title: '泛化', discovered: storyResolved, source: formalCaseCode(STORY_CASE_001) },
     { id: 'overfitting', title: '过拟合', discovered: storyResolved || syndromes.has('overfit-noise'), source: storyResolved ? formalCaseCode(STORY_CASE_001) : 'DUTY' },
-    { id: 'controlled-experiment', title: '控制变量实验', discovered: trainingCompleted, source: trainingCaseCode(TRAINING_CASE_000) },
-    { id: 'recall', title: '分类别召回', discovered: trainingCompleted || syndromes.has('class-imbalance'), source: trainingCompleted ? trainingCaseCode(TRAINING_CASE_000) : 'DUTY' },
+    { id: 'controlled-experiment', title: '控制变量实验', discovered: trainingCompleted || case003Resolved, source: trainingCompleted ? trainingCaseCode(TRAINING_CASE_000) : formalCaseCode(STORY_CASE_003) },
+    { id: 'recall', title: '分类别召回', discovered: case002Resolved || trainingCompleted || syndromes.has('class-imbalance'), source: case002Resolved ? formalCaseCode(STORY_CASE_002) : trainingCompleted ? trainingCaseCode(TRAINING_CASE_000) : 'DUTY' },
     { id: 'feature-gap', title: '观察信息不足', discovered: syndromes.has('feature-gap'), source: 'DUTY' },
-    { id: 'distribution-shift', title: '分布变化', discovered: syndromes.has('distribution-shift'), source: 'DUTY' },
-    { id: 'class-imbalance', title: '类别不平衡', discovered: syndromes.has('class-imbalance'), source: 'DUTY' },
+    { id: 'distribution-shift', title: '分布变化', discovered: case003Resolved || syndromes.has('distribution-shift'), source: case003Resolved ? formalCaseCode(STORY_CASE_003) : 'DUTY' },
+    { id: 'class-imbalance', title: '类别不平衡', discovered: case002Resolved || syndromes.has('class-imbalance'), source: case002Resolved ? formalCaseCode(STORY_CASE_002) : 'DUTY' },
   ]
 }
 

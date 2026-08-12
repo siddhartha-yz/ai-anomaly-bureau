@@ -10,9 +10,11 @@ class MemoryStorage implements StorageLike {
 }
 
 describe('cheat code parser', () => {
-  it('accepts memorable story, bureau, training, and duty aliases', () => {
+  it('accepts memorable story, authored-case, bureau, training, and duty aliases', () => {
     expect(parseCheatCode('case001 overfit')).toEqual({ ok: true, instruction: { kind: 'story', target: 'overfit', seed: undefined } })
     expect(parseCheatCode('STORY:FINAL@777')).toEqual({ ok: true, instruction: { kind: 'story', target: 'final', seed: 777 } })
+    expect(parseCheatCode('case002')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-002' } })
+    expect(parseCheatCode('CASE003')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } })
     expect(parseCheatCode('bureau unlock')).toEqual({ ok: true, instruction: { kind: 'bureau-unlock' } })
     expect(parseCheatCode('boot')).toEqual({ ok: true, instruction: { kind: 'training' } })
     expect(parseCheatCode('duty 6003')).toEqual({ ok: true, instruction: { kind: 'duty', seed: 6003 } })

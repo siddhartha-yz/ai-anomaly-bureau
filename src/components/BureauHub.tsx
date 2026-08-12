@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_CATALOG, trainingCaseCode, type FormalCaseId, type TrainingCaseId } from '../bureau/catalog'
 import { bureauDispatch, type BureauDepartment } from '../bureau/dispatch'
 import { createDutyCasePreview, type DutyResumeSummary } from '../bureau/duty'
-import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, nextDutySeeds, trainingCaseProgress, type BureauProgress, type DutyResolution } from '../bureau/progress'
+import { bureauArchive, formalCaseProgress, investigatorStatus, isBureauUnlocked, isFormalCaseAvailable, nextDutySeeds, trainingCaseProgress, type BureauProgress, type DutyResolution } from '../bureau/progress'
 import type { FormalCaseResumeSummary } from '../story/registry'
 
 export type HubSection = BureauDepartment
@@ -79,7 +79,7 @@ export function BureauHub({
       </header>
 
       <section className="bureau-shift-strip" aria-label="调查局值班摘要">
-        <div><small>正式案件</small><strong>{resolvedFormalCases === FORMAL_CASE_CATALOG.length ? `${resolvedFormalCases} CLOSED` : `${FORMAL_CASE_CATALOG.length - resolvedFormalCases} ACTIVE`}</strong></div>
+        <div><small>正式案件</small><strong>{resolvedFormalCases} / {FORMAL_CASE_CATALOG.length} CLOSED</strong></div>
         <div><small>值班结案</small><strong>{progress.duty.resolutions.length}</strong></div>
         <div><small>病症档案</small><strong>{dutySyndromes.size} / 4</strong></div>
         <div><small>知识条目</small><strong>{discovered.length} / {archive.length}</strong></div>
@@ -97,7 +97,7 @@ export function BureauHub({
           <div className="bureau-induction-copy">
             <small>{formalCaseCode(STORY_CASE_001)} / ARCHIVED</small>
             <h2>新人案件结案。正式调查员权限已开放。</h2>
-            <p>从现在开始，你不再沿着一条教程线前进。案件板保存正式调查，训练中心练方法，调查档案记录你真正见过的故障，值班室负责陌生的程序化案件。</p>
+            <p>从现在开始，案件板会用一连串手工谜题逐步增加新的调查工具；训练中心练方法，调查档案记录你真正见过的故障，值班室负责把这些方法用在陌生程序化案件上。</p>
             <div className="bureau-induction-unlocks"><span>✓ 调查档案</span><span>✓ 训练中心</span><span>✓ 值班室</span></div>
           </div>
           <button type="button" onClick={onAcknowledgeInduction}>接收调查员证件</button>
@@ -135,9 +135,12 @@ export function BureauHub({
               {FORMAL_CASE_CATALOG.map((definition) => {
                 const caseProgress = formalCaseProgress(progress, definition.id)
                 const resume = formalCaseResumes?.[definition.id]
+                const available = isFormalCaseAvailable(progress, definition)
+                const unlockAfter = 'unlockAfter' in definition ? definition.unlockAfter : undefined
+                const prerequisite = unlockAfter ? FORMAL_CASE_CATALOG.find((item) => item.id === unlockAfter) : undefined
                 return (
-                  <article className="bureau-case-file primary" key={definition.id}>
-                    <header><span>{formalCaseCode(definition)}</span><StatusPill tone={caseProgress.resolved ? 'yellow' : 'blue'}>{caseProgress.resolved ? 'CLOSED' : 'ACTIVE'}</StatusPill></header>
+                  <article className={`bureau-case-file ${available ? 'primary' : 'locked'}`} key={definition.id}>
+                    <header><span>{formalCaseCode(definition)}</span><StatusPill tone={caseProgress.resolved ? 'yellow' : available ? 'blue' : 'muted'}>{caseProgress.resolved ? 'CLOSED' : available ? 'ACTIVE' : 'SEALED'}</StatusPill></header>
                     <div className="bureau-case-file-body">
                       <div className="bureau-case-icon" aria-hidden="true">{definition.icon[0]}<br /><i>{definition.icon[1]}</i><br />{definition.icon[2]}</div>
                       <div>
@@ -151,17 +154,17 @@ export function BureauHub({
                     </div>
                     <footer>
                       <div>
-                        {caseProgress.resolved ? <><small>BEST REPORT</small><strong>{caseProgress.bestGrade ?? '—'} · {caseProgress.bestScore ?? '—'}/100</strong></> : resume ? <><small>CHECKPOINT</small><strong>{resume.stageLabel}</strong></> : <><small>ASSIGNMENT</small><strong>{definition.assignment}</strong></>}
+                        {caseProgress.resolved ? <><small>BEST REPORT</small><strong>{caseProgress.bestGrade ?? '—'} · {caseProgress.bestScore ?? '—'}/100</strong></> : !available ? <><small>PREREQUISITE</small><strong>{prerequisite ? `先完成 ${formalCaseCode(prerequisite)}` : '前置案件尚未完成'}</strong></> : resume ? <><small>CHECKPOINT</small><strong>{resume.stageLabel}</strong></> : <><small>ASSIGNMENT</small><strong>{definition.assignment}</strong></>}
                       </div>
-                      <button type="button" onClick={() => onOpenFormalCase(definition.id)}>{caseProgress.resolved ? (resume?.solved ? '打开结案案卷' : `重新调查 ${formalCaseCode(definition)}`) : resume ? `继续 ${formalCaseCode(definition)}` : `接收 ${formalCaseCode(definition)}`}</button>
+                      <button type="button" disabled={!available} onClick={() => onOpenFormalCase(definition.id)}>{!available ? '案件封存中' : caseProgress.resolved ? (resume?.solved ? '打开结案案卷' : `重新调查 ${formalCaseCode(definition)}`) : resume ? `继续 ${formalCaseCode(definition)}` : `接收 ${formalCaseCode(definition)}`}</button>
                     </footer>
                   </article>
                 )
               })}
 
               <article className="bureau-case-file locked">
-                <header><span>CASE ???</span><StatusPill tone="muted">SEALED</StatusPill></header>
-                <div className="bureau-locked-file"><strong>后续正式案件尚未编入 V1</strong><p>这里保留为剧情案件板的位置，而不是用无尽模式假装“第二关”。</p></div>
+                <header><span>CASE 004+</span><StatusPill tone="muted">SEALED</StatusPill></header>
+                <div className="bureau-locked-file"><strong>后续调查模块待编入</strong><p>新的正式案件继续遵守“每关新增一个可操作原语，再复用旧原语”的结构，不用 Duty 工单冒充剧情关。</p></div>
               </article>
             </div>
           )}

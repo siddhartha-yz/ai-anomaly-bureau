@@ -1,5 +1,5 @@
-import { formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
-import { isBureauUnlocked, isTrainingCaseCompleted, type BureauProgress } from './progress'
+import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, trainingCaseCode, TRAINING_CASE_000 } from './catalog'
+import { isBureauUnlocked, isFormalCaseAvailable, isFormalCaseResolved, isTrainingCaseCompleted, type BureauProgress } from './progress'
 
 export type BureauDepartment = 'case-board' | 'training' | 'archive' | 'duty'
 
@@ -47,6 +47,21 @@ export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResume
     }
   }
 
+  const nextAuthoredCase = FORMAL_CASE_CATALOG.find((definition) =>
+    definition.id !== STORY_CASE_001.id
+    && isFormalCaseAvailable(progress, definition)
+    && !isFormalCaseResolved(progress, definition.id),
+  )
+  if (nextAuthoredCase) {
+    return {
+      target: 'case-board',
+      code: 'OPEN CASE',
+      title: `${formalCaseCode(nextAuthoredCase)} · ${nextAuthoredCase.title}`,
+      detail: '案件板有新的手工调查谜题。它会增加一个新工具，并要求复用之前案件的方法。',
+      action: '前往案件板',
+    }
+  }
+
   if (!isTrainingCaseCompleted(progress, TRAINING_CASE_000.id)) {
     return {
       target: 'training',
@@ -72,7 +87,7 @@ export function bureauDispatch(progress: BureauProgress, dutyResume?: DutyResume
     target: 'archive',
     code: 'ARCHIVE',
     title: '四类值班故障档案已齐',
-    detail: '现有 V1 的方法练习已完整；案件板仍为后续正式调查保留位置。',
+    detail: '当前手工案件与四类值班故障都已覆盖；调查档案可以回看已经组合起来的方法。',
     action: '查看调查档案',
   }
 }

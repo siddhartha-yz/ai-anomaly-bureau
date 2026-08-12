@@ -12,6 +12,7 @@ import { STORY_SESSION_VERSION, type StorySessionData } from './session'
 import type { GameAction, GameState } from './types'
 
 export const CHEAT_AUTO_RESUME_KEY = 'aia.cheat.auto-resume.v1'
+export const CHEAT_FORMAL_CASE_ID_KEY = 'aia.cheat.formal-case-id.v1'
 
 export type StoryCheatTarget = 'errors' | 'overfit' | 'repair' | 'final' | 'closed'
 
@@ -19,6 +20,7 @@ export type CheatInstruction =
   | { kind: 'help' }
   | { kind: 'story'; target: StoryCheatTarget; seed?: number }
   | { kind: 'story-reset'; seed?: number }
+  | { kind: 'authored-case'; caseId: 'story-002' | 'story-003' }
   | { kind: 'bureau-unlock' }
   | { kind: 'bureau' }
   | { kind: 'training' }
@@ -55,6 +57,8 @@ export function parseCheatCode(raw: string): CheatParseResult {
 
   if (parts[0] === 'HELP' || parts[0] === '?') return { ok: true, instruction: { kind: 'help' } }
   if (parts[0] === 'TRAINING' || parts[0] === 'BOOT') return { ok: true, instruction: { kind: 'training' } }
+  if (parts[0] === 'CASE002') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-002' } }
+  if (parts[0] === 'CASE003') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } }
 
   if (parts[0] === 'BUREAU' || parts[0] === 'OFFICE') {
     if (parts[1] === 'UNLOCK') return { ok: true, instruction: { kind: 'bureau-unlock' } }

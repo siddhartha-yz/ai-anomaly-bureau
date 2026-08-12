@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { formalCaseCode, STORY_CASE_001, TRAINING_CASE_000 } from '../bureau/catalog'
+import { formalCaseCode, STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, TRAINING_CASE_000 } from '../bureau/catalog'
 import { acknowledgeBureauInduction, isBureauUnlocked, readBureauProgress, recordFormalCaseResolution, writeBureauProgress } from '../bureau/progress'
 import { clearEndlessSession } from '../endless/session'
-import { CHEAT_AUTO_RESUME_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
+import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
 import { clearStorySession, writeStorySession } from '../game/session'
 import { beginQaSession, clearQaWorkingState, qaSnapshotSummary, readQaSnapshot, restoreQaSession, type QaSnapshot } from '../qa/testBench'
+import { clearPuzzleSession } from '../story/puzzleSession'
 
 const EXAMPLES = [
   ['CASE001 ERRORS', '跳到第一次现场翻车后的误判调查'],
@@ -12,6 +13,8 @@ const EXAMPLES = [
   ['CASE001 REPAIR', '跳到备用传感器已解锁的修复阶段'],
   ['CASE001 FINAL', '跳到最终未知审计已通过'],
   ['CASE001 CLOSED', '直接打开完整合法的结案状态'],
+  ['CASE002', '打开“被平均数藏起来的人”完整手工谜题'],
+  ['CASE003', '打开“只在白天正确”完整手工谜题'],
   ['BUREAU UNLOCK', '本地授予调查局权限并进入办公室'],
   ['TRAINING', `打开训练案件 ${TRAINING_CASE_000.number}`],
   ['DUTY 6003', '以指定 seed 打开一宗全新的值班案件'],
@@ -24,6 +27,8 @@ const QA_PRESETS = [
   ['CASE001 REPAIR', 'CASE 001 · 修复', '备用传感器已通过正式剧情解锁'],
   ['CASE001 FINAL', 'CASE 001 · 最终审计', '修复方案已经通过正式未知审计'],
   ['CASE001 CLOSED', 'CASE 001 · 结案', '打开合法 CASE CLOSED 案卷'],
+  ['CASE002', 'CASE 002 · 指标谜题', '从头测试分类别召回与多解阈值约束'],
+  ['CASE003', 'CASE 003 · 环境谜题', '从头测试白天 / 夜班分布变化与稳定观察通道'],
   ['BUREAU UNLOCK', '调查局 Hub', '创建合法入职事实并打开办公室'],
   ['TRAINING', 'TRAINING 000', '直接进入训练中心案件'],
   ['DUTY 6000', 'DUTY · Feature gap', '全新 seed 6000，不恢复旧 Duty session'],
@@ -100,7 +105,7 @@ export function CheatTerminal() {
     setError(false)
     const instruction = parsed.instruction
     if (instruction.kind === 'help') {
-      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
+      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE002；CASE003；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
       return
     }
 
@@ -121,6 +126,27 @@ export function CheatTerminal() {
       const seed = instruction.seed ?? currentSeed()
       clearStorySession(window.localStorage, seed)
       window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+      navigate(`?mode=story&seed=${seed}`)
+      return
+    }
+
+    if (instruction.kind === 'authored-case') {
+      const seed = currentSeed()
+      const definition = instruction.caseId === STORY_CASE_002.id ? STORY_CASE_002 : STORY_CASE_003
+      clearPuzzleSession(window.localStorage, definition.id, seed)
+      let progress = readBureauProgress(window.localStorage)
+      progress = recordFormalCaseResolution(progress, STORY_CASE_001.id, 'A', 100)
+      progress = acknowledgeBureauInduction(progress)
+      if (definition.id === STORY_CASE_003.id) {
+        progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'S', 100)
+      }
+      if (!writeBureauProgress(window.localStorage, progress)) {
+        setError(true)
+        setMessage(`无法准备 ${formalCaseCode(definition)} 的前置调查进度。`)
+        return
+      }
+      window.sessionStorage.setItem(CHEAT_FORMAL_CASE_ID_KEY, definition.id)
+      window.sessionStorage.setItem(CHEAT_AUTO_RESUME_KEY, String(seed))
       navigate(`?mode=story&seed=${seed}`)
       return
     }
@@ -187,6 +213,7 @@ export function CheatTerminal() {
       return
     }
     window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+    window.sessionStorage.removeItem(CHEAT_FORMAL_CASE_ID_KEY)
     setQaSnapshot(undefined)
     window.location.assign(result.returnPath)
   }
@@ -199,6 +226,7 @@ export function CheatTerminal() {
       return
     }
     window.sessionStorage.removeItem(CHEAT_AUTO_RESUME_KEY)
+    window.sessionStorage.removeItem(CHEAT_FORMAL_CASE_ID_KEY)
     navigate('?seed=20260809')
   }
 
