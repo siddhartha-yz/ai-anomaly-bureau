@@ -163,7 +163,7 @@ export function BureauHub({
               })}
 
               <article className="bureau-case-file locked">
-                <header><span>CASE 004+</span><StatusPill tone="muted">SEALED</StatusPill></header>
+                <header><span>CASE 005+</span><StatusPill tone="muted">SEALED</StatusPill></header>
                 <div className="bureau-locked-file"><strong>后续调查模块待编入</strong><p>新的正式案件继续遵守“每关新增一个可操作原语，再复用旧原语”的结构，不用 Duty 工单冒充剧情关。</p></div>
               </article>
             </div>

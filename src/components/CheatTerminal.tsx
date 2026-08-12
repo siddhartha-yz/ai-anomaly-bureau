@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { formalCaseCode, STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, TRAINING_CASE_000 } from '../bureau/catalog'
+import { FORMAL_CASE_CATALOG, formalCaseCode, STORY_CASE_001, TRAINING_CASE_000 } from '../bureau/catalog'
 import { acknowledgeBureauInduction, isBureauUnlocked, readBureauProgress, recordFormalCaseResolution, writeBureauProgress } from '../bureau/progress'
 import { clearEndlessSession } from '../endless/session'
 import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
@@ -15,6 +15,7 @@ const EXAMPLES = [
   ['CASE001 CLOSED', '直接打开完整合法的结案状态'],
   ['CASE002', '打开“被平均数藏起来的人”完整手工谜题'],
   ['CASE003', '打开“只在白天正确”完整手工谜题'],
+  ['CASE004', '打开“验证集见过你”完整手工谜题'],
   ['BUREAU UNLOCK', '本地授予调查局权限并进入办公室'],
   ['TRAINING', `打开训练案件 ${TRAINING_CASE_000.number}`],
   ['DUTY 6003', '以指定 seed 打开一宗全新的值班案件'],
@@ -29,6 +30,7 @@ const QA_PRESETS = [
   ['CASE001 CLOSED', 'CASE 001 · 结案', '打开合法 CASE CLOSED 案卷'],
   ['CASE002', 'CASE 002 · 指标谜题', '从头测试分类别召回与多解阈值约束'],
   ['CASE003', 'CASE 003 · 环境谜题', '从头测试白天 / 夜班分布变化与稳定观察通道'],
+  ['CASE004', 'CASE 004 · 泄漏谜题', '从头测试验证身份重叠、分组切分与真正泛化'],
   ['BUREAU UNLOCK', '调查局 Hub', '创建合法入职事实并打开办公室'],
   ['TRAINING', 'TRAINING 000', '直接进入训练中心案件'],
   ['DUTY 6000', 'DUTY · Feature gap', '全新 seed 6000，不恢复旧 Duty session'],
@@ -105,7 +107,7 @@ export function CheatTerminal() {
     setError(false)
     const instruction = parsed.instruction
     if (instruction.kind === 'help') {
-      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE002；CASE003；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
+      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE002；CASE003；CASE004；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
       return
     }
 
@@ -132,14 +134,21 @@ export function CheatTerminal() {
 
     if (instruction.kind === 'authored-case') {
       const seed = currentSeed()
-      const definition = instruction.caseId === STORY_CASE_002.id ? STORY_CASE_002 : STORY_CASE_003
+      const definition = FORMAL_CASE_CATALOG.find((item) => item.id === instruction.caseId)
+      if (!definition || definition.id === STORY_CASE_001.id) {
+        setError(true)
+        setMessage('无法识别手工案件入口。')
+        return
+      }
       clearPuzzleSession(window.localStorage, definition.id, seed)
       let progress = readBureauProgress(window.localStorage)
-      progress = recordFormalCaseResolution(progress, STORY_CASE_001.id, 'A', 100)
-      progress = acknowledgeBureauInduction(progress)
-      if (definition.id === STORY_CASE_003.id) {
-        progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'S', 100)
+      // QA authored-case jumps materialize only the prerequisite closure facts.
+      // This stays catalog-driven so future authored cases do not need another bespoke branch.
+      for (const candidate of FORMAL_CASE_CATALOG) {
+        if (candidate.id === definition.id) break
+        progress = recordFormalCaseResolution(progress, candidate.id, 'S', 100)
       }
+      progress = acknowledgeBureauInduction(progress)
       if (!writeBureauProgress(window.localStorage, progress)) {
         setError(true)
         setMessage(`无法准备 ${formalCaseCode(definition)} 的前置调查进度。`)

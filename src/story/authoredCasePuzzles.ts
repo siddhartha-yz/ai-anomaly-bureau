@@ -1,4 +1,4 @@
-import { STORY_CASE_002, STORY_CASE_003, type FormalCaseDefinition } from '../bureau/catalog'
+import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, type FormalCaseDefinition } from '../bureau/catalog'
 
 export type PuzzleMetric = {
   label: string
@@ -16,6 +16,13 @@ export type PuzzleOption = {
   resultNote: string
 }
 
+export type PuzzleEvidence = {
+  title: string
+  note?: string
+  columns: readonly string[]
+  rows: readonly (readonly string[])[]
+}
+
 export type AuthoredPuzzleStage = {
   id: string
   kicker: string
@@ -23,6 +30,7 @@ export type AuthoredPuzzleStage = {
   brief: string
   prompt: string
   actionLabel: string
+  evidence?: PuzzleEvidence
   options: readonly PuzzleOption[]
   correctIds: readonly string[]
   success: string
@@ -180,6 +188,136 @@ function shiftMetrics(sensor: ShiftSensor): readonly PuzzleMetric[] {
   ]
 }
 
+
+type LeakageLabel = 'recycle' | 'waste'
+type LeakageSplit = 'record' | 'day' | 'entity'
+type LeakageModel = 'identity' | 'stable' | 'camera'
+
+type LeakageObject = {
+  id: string
+  label: LeakageLabel
+  stable: number
+  camera: number
+}
+
+const CASE_004_OBJECTS: readonly LeakageObject[] = [
+  { id: 'obj-01', label: 'recycle', stable: .18, camera: .12 },
+  { id: 'obj-02', label: 'recycle', stable: .22, camera: .18 },
+  { id: 'obj-03', label: 'recycle', stable: .30, camera: .20 },
+  { id: 'obj-04', label: 'recycle', stable: .34, camera: .27 },
+  { id: 'obj-05', label: 'waste', stable: .68, camera: .72 },
+  { id: 'obj-06', label: 'waste', stable: .74, camera: .78 },
+  { id: 'obj-07', label: 'waste', stable: .80, camera: .84 },
+  { id: 'obj-08', label: 'waste', stable: .62, camera: .70 },
+  { id: 'obj-09', label: 'recycle', stable: .25, camera: .76 },
+  { id: 'obj-10', label: 'recycle', stable: .31, camera: .72 },
+  { id: 'obj-11', label: 'waste', stable: .70, camera: .24 },
+  { id: 'obj-12', label: 'waste', stable: .77, camera: .30 },
+  { id: 'obj-13', label: 'recycle', stable: .28, camera: .68 },
+  { id: 'obj-14', label: 'recycle', stable: .58, camera: .74 },
+  { id: 'obj-15', label: 'waste', stable: .66, camera: .20 },
+  { id: 'obj-16', label: 'waste', stable: .73, camera: .26 },
+]
+
+const CASE_004_SPLITS: Record<LeakageSplit, { train: readonly string[]; validation: readonly string[] }> = {
+  record: {
+    train: CASE_004_OBJECTS.map((item) => item.id),
+    validation: CASE_004_OBJECTS.map((item) => item.id),
+  },
+  day: {
+    train: CASE_004_OBJECTS.slice(0, 12).map((item) => item.id),
+    validation: CASE_004_OBJECTS.slice(8).map((item) => item.id),
+  },
+  entity: {
+    train: CASE_004_OBJECTS.slice(0, 8).map((item) => item.id),
+    validation: CASE_004_OBJECTS.slice(8).map((item) => item.id),
+  },
+}
+
+export type LeakageSplitMetrics = {
+  split: LeakageSplit
+  identityOverlap: number
+  validationAccuracy: number
+  minValidationRecall: number
+}
+
+function recallFor(rows: readonly LeakageObject[], predict: (item: LeakageObject) => LeakageLabel, label: LeakageLabel) {
+  const group = rows.filter((item) => item.label === label)
+  return group.filter((item) => predict(item) === label).length / group.length
+}
+
+export function evaluateLeakageSplit(split: LeakageSplit): LeakageSplitMetrics {
+  const spec = CASE_004_SPLITS[split]
+  const trainIds = new Set(spec.train)
+  const validation = spec.validation.map((id) => CASE_004_OBJECTS.find((item) => item.id === id)!)
+  const overlap = validation.filter((item) => trainIds.has(item.id)).length / validation.length
+  // The suspect model memorizes object identity whenever it has seen that physical
+  // item before. Truly new objects fall back to the majority/default class.
+  const predict = (item: LeakageObject): LeakageLabel => trainIds.has(item.id) ? item.label : 'recycle'
+  const correct = validation.filter((item) => predict(item) === item.label).length / validation.length
+  return {
+    split,
+    identityOverlap: overlap,
+    validationAccuracy: correct,
+    minValidationRecall: Math.min(
+      recallFor(validation, predict, 'recycle'),
+      recallFor(validation, predict, 'waste'),
+    ),
+  }
+}
+
+export type LeakageModelMetrics = {
+  model: LeakageModel
+  validationAccuracy: number
+  minValidationRecall: number
+}
+
+export function evaluateLeakageModel(model: LeakageModel): LeakageModelMetrics {
+  const train = CASE_004_OBJECTS.slice(0, 8)
+  const validation = CASE_004_OBJECTS.slice(8)
+  const means = (key: 'stable' | 'camera') => {
+    const recycle = train.filter((item) => item.label === 'recycle')
+    const waste = train.filter((item) => item.label === 'waste')
+    const mean = (rows: readonly LeakageObject[]) => rows.reduce((sum, item) => sum + item[key], 0) / rows.length
+    return { threshold: (mean(recycle) + mean(waste)) / 2, wasteHigh: mean(waste) > mean(recycle) }
+  }
+  const predict = (item: LeakageObject): LeakageLabel => {
+    if (model === 'identity') return 'recycle'
+    const key = model === 'stable' ? 'stable' : 'camera'
+    const { threshold, wasteHigh } = means(key)
+    const waste = wasteHigh ? item[key] >= threshold : item[key] <= threshold
+    return waste ? 'waste' : 'recycle'
+  }
+  return {
+    model,
+    validationAccuracy: validation.filter((item) => predict(item) === item.label).length / validation.length,
+    minValidationRecall: Math.min(
+      recallFor(validation, predict, 'recycle'),
+      recallFor(validation, predict, 'waste'),
+    ),
+  }
+}
+
+function leakageSplitMetrics(split: LeakageSplit): readonly PuzzleMetric[] {
+  const result = evaluateLeakageSplit(split)
+  return [
+    { label: '验证物品身份重叠', value: pct(result.identityOverlap), pass: result.identityOverlap === 0 },
+    { label: '嫌疑模型验证准确率', value: pct(result.validationAccuracy) },
+    { label: '最低类别召回', value: pct(result.minValidationRecall) },
+    { label: '切分单位', value: split === 'record' ? '照片记录' : split === 'day' ? '拍摄日期' : '物品实体' },
+  ]
+}
+
+function leakageModelMetrics(model: LeakageModel): readonly PuzzleMetric[] {
+  const result = evaluateLeakageModel(model)
+  return [
+    { label: '干净验证准确率', value: pct(result.validationAccuracy), pass: result.validationAccuracy >= .8 },
+    { label: '最低类别召回', value: pct(result.minValidationRecall), pass: result.minValidationRecall >= .75 },
+    { label: '验证身份重叠', value: '0%', pass: true },
+    { label: '模型依赖', value: model === 'identity' ? '物品身份' : model === 'stable' ? '材料结构' : '相机位置' },
+  ]
+}
+
 const case002: AuthoredPuzzleConfig = {
   definition: STORY_CASE_002,
   stages: [
@@ -289,7 +427,91 @@ const case003: AuthoredPuzzleConfig = {
   takeaways: ['输入环境变化会让旧相关性失效', '训练/历史高分不能代表新环境', '保持模型不变、只换观察通道可以建立更清楚的因果证据', '跨环境稳定性需要同时检查总体表现与分类别召回'],
 }
 
+
+const case004: AuthoredPuzzleConfig = {
+  definition: STORY_CASE_004,
+  stages: [
+    {
+      id: 'provenance',
+      kicker: 'PRIMITIVE 04 / SPLIT PROVENANCE',
+      title: '这个“验证集”真的没见过吗？',
+      brief: '分拣站把同一件物品连续拍了多张照片，再随机按照片记录切训练 / 验证。离线验证 100%，但新到站物品只有约一半能分对。',
+      prompt: '在换模型之前，哪项证据最值得先查？',
+      actionLabel: '检查切分记录',
+      evidence: {
+        title: 'SPLIT_LEDGER / 抽样切分台账',
+        note: '文件 ID 不同；ENTITY 才代表现实中的同一件物品。',
+        columns: ['FILE', 'ENTITY', 'SPLIT'],
+        rows: [
+          ['img-1041', 'OBJ-09', 'TRAIN'],
+          ['img-1048', 'OBJ-10', 'TRAIN'],
+          ['img-2203', 'OBJ-09', 'VALIDATION'],
+          ['img-2207', 'OBJ-10', 'VALIDATION'],
+          ['img-2214', 'OBJ-11', 'VALIDATION'],
+          ['img-1056', 'OBJ-11', 'TRAIN'],
+        ],
+      },
+      options: [
+        { id: 'identity-overlap', label: '训练 / 验证是否出现同一件物品', detail: '不看文件名，而看照片背后的物理实体是否重复。', resultTitle: '发现身份泄漏', resultMetrics: leakageSplitMetrics('record'), resultNote: '验证照片虽然是不同文件，但 100% 来自训练阶段已经见过的物品。模型可以靠记住物品身份拿到满分。' },
+        { id: 'more-epochs', label: '先确认训练是否足够久', detail: '继续增加训练轮次，观察训练分是否还能提高。', resultTitle: '方向错误', resultNote: '训练和验证已经满分；继续优化同一份泄漏评估无法解释新物品为什么失败。' },
+        { id: 'night-shift', label: '先检查拍摄环境有没有变', detail: '沿用 CASE 003 的环境调查，但暂时不检查样本身份。', resultTitle: '证据不足', resultNote: '现场光照没有系统变化；这一案更可疑的是“谁出现在验证里”，而不是“在哪里拍”。' },
+      ],
+      correctIds: ['identity-overlap'],
+      success: '新原语解锁：切分单位。验证文件不同，不代表验证对象真的独立。',
+    },
+    {
+      id: 'resplit',
+      kicker: 'CONTROLLED CHANGE / SPLIT ONLY',
+      title: '只改切分规则，不改模型',
+      brief: '保持嫌疑模型、特征和训练方式不变，只重新定义训练 / 验证怎么切。真正要上线的是“从未见过的新物品”，所以验证也必须模拟这个部署单位。',
+      prompt: '选择一种重切分方式，重新运行验证。',
+      actionLabel: '重切分并验证',
+      options: [
+        { id: 'record', label: '继续随机按照片记录切分', detail: '不同照片可以来自同一件物品。', resultTitle: '满分幻觉继续存在', resultMetrics: leakageSplitMetrics('record'), resultNote: '验证仍然 100% 身份重叠；满分没有提供新物品泛化证据。' },
+        { id: 'day', label: '按拍摄日期切分', detail: '后一天的照片进验证，但部分物品跨天重复出现。', resultTitle: '泄漏减少，但没有消失', resultMetrics: leakageSplitMetrics('day'), resultNote: '验证分下降到 75%，但仍有一半验证物品在训练里出现过，评估继续被污染。' },
+        { id: 'entity', label: '按物品实体分组切分', detail: '同一件物品的所有照片只能出现在同一侧。', resultTitle: '真正的失败终于暴露', resultMetrics: leakageSplitMetrics('entity'), resultNote: '身份重叠降到 0%，嫌疑模型马上跌到 50%，且一类召回归零。现在验证终于像真实上线。' },
+      ],
+      correctIds: ['entity'],
+      success: '你完成了切分层的控制变量实验：模型没变，只有“什么算未知”变了。',
+    },
+    {
+      id: 'clean-model',
+      kicker: 'COMPOSE / CLEAN SPLIT + MODEL',
+      title: '在干净验证集上，谁真的学会了规律？',
+      brief: '现在所有验证物品都从未出现在训练里。可靠要求仍沿用 CASE 002：总体 ≥80%，最低类别召回 ≥75%。只在这份干净验证集上比较候选模型。',
+      prompt: '选择一个候选模型并审计。',
+      actionLabel: '运行干净验证',
+      options: [
+        { id: 'identity', label: '身份记忆器', detail: '优先利用训练里见过的物品身份；陌生物品回退到默认类别。', resultTitle: '记忆无法迁移', resultMetrics: leakageModelMetrics('identity'), resultNote: '没有身份重叠后，原来的“满分模型”退化到猜多数类，一类召回直接归零。' },
+        { id: 'stable', label: '材料结构分类器', detail: '只用跨物品可复用的材料结构分数，阈值由训练物品拟合。', resultTitle: '跨实体保持可靠', resultMetrics: leakageModelMetrics('stable'), resultNote: '面对从未见过的物品仍达到 88% 左右，并同时守住两个类别的召回下限。' },
+        { id: 'camera', label: '相机位置分类器', detail: '利用训练阶段很强的拍摄机位相关性。', resultTitle: '又一个捷径', resultMetrics: leakageModelMetrics('camera'), resultNote: '新物品批次更换机位后相关性反转。这个方案重复了 CASE 003 的环境捷径问题。' },
+      ],
+      correctIds: ['stable'],
+      success: '干净验证集把“记住训练世界”和“学到可迁移规律”真正分开了。',
+    },
+    {
+      id: 'compose',
+      kicker: 'COMPOSE / CASE 001 + 002 + 003 + 004',
+      title: '最后定义：什么才算“未知验证”？',
+      brief: 'CASE 001 说未知样本才算数；CASE 002 说未知表现要拆类别；CASE 003 说未知环境也可能改变；CASE 004 再补上一层：验证对象本身不能偷偷和训练对象重合。',
+      prompt: '哪条规则最适合以后设计验证集？',
+      actionLabel: '封存评估规则',
+      options: [
+        { id: 'deployment-unit', label: '按真实部署中的“新对象单位”隔离训练与验证', detail: '新病人、新用户、新设备、新物品，都应按实际泛化单位分组。', resultTitle: '证据链闭合', resultNote: '验证集的独立性不是文件层面的，而是部署语义层面的。切分单位必须对应模型上线后真正会遇到的“新”。' },
+        { id: 'random-files', label: '只要文件随机打散，就一定是独立验证', detail: '不同文件名足以保证模型没见过。', resultTitle: '与本案冲突', resultNote: '同一实体可以产生很多不同文件；随机文件切分正是这次泄漏的来源。' },
+        { id: 'highest-score', label: '选验证分最高的切分方式', detail: '验证越高越说明切分越科学。', resultTitle: '目标倒置', resultNote: '评估的目的不是制造高分，而是逼近真实部署的不确定性。' },
+      ],
+      correctIds: ['deployment-unit'],
+      success: 'CASE 004 证据链完成：未知审计 → 切分单位 → 泄漏暴露 → 分组验证 → 真正泛化。',
+    },
+  ],
+  closureTitle: '满分验证终于失去了伪装',
+  closureSummary: '你没有靠调参挽救一个漂亮数字，而是先修正“什么算未知”，再让模型在真正独立的对象上证明自己。',
+  takeaways: ['验证集和训练集必须在部署语义上独立', '同一实体的多条记录跨 split 会造成数据泄漏', '按实体分组切分能暴露身份记忆型模型', '评估设计本身也是实验系统的一部分'],
+}
+
 export const AUTHORED_PUZZLE_CASES = {
   [STORY_CASE_002.id]: case002,
   [STORY_CASE_003.id]: case003,
+  [STORY_CASE_004.id]: case004,
 } as const

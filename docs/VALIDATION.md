@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：25 个测试文件、147 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BvDb4z0o.js` + `assets/index-DjcrN-2Q.css`（生产发布后再记录远端哈希）。
-- Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → Bureau Hub、三类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：25 个测试文件、148 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-De3fBO3z.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → Bureau Hub、四类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -97,7 +97,7 @@ Vitest 当前覆盖：
 - 全新浏览器仍从 CASE 001 进入，不显示空 Hub、OFFICE 或正常 Duty 入口。
 - Bureau migration browser route 会真实写入损坏的 v2 JSON 与完整 v1 payload，刷新后要求恢复正式调查员 / CASE 001 / Training 000 长期事实、写出合法 v2 并删除旧 v1 key。
 - CASE 001 真实结案后写入 Bureau progress；刷新首次进入 Hub 时出现 `CLEARANCE GRANTED`，确认后不会重复出现。
-- Hub 案件板从 formal catalog 渲染 CASE 001/002/003：CASE 002 在 CASE 001 后 ACTIVE，CASE 003 在 CASE 002 前保持 SEALED；结案后 `1/3 → 2/3 → 3/3 CLOSED` 与 archive provenance 同步更新。训练中心仍从独立 training catalog 渲染；Duty queue 继续通过 Bureau-facing safe preview adapter 生成。
+- Hub 案件板从 formal catalog 渲染 CASE 001/002/003/004：CASE 002 在 CASE 001 后 ACTIVE，CASE 003 / 004 按前置关系逐宗保持 SEALED；结案后 `1/4 → 2/4 → 3/4 → 4/4 CLOSED` 与 archive provenance 同步更新。训练中心仍从独立 training catalog 渲染；Duty queue 继续通过 Bureau-facing safe preview adapter 生成。
 - 值班室无未结案时显示 3 份 symptom-only `INCOMING REPORTS`；已经归档的 seed 不会重新出现在工单队列。
 - Duty 真实结案会回写 Bureau：值班结案数增加，对应病症点亮调查档案，再从值班室可以重开同一结案案卷；显式 `?mode=endless` 开发直达即使完成案件，也不会在未入职 profile 中写入 Duty 长期进度。
 - 存在未结 Duty session 时，Hub 只引导继续旧案；新报告不能静默覆盖现有 session。

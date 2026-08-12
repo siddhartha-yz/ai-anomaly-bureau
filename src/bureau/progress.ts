@@ -4,6 +4,7 @@ import {
   STORY_CASE_001,
   STORY_CASE_002,
   STORY_CASE_003,
+  STORY_CASE_004,
   TRAINING_CASE_CATALOG,
   TRAINING_CASE_000,
   formalCaseCode,
@@ -332,6 +333,7 @@ export function bureauArchive(progress: BureauProgress) {
   const storyResolved = isFormalCaseResolved(progress, STORY_CASE_001.id)
   const case002Resolved = isFormalCaseResolved(progress, STORY_CASE_002.id)
   const case003Resolved = isFormalCaseResolved(progress, STORY_CASE_003.id)
+  const case004Resolved = isFormalCaseResolved(progress, STORY_CASE_004.id)
   const trainingCompleted = isTrainingCaseCompleted(progress, TRAINING_CASE_000.id)
   return [
     { id: 'train-test', title: '训练集 / 未知样本', discovered: storyResolved, source: formalCaseCode(STORY_CASE_001) },
@@ -342,6 +344,8 @@ export function bureauArchive(progress: BureauProgress) {
     { id: 'feature-gap', title: '观察信息不足', discovered: syndromes.has('feature-gap'), source: 'DUTY' },
     { id: 'distribution-shift', title: '分布变化', discovered: case003Resolved || syndromes.has('distribution-shift'), source: case003Resolved ? formalCaseCode(STORY_CASE_003) : 'DUTY' },
     { id: 'class-imbalance', title: '类别不平衡', discovered: case002Resolved || syndromes.has('class-imbalance'), source: case002Resolved ? formalCaseCode(STORY_CASE_002) : 'DUTY' },
+    { id: 'data-leakage', title: '数据泄漏', discovered: case004Resolved, source: formalCaseCode(STORY_CASE_004) },
+    { id: 'group-split', title: '分组切分', discovered: case004Resolved, source: formalCaseCode(STORY_CASE_004) },
   ]
 }
 

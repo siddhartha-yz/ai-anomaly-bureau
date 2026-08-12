@@ -1,3 +1,4 @@
+import type { FormalCaseId } from '../bureau/catalog'
 import type { ExperimentRecord } from '../components/CaseAttempts'
 import type { ExperimentPrediction } from '../components/ExperimentPlan'
 import { TRANSFER_QUESTION } from '../content/level1'
@@ -20,7 +21,7 @@ export type CheatInstruction =
   | { kind: 'help' }
   | { kind: 'story'; target: StoryCheatTarget; seed?: number }
   | { kind: 'story-reset'; seed?: number }
-  | { kind: 'authored-case'; caseId: 'story-002' | 'story-003' }
+  | { kind: 'authored-case'; caseId: FormalCaseId }
   | { kind: 'bureau-unlock' }
   | { kind: 'bureau' }
   | { kind: 'training' }
@@ -59,6 +60,7 @@ export function parseCheatCode(raw: string): CheatParseResult {
   if (parts[0] === 'TRAINING' || parts[0] === 'BOOT') return { ok: true, instruction: { kind: 'training' } }
   if (parts[0] === 'CASE002') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-002' } }
   if (parts[0] === 'CASE003') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } }
+  if (parts[0] === 'CASE004') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-004' } }
 
   if (parts[0] === 'BUREAU' || parts[0] === 'OFFICE') {
     if (parts[1] === 'UNLOCK') return { ok: true, instruction: { kind: 'bureau-unlock' } }

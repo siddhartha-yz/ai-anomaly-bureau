@@ -17,6 +17,7 @@ describe('cheat code parser', () => {
     expect(parseCheatCode('CASE003')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } })
     expect(parseCheatCode('bureau unlock')).toEqual({ ok: true, instruction: { kind: 'bureau-unlock' } })
     expect(parseCheatCode('boot')).toEqual({ ok: true, instruction: { kind: 'training' } })
+    expect(parseCheatCode('case004')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004' } })
     expect(parseCheatCode('duty 6003')).toEqual({ ok: true, instruction: { kind: 'duty', seed: 6003 } })
   })
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import {
   BUREAU_PROGRESS_KEY,
   BUREAU_PROGRESS_VERSION,
@@ -53,6 +53,7 @@ describe('Bureau meta progression', () => {
     let progress = acknowledgeBureauInduction(recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90))
     expect(isFormalCaseAvailable(progress, STORY_CASE_002)).toBe(true)
     expect(isFormalCaseAvailable(progress, STORY_CASE_003)).toBe(false)
+    expect(isFormalCaseAvailable(progress, STORY_CASE_004)).toBe(false)
 
     progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'S', 100)
     expect(isFormalCaseAvailable(progress, STORY_CASE_003)).toBe(true)
@@ -60,8 +61,13 @@ describe('Bureau meta progression', () => {
     expect(bureauArchive(progress).find((item) => item.id === 'class-imbalance')).toMatchObject({ discovered: true, source: 'CASE 002' })
 
     progress = recordFormalCaseResolution(progress, STORY_CASE_003.id, 'A', 92)
+    expect(isFormalCaseAvailable(progress, STORY_CASE_004)).toBe(true)
     expect(bureauArchive(progress).find((item) => item.id === 'distribution-shift')).toMatchObject({ discovered: true, source: 'CASE 003' })
     expect(bureauArchive(progress).find((item) => item.id === 'controlled-experiment')?.discovered).toBe(true)
+
+    progress = recordFormalCaseResolution(progress, STORY_CASE_004.id, 'S', 100)
+    expect(bureauArchive(progress).find((item) => item.id === 'data-leakage')).toMatchObject({ discovered: true, source: 'CASE 004' })
+    expect(bureauArchive(progress).find((item) => item.id === 'group-split')).toMatchObject({ discovered: true, source: 'CASE 004' })
   })
 
   it('preserves first closure time while keeping one coherent strongest formal-case report', () => {
@@ -129,6 +135,7 @@ describe('Bureau meta progression', () => {
 
     const outOfOrder = createBureauProgress()
     outOfOrder.formalCases[STORY_CASE_003.id] = { resolved: true, bestGrade: 'S', bestScore: 100, resolvedAt: '2026-08-10T00:00:00.000Z' }
+    outOfOrder.formalCases[STORY_CASE_004.id] = { resolved: true, bestGrade: 'S', bestScore: 100, resolvedAt: '2026-08-10T00:00:00.000Z' }
     expect(writeBureauProgress(storage as unknown as Storage, outOfOrder)).toBe(false)
     storage.setItem(BUREAU_PROGRESS_KEY, JSON.stringify(outOfOrder))
     expect(readBureauProgress(storage as unknown as Storage)).toEqual(createBureauProgress())

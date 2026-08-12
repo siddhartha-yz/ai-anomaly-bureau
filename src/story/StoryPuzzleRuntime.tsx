@@ -173,6 +173,28 @@ export function StoryPuzzleRuntime({
             <p>{stage.brief}</p>
           </div>
 
+          {stage.evidence && (
+            <section className="puzzle-evidence" aria-label={`${stage.title} 证据档案`}>
+              <div className="puzzle-evidence-head">
+                <small>PLAYER-READ EVIDENCE</small>
+                <strong>{stage.evidence.title}</strong>
+                {stage.evidence.note && <span>{stage.evidence.note}</span>}
+              </div>
+              <div className="puzzle-evidence-table-wrap">
+                <table>
+                  <thead><tr>{stage.evidence.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                  <tbody>
+                    {stage.evidence.rows.map((row, rowIndex) => (
+                      <tr key={`${stage.id}-evidence-${rowIndex}`}>
+                        {row.map((cell, cellIndex) => <td key={`${cellIndex}-${cell}`}>{cell}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           <div className="puzzle-question">
             <small>CURRENT PUZZLE</small>
             <strong>{stage.prompt}</strong>

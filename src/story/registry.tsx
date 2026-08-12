@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, type FormalCaseDefinition, type FormalCaseId } from '../bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, type FormalCaseDefinition, type FormalCaseId } from '../bureau/catalog'
 import { isFormalCaseResolved, recordFormalCaseResolution, type BureauProgress, type InvestigationGrade } from '../bureau/progress'
 import { calculateCaseScore } from '../components/CaseRating'
 import { STAGE_CONTENT } from '../content/level1'
@@ -98,11 +98,13 @@ function createPuzzleRuntime(config: AuthoredPuzzleConfig): FormalCaseRuntimeDef
 
 const CASE_002_RUNTIME = createPuzzleRuntime(AUTHORED_PUZZLE_CASES[STORY_CASE_002.id])
 const CASE_003_RUNTIME = createPuzzleRuntime(AUTHORED_PUZZLE_CASES[STORY_CASE_003.id])
+const CASE_004_RUNTIME = createPuzzleRuntime(AUTHORED_PUZZLE_CASES[STORY_CASE_004.id])
 
 export const FORMAL_CASE_RUNTIME_REGISTRY = {
   [STORY_CASE_001.id]: CASE_001_RUNTIME,
   [STORY_CASE_002.id]: CASE_002_RUNTIME,
   [STORY_CASE_003.id]: CASE_003_RUNTIME,
+  [STORY_CASE_004.id]: CASE_004_RUNTIME,
 } satisfies Record<FormalCaseId, FormalCaseRuntimeDefinition>
 
 export function formalCaseRuntime(id: FormalCaseId): FormalCaseRuntimeDefinition {

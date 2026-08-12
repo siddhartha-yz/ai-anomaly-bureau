@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, TRAINING_CASE_000 } from '../src/bureau/catalog'
+import { STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004, TRAINING_CASE_000 } from '../src/bureau/catalog'
 import { bureauDispatch } from '../src/bureau/dispatch'
 import { acknowledgeBureauInduction, createBureauProgress, recordDutyResolution, recordFormalCaseResolution, recordTrainingCaseCompletion } from '../src/bureau/progress'
 
@@ -11,6 +11,7 @@ function authoredComplete() {
   let progress = inducted()
   progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'A', 90)
   progress = recordFormalCaseResolution(progress, STORY_CASE_003.id, 'A', 90)
+  progress = recordFormalCaseResolution(progress, STORY_CASE_004.id, 'A', 90)
   return progress
 }
 
@@ -33,6 +34,9 @@ describe('Bureau shift dispatch', () => {
 
     const after002 = recordFormalCaseResolution(inducted(), STORY_CASE_002.id, 'A', 90)
     expect(bureauDispatch(after002).title).toContain('CASE 003')
+
+    const after003 = recordFormalCaseResolution(after002, STORY_CASE_003.id, 'A', 90)
+    expect(bureauDispatch(after003).title).toContain('CASE 004')
   })
 
   it('recommends Training 000 once after the current authored sequence, without making it a hard gate', () => {

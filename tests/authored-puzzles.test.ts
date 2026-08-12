@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STORY_CASE_002, STORY_CASE_003 } from '../src/bureau/catalog'
-import { AUTHORED_PUZZLE_CASES, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
+import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004 } from '../src/bureau/catalog'
+import { AUTHORED_PUZZLE_CASES, evaluateLeakageModel, evaluateLeakageSplit, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
 import { puzzleCaseScore } from '../src/story/StoryPuzzleRuntime'
 import { clearPuzzleSession, puzzleSessionHasProgress, puzzleSessionKey, readPuzzleSession, writePuzzleSession, type PuzzleSession } from '../src/story/puzzleSession'
 
@@ -46,6 +46,34 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
 
     const sensorStage = AUTHORED_PUZZLE_CASES[STORY_CASE_003.id].stages.find((stage) => stage.id === 'stable-sensor')
     expect(sensorStage?.correctIds).toEqual(['texture', 'shape'])
+  })
+
+
+  it('makes CASE 004 expose validation leakage by changing the split unit before changing the model', () => {
+    const record = evaluateLeakageSplit('record')
+    const day = evaluateLeakageSplit('day')
+    const entity = evaluateLeakageSplit('entity')
+    expect(record.identityOverlap).toBe(1)
+    expect(record.validationAccuracy).toBe(1)
+    expect(day.identityOverlap).toBe(.5)
+    expect(day.validationAccuracy).toBe(.75)
+    expect(entity.identityOverlap).toBe(0)
+    expect(entity.validationAccuracy).toBe(.5)
+    expect(entity.minValidationRecall).toBe(0)
+
+    const identity = evaluateLeakageModel('identity')
+    const stable = evaluateLeakageModel('stable')
+    const camera = evaluateLeakageModel('camera')
+    expect(identity.validationAccuracy).toBe(.5)
+    expect(identity.minValidationRecall).toBe(0)
+    expect(stable.validationAccuracy).toBe(.875)
+    expect(stable.minValidationRecall).toBe(.75)
+    expect(camera.validationAccuracy).toBe(0)
+
+    const resplit = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id].stages.find((stage) => stage.id === 'resplit')
+    const model = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id].stages.find((stage) => stage.id === 'clean-model')
+    expect(resplit?.correctIds).toEqual(['entity'])
+    expect(model?.correctIds).toEqual(['stable'])
   })
 
   it('persists compact case-specific checkpoints and rejects mismatched case identities', () => {

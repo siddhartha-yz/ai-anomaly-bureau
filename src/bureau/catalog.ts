@@ -65,6 +65,22 @@ export const STORY_CASE_003 = {
   unlockAfter: STORY_CASE_002.id,
 } as const satisfies FormalCaseDefinition
 
+
+export const STORY_CASE_004 = {
+  id: 'story-004',
+  number: '004',
+  title: '验证集见过你',
+  classification: 'DATA LEAKAGE INCIDENT',
+  dispatchTime: '14:26',
+  dispatchLocation: '校园回收分拣站',
+  incident: '回收分类器的离线验证连续满分，但换一批从未出现过的真实物品后，准确率突然掉到接近猜测。',
+  objective: '检查验证集是否真的独立，重做切分单位，再分辨“记住物品身份”和“学到可迁移规律”。',
+  assignment: '正式案件 · 数据切分',
+  tags: ['剧情谜题', '数据泄漏', '分组切分', '验证集独立性'],
+  icon: ['VAL', '≠', 'NEW'],
+  unlockAfter: STORY_CASE_003.id,
+} as const satisfies FormalCaseDefinition
+
 export const TRAINING_CASE_000 = {
   id: 'training-000',
   number: '000',
@@ -76,7 +92,7 @@ export const TRAINING_CASE_000 = {
 // Authored cases form a prerequisite chain: each case adds one investigation
 // primitive and expects the player to reuse earlier ones, rather than acting as
 // isolated tutorials.
-export const FORMAL_CASE_CATALOG = [STORY_CASE_001, STORY_CASE_002, STORY_CASE_003] as const
+export const FORMAL_CASE_CATALOG = [STORY_CASE_001, STORY_CASE_002, STORY_CASE_003, STORY_CASE_004] as const
 export const TRAINING_CASE_CATALOG = [TRAINING_CASE_000] as const
 
 export type FormalCaseId = (typeof FORMAL_CASE_CATALOG)[number]['id']
