@@ -18,9 +18,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：24 个测试文件、135 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-Z4zbIRzl.js` + `assets/index-Dm6ApHLC.css`（生产发布后再记录远端哈希）。
-- Playwright：31 条 Chromium E2E 全部通过（完整串行套件 31/31 通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
+- Vitest：24 个测试文件、136 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BWTYqy_g.js` + `assets/index-Dm6ApHLC.css`（生产发布后再记录远端哈希）。
+- Playwright：32 条 Chromium E2E 全部通过（完整串行套件 32/32 通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
 ## 固定 seed 教学指标
@@ -69,6 +69,7 @@ Vitest 当前覆盖：
 - Duty hypothesis-depth：`duty-hypothesis-depth.test.ts` 在 160 个连续 seed 上逐案检查 deployed baseline 不可靠、存在 ≥12pt 的 syndrome-appropriate 单变量干预；要求目标干预轴相对竞争轴明显占优的比例 ≥90%，overfit 的自然 `k=1 → k=5` 对照具有 ≥95% 的 material-discrimination 覆盖率。
 - 最终再次独立压力扫描 2,000 个 seed（四类各 500）：**2,000/2,000 deployed baseline 均不可靠，2,000/2,000 都存在 syndrome-appropriate ≥12pt 单变量干预**。softened shift 初版曾抓到唯一 seed 11626 fallback 到可靠默认配置；最终修成只允许真实失败且仍存在 material field-only recovery 的 fallback 后，2,000-seed 复扫为 0 反例。
 - `duty-causal-ambiguity.test.ts` 新增 syndrome-level obviousness 回归：240 个 opening 都不允许自动出现精确类别构成、batch history/field、质量告警 label 或 syndrome 词；800-seed first-audit 测试要求 overfit 与 distribution-shift 高度落在同一个 `[53%, 85%)` 不可靠 FIELD 区间，且两类 mean FIELD 差 <8pt。最终 200+200 分布实测：overfit median 75%、shift median 71.4%，单看一次 “TRAIN≈100 / FIELD 中度失败” 已不足以命名病因。
+- causal-source 可解性：400 个连续 seed 逐案要求 `H-COVERAGE / H-CONTEXT / H-RECORDS` 至少一份为 `CLEAR`，同时保留既有“batch / coverage / quality signal 可跨 syndrome 出现”的 ambiguity 回归。该不变量来自真实反例 seed 6017：修复前它是 overfit 案件，三份来源全为 SIGNAL，而所有连接可靠修复的 H-MODEL 端点都没有 anchored H-FIELDS null，因此 falsification gate 永久不可达。新增 Chromium 路线会真实跑 6017：baseline → H-RECORDS SIGNAL → k=5 reliable model-only repair → H-COVERAGE CLEAR → 引用 E01/E02，确认诊断提交重新可达。
 - 无尽案件 cause-specific 原始事实全部改成 player-opened evidence：baseline 前 `H-COVERAGE / H-CONTEXT / H-RECORDS` 都是 SEALED；玩家复现事故后才可主动打开精确档案构成、历史/现场批次或质量记录。overfit 的橙色 archive anomaly 也只有打开 H-RECORDS 后才出现。Formal Sensor Deck 继续不显示四字段 `旧差异 X/5 / 现场变化 Y/5` 答案排行。
 - 无尽实验设计：同一配置重复审计识别为 replication；只换字段 / 只换模型 / 混合改动均有确定分类。只有 fields-only / model-only 且 FIELD 或最低 recall 绝对变化 ≥12pt 才是 discriminating evidence；显著改善和显著恶化都可以减少不确定性，repeat / mixed 不能。
 - 竞争假设状态：`H-FIELDS / H-MODEL` 各自只读取玩家 run history，并累积该轴全部受控实验；未测试为 OPEN，只有 material controlled change 为 SUPPORTED，只有不足 12pt 的弱变化为 WEAKENED，同时存在 material 与弱变化则为 CONTESTED。这样后做的一次局部 null 不会覆盖先前真实支持，反之亦然；UI 会要求解释为何同一因素在不同配置附近表现不同。两个轴仍可以同时 SUPPORTED，此时 UI 明确提示单一主因解释不足。causal pre-registration 对 fields-only / model-only 正式审计是必填项：未选择“应该明显改善 / 应该明显恶化 / 应该基本不变”时审计按钮保持 disabled，运行时 `audit()` 也会拒绝绕过 UI 的调用；弱变化只有在审计前已留下该因果预期时，才可通过 `preRegisteredNullResult()` 作为正式 falsification gate，禁止看完结果后再把普通 null result 包装成反证。实验日志现在同时封存方向预期与实际 `improved / degraded / tradeoff / null` 结果，并标记预测命中或失误；因此玩家不仅要预注册“会不会变”，还要在 material prediction 时判断变化方向。若 FIELD 与最低 recall 都达到 12pt material change 但方向相反，结果必须是 `tradeoff`：仍属于 discriminating evidence，但改善/恶化预注册均判 miss，且不能作为 null falsification。旧 v6 session 中的 `material` 仍可恢复并保持原有粗粒度命中语义，但当前 UI 不再生成该值。
@@ -89,7 +90,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 **31 条**真实 Chromium 路线；本轮冻结源码完整执行 31/31，首轮全部通过。
+`e2e/happy-path.spec.ts` 当前包含 **32 条**真实 Chromium 路线；本轮冻结源码完整执行 32/32，首轮全部通过。
 
 调查局宏观框架单独验证：
 

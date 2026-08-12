@@ -303,7 +303,7 @@ Reducer 对非法动作返回原状态并记录 diagnostic；关键动作包括 
 - `batch / H-CONTEXT`：历史 / 现场采集条件；真正的 shift 案一定有具体 `batchContext`，但一部分 feature-gap / overfit / imbalance 案也故意带有真实、却未必是主因的运营批次变化。因而 `signal` 现在只表示“变化确实发生、值得实验验证”，不能再被当成 distribution-shift 的答案代理。
 - `quality / H-RECORDS`：历史质量系统是否标记待复核记录；overfit 的真实噪声与部分其他 syndrome 的 benign quality alert 都会形成 `archiveAlerts`，且都只有玩家打开这份来源后才在散点图出现橙色可点击 `!`。positive finding 只表示记录值得检查，不等价于标签错误或 overfit。
 
-baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家主动决定先核验哪一条 causal story；之后只有新增一个此前未审计过、且相对上一轮属于 fields-only / model-only 的配置才再获得一次来源解封额度。`experimentConfigKey()` 会把字段顺序归一化，所以重复同一配置或只交换两个显示槽位都不能刷来源；mixed change 同样不会奖励取证额度，因为它没有形成可归因的对照。`signal` 只是支持继续调查，`clear` 才承担“杀掉一个竞争解释”的反证作用。finding 不包含 syndrome 名称。
+baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家主动决定先核验哪一条 causal story；之后只有新增一个此前未审计过、且相对上一轮属于 fields-only / model-only 的配置才再获得一次来源解封额度。`experimentConfigKey()` 会把字段顺序归一化，所以重复同一配置或只交换两个显示槽位都不能刷来源；mixed change 同样不会奖励取证额度，因为它没有形成可归因的对照。`signal` 只是支持继续调查，`clear` 才承担“杀掉一个竞争解释”的反证作用。finding 不包含 syndrome 名称。benign source confound 仍允许跨 syndrome 出现，但生成器现在限制为最多两份 positive source，至少留一份 `clear`。这是可解性不变量而不是答案泄露：玩家仍不知道哪份会 CLEAR，仍需花有限 review 额度并先做来源预判；intervention null 继续作为另一条合法 falsification 路径。
 
 来源解封增加轻量 causal-source pre-registration：`caseLeadPredictions` 按 `composition / batch / quality` 保存 `signal | clear`，`EndlessLeadBoard` 只有在 READY source 已留下预测后才允许执行 `onInspectCaseLead`；runtime 同时二次守卫，避免绕过 UI。来源打开后预测不可修改，并用 `caseLeadForecastStats()` 只统计真正已经 inspected 的来源。字段作为 v6 session 的可选扩展保存，因此已有 v6 checkpoint 不需要版本迁移；validator 会拒绝未知 source id / prediction 值，但缺失该字段的旧存档继续合法。
 

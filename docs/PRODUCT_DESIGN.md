@@ -106,7 +106,7 @@ V1 不扩第二个手工剧情关卡，而是增加可重复的 `Supervised Inve
 - 当前四类真实故障：**特征不足、训练噪声 / 过拟合、分布漂移、类别不平衡**。
 - 每类故障有多组案件语境；四个传感器通道会随 seed 重排，不能背“永远点后两个”。
 - 玩家能看到训练标签与无标签现场特征分布，但 Formal Duty 不再把四个传感器统一显示成“旧样本差异 X/5 / 现场变化 Y/5”的答案排行；要判断字段价值，必须切换 `FIELD MATRIX` 的投影亲自观察结构。
-- 每宗程序化 Duty 先复现 generator 选出的真实故障部署 baseline。baseline 前三条 causal story 全部 `SEALED`；之后玩家先选择复核 `H-COVERAGE / H-CONTEXT / H-RECORDS` 中的一条，再用 `H-FIELDS / H-MODEL` 的 fields-only / model-only 实验验证“什么干预真正会改变世界”。现在三类来源的 positive finding 都不再和单一病因一一对应：其他病因也可能带着真实但非主因的上游类别覆盖偏斜、运营批次变化或历史质量复核告警。玩家必须把原始事实和受控实验后果组合起来判断，而不是看哪个资料夹亮了。
+- 每宗程序化 Duty 先复现 generator 选出的真实故障部署 baseline。baseline 前三条 causal story 全部 `SEALED`；之后玩家先选择复核 `H-COVERAGE / H-CONTEXT / H-RECORDS` 中的一条，再用 `H-FIELDS / H-MODEL` 的 fields-only / model-only 实验验证“什么干预真正会改变世界”。现在三类来源的 positive finding 都不再和单一病因一一对应：其他病因也可能带着真实但非主因的上游类别覆盖偏斜、运营批次变化或历史质量复核告警。玩家必须把原始事实和受控实验后果组合起来判断，而不是看哪个资料夹亮了。生成器同时保证三份来源中至少保留一份 `CLEAR`：允许一到两条真实 benign confound，但不能把三条来源都做成 SIGNAL 后又碰巧没有可执行的 competing-axis null，导致 falsification gate 永远无法满足。
 - 原因资料不能在第一次 baseline 后一次性全点开。**第一次 baseline 获得 1 次 causal-source 解封额度；之后只有此前没有审计过、且相对上一轮只改字段或只改模型的正式配置才再获得 1 次。重复配置与字段 + 模型同时改动都不会解封，未使用额度可以保留**，已经打开的资料也可随时回看。这样 Duty 把来源复核变成由真正的实验进度赚取的调查资源，而不是靠重复 baseline 刷开三份档案。
 - 训练不耗预算；正式未知审计初始只有 5 次。每次审计前必须预测未知表现。
 - 正式审计返回的现场误判不是静态结果卡：玩家可以点击错误记录，把对应 `field-*` 样本重新定位到 `FIELD_MATRIX`，并把亲手检查过的错误写入 `CASE_LEADS.LOG`。第一次 baseline 失败后，`NEXT OBJECTIVE` 会先引导玩家打开至少一条具体误判，再进入 causal-source 取证；这是节奏引导而非硬结案 gate，避免玩家因为错过旧错误卡而被软锁。

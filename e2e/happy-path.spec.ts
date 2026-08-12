@@ -727,6 +727,30 @@ test('overfit Duty separates hypothesis discovery from reliable repair before na
   await expect(page.getByLabel('当前调查目标')).toContainText('引用两条证据')
 })
 
+test('Duty always preserves a falsification route when benign cause sources also look suspicious', async ({ page }) => {
+  // Seed 6017 previously produced SIGNAL on all three source folders. Its
+  // reliable overfit repair also had no anchored H-FIELDS null experiment, so
+  // the falsification gate could never open even after the player fixed the model.
+  await page.goto('?mode=endless&seed=6017')
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.getByRole('button', { name: '60–84% 勉强' }).click()
+  await runDutyAudit(page)
+  await inspectCausalLead(page, /历史质量记录/, 'signal')
+
+  await page.locator('.endless-model-list').getByRole('button', { name: /k=5/ }).click()
+  await page.getByRole('button', { name: '训练当前方案' }).click()
+  await page.getByRole('button', { name: '≥85% 稳定' }).click()
+  await runDutyAudit(page, 'improved')
+  await expect(page.locator('.endless-reliability-check')).toContainText('总体 PASS')
+
+  await inspectCausalLead(page, /历史档案构成/, 'clear')
+  await expect(page.getByLabel('因果线索来源')).toContainText(/来源预判 CLEAR → 实际 CLEAR · HIT/)
+  await expect(page.locator('.endless-diagnosis')).toBeVisible()
+  await citeEndlessRuns(page, 1, 2)
+  await page.getByRole('button', { name: '模型把训练噪声和偶然点记得太死' }).click()
+  await expect(page.getByRole('button', { name: '提交诊断' })).toBeEnabled()
+})
+
 test('Duty can falsify a plausible model explanation before repairing the field sensors', async ({ page }) => {
   await page.goto('?mode=endless&seed=6026')
 

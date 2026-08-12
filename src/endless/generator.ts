@@ -522,11 +522,24 @@ export function createEndlessCase(seed: number): EndlessCase {
         ? generateShift(seed)
         : generateImbalance(seed)
   const data = permuteCaseChannels(seed, baseData, theme)
+  const sourceConfoundBucket = Math.floor(Math.abs(seed) / 4) % 3
+  const hasBatchSignal = Boolean(theme.batchContext)
+  // Cause sources may contain real benign confounds, but at least one source
+  // must remain CLEAR. Otherwise some generated cases can have three positive
+  // source findings while their reliable resolution edge has no competing-axis
+  // null experiment, making the falsification gate impossible to satisfy.
+  const hasBenignArchiveSkew = syndrome !== 'class-imbalance'
+    && sourceConfoundBucket !== 2
+    && !(syndrome === 'overfit-noise' && hasBatchSignal)
+  const compositionWillSignal = syndrome === 'class-imbalance' || hasBenignArchiveSkew
+  const addBenignQualityAlert = syndrome !== 'overfit-noise'
+    && sourceConfoundBucket !== 0
+    && !(hasBatchSignal && compositionWillSignal)
   // A quality-system alert is evidence that a record deserves review, not proof
   // that its label is wrong or that noisy-memory overfitting caused the incident.
   // Some non-overfit cases therefore carry benign historical alerts as causal
   // confounds. The underlying samples stay correctly labelled and unchanged.
-  if (syndrome !== 'overfit-noise' && Math.floor(Math.abs(seed) / 4) % 3 !== 0) {
+  if (addBenignQualityAlert) {
     for (const item of [data.train[3], data.train[Math.floor(data.train.length * .61)]]) {
       if (item) item.flags = { ...item.flags, qualityAlert: true }
     }
@@ -546,7 +559,6 @@ export function createEndlessCase(seed: number): EndlessCase {
   // balanced cases therefore inherit a skewed upstream archive pool while their
   // generated training subset remains balanced. A coverage warning is a reason
   // to test minority behaviour, not a one-click diagnosis of class imbalance.
-  const hasBenignArchiveSkew = syndrome !== 'class-imbalance' && Math.floor(Math.abs(seed) / 4) % 3 !== 2
   const archiveCatCount = syndrome === 'class-imbalance'
     ? trainCatCount
     : hasBenignArchiveSkew ? trainCatCount * 4 : trainCatCount

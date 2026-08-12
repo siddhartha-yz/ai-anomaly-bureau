@@ -83,6 +83,13 @@ describe('supervised endless case generator', () => {
     expect(seen).toEqual(new Set(['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance']))
   }, 15_000)
 
+  it('keeps at least one causal source clear so every generated case has a source-level falsification route', () => {
+    for (let seed = 6000; seed < 6400; seed += 1) {
+      const caseData = createEndlessCase(seed)
+      expect(caseData.leadSources.some((lead) => lead.result === 'clear'), `seed ${seed} ${caseData.syndrome}`).toBe(true)
+    }
+  }, 15_000)
+
   it('generates solvable cases without making random configurations a reliable strategy', () => {
     let randomSuccessShare = 0
     const seeds = Array.from({ length: 30 }, (_, index) => 5000 + index)
