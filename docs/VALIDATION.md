@@ -18,8 +18,8 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：24 个测试文件、136 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CJvmHH_D.js` + `assets/index-Dm6ApHLC.css`（生产发布后再记录远端哈希）。
+- Vitest：24 个测试文件、137 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-B_VT2-dg.js` + `assets/index-Dm6ApHLC.css`（生产发布后再记录远端哈希）。
 - Playwright：32 条 Chromium E2E 全部通过（完整串行套件 32/32 通过），覆盖新人 CASE 001 → 正式入职 → Bureau Hub、Story checkpoint / 恢复 / retry / 导出、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 人性化测试入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
@@ -58,7 +58,7 @@ Vitest 当前覆盖：
 - Story reducer 不存在 jump/load 特权动作；作弊码必须生成可被正式 session validator 接受的完整 checkpoint。
 - 六类开发者测试人格均在有限步骤内完成关卡，并经历过拟合与多次未知审计。
 - 教学任务、NPC 提示、模型 / 特征说明保持短文本约束。
-- 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。Duty 的方向性 causal pre-registration 由 `causalForecastStats()` 汇总，baseline / repeat / mixed 不计入，并由 `dutyCausalForecastPenalty()` 对每次可由受控实验验证的因果方向 miss 扣 3 分。来源预判由 `caseLeadForecastStats()` 只统计实际打开且有历史预测的来源，但 HIT/MISS 仅供结案复盘，不计评级：benign source confound 为保持 syndrome-level ambiguity 会跨病因出现，且部分由未公开 seed bucket 决定，不能用不可稳定推断的隐藏事实惩罚玩家。旧 v6 已打开但没有预测记录的来源继续不伪造记录。真实结案 E2E 使用一条 1 hit / 1 miss 的来源路线，检查 `SOURCE FORECAST 1/2`、明确“不计调查评级”的反馈与最终评分明细，同时继续检查因果预测扣分。
+- 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。Duty 的评分由 `dutyInvestigationScore()` 集中计算：单变量实验设计奖励最多只计算前 2 次，防止第 4 次以后出现 `+3 controlled +2 prediction -4 extra audit` 的边际刷分；专项单测固定一条旧公式会从 94 涨到 95 的路线，要求修复后第 5 次“完美”受控实验反而从 94 降到 92。Duty 的方向性 causal pre-registration 由 `causalForecastStats()` 汇总，baseline / repeat / mixed 不计入，并由 `dutyCausalForecastPenalty()` 对每次可由受控实验验证的因果方向 miss 扣 3 分。来源预判由 `caseLeadForecastStats()` 只统计实际打开且有历史预测的来源，但 HIT/MISS 仅供结案复盘，不计评级：benign source confound 为保持 syndrome-level ambiguity 会跨病因出现，且部分由未公开 seed bucket 决定，不能用不可稳定推断的隐藏事实惩罚玩家。旧 v6 已打开但没有预测记录的来源继续不伪造记录。真实结案 E2E 使用一条 1 hit / 1 miss 的来源路线，检查 `SOURCE FORECAST 1/2`、明确“不计调查评级”的反馈与最终评分明细，同时继续检查因果预测扣分。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID 与 mistake flags 不进入序列化结果，Story `TrainingResult` 也不携带 fitted model 参数。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
 - Bureau meta progression：`aia.bureau-progress.v2` 使用 `formalCases[caseId] / trainingCases[caseId]` 保存 catalog-keyed 长期结案 / 知识事实；旧 v1 `story001 / bootCase000` 会校验后迁移，未知 case id 与重复 Duty seed 会被拒绝。若 v2 key 存在但 JSON 已损坏，reader 会清理坏 v2 并继续尝试仍完整的 v1，而不是直接丢失可恢复进度；损坏的 v1 JSON 也会清理，避免每次启动重复解析同一坏 payload。CASE 001 首次结案后才开放 Hub 与 Duty，晋级仍按不同 syndrome 的经验广度计算；值班工单队列会跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。

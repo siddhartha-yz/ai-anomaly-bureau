@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { caseLeadForecastStats, causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, dutyCausalForecastPenalty, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { caseLeadForecastStats, causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, dutyCausalForecastPenalty, dutyInvestigationScore, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -62,6 +62,31 @@ describe('endless experiment comparison metadata', () => {
     expect(dutyCausalForecastPenalty(0)).toBe(0)
     expect(dutyCausalForecastPenalty(1)).toBe(3)
     expect(dutyCausalForecastPenalty(2)).toBe(6)
+  })
+
+  it('does not let late controlled experiments farm a higher Duty rating', () => {
+    const alreadyExtended = dutyInvestigationScore({
+      auditsUsed: 4,
+      emergencyCredits: 0,
+      diagnosisAttempts: 3,
+      predictionHits: 4,
+      controlledComparisons: 2,
+      mixedComparisons: 0,
+      causalMisses: 0,
+    })
+    const oneMorePerfectControlledRun = dutyInvestigationScore({
+      auditsUsed: 5,
+      emergencyCredits: 0,
+      diagnosisAttempts: 3,
+      predictionHits: 5,
+      controlledComparisons: 3,
+      mixedComparisons: 0,
+      causalMisses: 0,
+    })
+
+    expect(alreadyExtended).toEqual({ score: 94, rewardedControlledComparisons: 2 })
+    expect(oneMorePerfectControlledRun).toEqual({ score: 92, rewardedControlledComparisons: 2 })
+    expect(oneMorePerfectControlledRun.score).toBeLessThan(alreadyExtended.score)
   })
 
   it('distinguishes controlled comparisons from changing everything at once', () => {

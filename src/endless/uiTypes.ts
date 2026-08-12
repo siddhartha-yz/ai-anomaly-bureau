@@ -115,6 +115,38 @@ export function dutyCausalForecastPenalty(causalMisses: number) {
   return causalMisses * 3
 }
 
+export function dutyInvestigationScore({
+  auditsUsed,
+  emergencyCredits,
+  diagnosisAttempts,
+  predictionHits,
+  controlledComparisons,
+  mixedComparisons,
+  causalMisses,
+}: {
+  auditsUsed: number
+  emergencyCredits: number
+  diagnosisAttempts: number
+  predictionHits: number
+  controlledComparisons: number
+  mixedComparisons: number
+  causalMisses: number
+}) {
+  // Two controlled comparisons are enough to establish a support + falsification
+  // evidence structure. Rewarding every later controlled run would let a player
+  // farm rating by extending an already-solvable investigation: +3 experiment
+  // design and +2 field-prediction reward can otherwise exceed the -4 extra-audit
+  // cost. Later experiments remain useful evidence, but they cannot raise the
+  // process grade merely because they are single-variable.
+  const rewardedControlledComparisons = Math.min(controlledComparisons, 2)
+  const scoreBeforeCausalCalibration = Math.min(100,
+    100 - Math.max(0, auditsUsed - 3) * 4 - emergencyCredits * 12 - Math.max(0, diagnosisAttempts - 1) * 8
+      + predictionHits * 2 + rewardedControlledComparisons * 3 - mixedComparisons * 3,
+  )
+  const score = Math.max(40, scoreBeforeCausalCalibration - dutyCausalForecastPenalty(causalMisses))
+  return { score, rewardedControlledComparisons }
+}
+
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {
   const seen = new Set<string>()
   let earned = 0
