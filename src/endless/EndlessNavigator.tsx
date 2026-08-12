@@ -199,10 +199,10 @@ export function EndlessLeadBoard({
                 <small>{inspected ? lead.finding : available ? lead.prompt : '需要先完成一个新的单变量正式对照，才能继续解封来源。'}</small>
                 {available && !inspected && (
                   <div className="endless-source-forecast" aria-label={`${lead.label} 来源预判`}>
-                    <span>打开前预判</span>
+                    <span>可选预判 · 只用于复盘，不阻塞取证</span>
                     <button type="button" className={prediction === 'signal' ? 'selected' : ''} aria-pressed={prediction === 'signal'} onClick={() => onPredictCaseLead?.(lead.id, 'signal')}>预测 SIGNAL</button>
                     <button type="button" className={prediction === 'clear' ? 'selected' : ''} aria-pressed={prediction === 'clear'} onClick={() => onPredictCaseLead?.(lead.id, 'clear')}>预测 CLEAR</button>
-                    <button type="button" className="endless-source-open" disabled={!prediction} onClick={() => onInspectCaseLead?.(lead.id)}>复核 {lead.label}</button>
+                    <button type="button" className="endless-source-open" onClick={() => onInspectCaseLead?.(lead.id)}>复核 {lead.label}</button>
                   </div>
                 )}
                 {inspected && prediction && (

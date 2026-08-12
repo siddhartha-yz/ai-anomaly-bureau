@@ -604,9 +604,15 @@ test('formal endless mode seals cause fingerprints until the player reproduces t
   await expect(causalLeads.getByRole('button', { name: /预测 SIGNAL|预测 CLEAR/ })).toHaveCount(6)
   for (const button of await causalLeads.getByRole('button', { name: /预测 SIGNAL|预测 CLEAR/ }).all()) await expect(button).toBeEnabled()
   await expect(causalLeads.getByRole('button', { name: /复核/ })).toHaveCount(3)
-  for (const button of await causalLeads.getByRole('button', { name: /复核/ }).all()) await expect(button).toBeDisabled()
+  for (const button of await causalLeads.getByRole('button', { name: /复核/ }).all()) await expect(button).toBeEnabled()
+  await expect(causalLeads).toContainText('可选预判 · 只用于复盘，不阻塞取证')
 
-  await inspectCausalLead(page, /历史质量记录/)
+  // Source forecasts are intentionally optional: benign source confounds are not
+  // stably inferable from public evidence, so reviewing a source must not require
+  // an arbitrary SIGNAL/CLEAR click first.
+  const qualityLead = causalLeads.locator('.endless-causal-lead').filter({ hasText: /历史质量记录/ })
+  await qualityLead.getByRole('button', { name: /复核 历史质量记录/ }).click()
+  await expect(qualityLead.getByText(/来源预判 .* → 实际/)).toHaveCount(0)
   await expect(causalLeads).toContainText('质量系统标出了 4 条需要人工复核的历史记录')
   await expect(causalLeads.locator('.endless-causal-lead.inspected').filter({ hasText: /历史质量记录/ })).toHaveCount(1)
   await expect(causalLeads.locator('.endless-causal-lead.sealed').filter({ hasText: /历史档案构成/ })).toHaveCount(1)
