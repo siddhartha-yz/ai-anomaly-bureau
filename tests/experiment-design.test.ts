@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { caseLeadForecastStats, causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
+import { caseLeadForecastStats, causalForecastStats, causalPredictionResult, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, dutyForecastCalibrationPenalty, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, preRegisteredNullResult, type EndlessRunRecord } from '../src/endless/uiTypes'
 
 function record(overrides: Partial<EndlessRunRecord> = {}): EndlessRunRecord {
   return {
@@ -59,6 +59,10 @@ describe('endless experiment comparison metadata', () => {
     const predictions = { composition: 'signal', batch: 'signal', quality: 'clear' } as const
     expect(caseLeadForecastStats(predictions, [], [...leads])).toEqual({ total: 0, hits: 0, misses: 0 })
     expect(caseLeadForecastStats(predictions, ['composition', 'batch'], [...leads])).toEqual({ total: 2, hits: 1, misses: 1 })
+    expect(dutyForecastCalibrationPenalty(0, 0)).toBe(0)
+    expect(dutyForecastCalibrationPenalty(1, 0)).toBe(3)
+    expect(dutyForecastCalibrationPenalty(0, 1)).toBe(2)
+    expect(dutyForecastCalibrationPenalty(2, 3)).toBe(12)
   })
 
   it('distinguishes controlled comparisons from changing everything at once', () => {
