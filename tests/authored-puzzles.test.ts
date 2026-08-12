@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { STORY_CASE_002, STORY_CASE_003, STORY_CASE_004 } from '../src/bureau/catalog'
 import { AUTHORED_PUZZLE_CASES, evaluateLeakageModel, evaluateLeakageSplit, evaluateScreeningThreshold, evaluateShiftSensor } from '../src/story/authoredCasePuzzles'
 import { puzzleCaseScore } from '../src/story/StoryPuzzleRuntime'
-import { clearPuzzleSession, puzzleSessionHasProgress, puzzleSessionKey, readPuzzleSession, writePuzzleSession, type PuzzleSession } from '../src/story/puzzleSession'
+import { clearPuzzleSession, createPuzzleCheatSession, puzzleSessionHasProgress, puzzleSessionKey, readPuzzleSession, writePuzzleSession, type PuzzleSession } from '../src/story/puzzleSession'
 
 class MemoryStorage {
   values = new Map<string, string>()
@@ -142,5 +142,15 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(puzzleCaseScore(2)).toEqual({ grade: 'B', score: 84 })
     expect(puzzleCaseScore(4)).toEqual({ grade: 'C', score: 68 })
     expect(puzzleCaseScore(99)).toEqual({ grade: 'C', score: 55 })
+  })
+
+  it('materializes stage-specific QA checkpoints that still pass the normal session validator', () => {
+    const storage = new MemoryStorage()
+    const config = AUTHORED_PUZZLE_CASES[STORY_CASE_004.id]
+    const checkpoint = createPuzzleCheatSession(config, 20260809, 'clean-model')
+    expect(checkpoint).toMatchObject({ stage: 2, checks: 2, mistakes: 0, solved: false })
+    expect(writePuzzleSession(storage as unknown as Storage, checkpoint!)).toBe(true)
+    expect(readPuzzleSession(storage as unknown as Storage, config, 20260809)).toEqual(checkpoint)
+    expect(createPuzzleCheatSession(config, 20260809, 'missing-stage')).toBeUndefined()
   })
 })

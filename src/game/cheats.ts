@@ -21,7 +21,7 @@ export type CheatInstruction =
   | { kind: 'help' }
   | { kind: 'story'; target: StoryCheatTarget; seed?: number }
   | { kind: 'story-reset'; seed?: number }
-  | { kind: 'authored-case'; caseId: FormalCaseId }
+  | { kind: 'authored-case'; caseId: FormalCaseId; stageId?: string }
   | { kind: 'bureau-unlock' }
   | { kind: 'bureau' }
   | { kind: 'training' }
@@ -58,9 +58,21 @@ export function parseCheatCode(raw: string): CheatParseResult {
 
   if (parts[0] === 'HELP' || parts[0] === '?') return { ok: true, instruction: { kind: 'help' } }
   if (parts[0] === 'TRAINING' || parts[0] === 'BOOT') return { ok: true, instruction: { kind: 'training' } }
-  if (parts[0] === 'CASE002') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-002' } }
-  if (parts[0] === 'CASE003') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } }
-  if (parts[0] === 'CASE004') return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-004' } }
+  if (parts[0] === 'CASE002') {
+    const stageId = ({ METRIC: 'split-metric', THRESHOLD: 'threshold', TRANSFER: 'transfer' } as const)[parts[1] as 'METRIC' | 'THRESHOLD' | 'TRANSFER']
+    if (parts[1] && !stageId) return { ok: false, message: 'CASE002 跳转支持 METRIC / THRESHOLD / TRANSFER。' }
+    return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-002', stageId } }
+  }
+  if (parts[0] === 'CASE003') {
+    const stageId = ({ CONTEXT: 'context', SENSOR: 'stable-sensor', CAUSAL: 'causal-reading' } as const)[parts[1] as 'CONTEXT' | 'SENSOR' | 'CAUSAL']
+    if (parts[1] && !stageId) return { ok: false, message: 'CASE003 跳转支持 CONTEXT / SENSOR / CAUSAL。' }
+    return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-003', stageId } }
+  }
+  if (parts[0] === 'CASE004') {
+    const stageId = ({ PROVENANCE: 'provenance', RESPLIT: 'resplit', MODEL: 'clean-model', COMPOSE: 'compose' } as const)[parts[1] as 'PROVENANCE' | 'RESPLIT' | 'MODEL' | 'COMPOSE']
+    if (parts[1] && !stageId) return { ok: false, message: 'CASE004 跳转支持 PROVENANCE / RESPLIT / MODEL / COMPOSE。' }
+    return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId } }
+  }
 
   if (parts[0] === 'BUREAU' || parts[0] === 'OFFICE') {
     if (parts[1] === 'UNLOCK') return { ok: true, instruction: { kind: 'bureau-unlock' } }

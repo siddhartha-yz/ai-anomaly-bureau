@@ -18,8 +18,8 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：25 个测试文件、148 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-CO7GrR37.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Vitest：25 个测试文件、149 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BUMWO5T5.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
 - Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → Bureau Hub、四类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
@@ -61,7 +61,7 @@ Vitest 当前覆盖：
 - 调查评级：错误上线、推理修正、预测偏差、额外审计和提示会降低评级；S 只保留给干净证据路线。Duty 的评分由 `dutyInvestigationScore()` 集中计算：单变量实验设计奖励最多只计算前 2 次，防止第 4 次以后出现 `+3 controlled +2 prediction -4 extra audit` 的边际刷分；专项单测固定一条旧公式会从 94 涨到 95 的路线，要求修复后第 5 次“完美”受控实验反而从 94 降到 92。Duty 的方向性 causal pre-registration 由 `causalForecastStats()` 汇总，baseline / repeat / mixed 不计入，并由 `dutyCausalForecastPenalty()` 对每次可由受控实验验证的因果方向 miss 扣 3 分。来源预判由 `caseLeadForecastStats()` 只统计实际打开且有历史预测的来源，但 HIT/MISS 仅供结案复盘，不计评级：benign source confound 为保持 syndrome-level ambiguity 会跨病因出现，且部分由未公开 seed bucket 决定，不能用不可稳定推断的隐藏事实惩罚玩家。旧 v6 已打开但没有预测记录的来源继续不伪造记录。真实结案 E2E 使用一条 1 hit / 1 miss 的来源路线，检查 `SOURCE FORECAST 1/2`、明确“不计调查评级”的反馈与最终评分明细，同时继续检查因果预测扣分。
 - Story session：版本化 `aia.story-session.v1.<seed>` 往返恢复 reducer + micro-beat；审计额度由实验历史重建而不是直接保存；内部 test ID 与 mistake flags 不进入序列化结果，Story `TrainingResult` 也不携带 fitted model 参数。
 - Story session 关系校验：不仅检查字段类型，还检查 reducer stage 与 micro-beat 的可达顺序；`experimentLog / auditHistory / current audit` 必须在模型、特征、训练分、accuracy/error、confusion 与具体 `field-*` mistake 证据上彼此一致。实验 `predictionMatched` 由运行时与恢复端共享同一纯函数重算，不能靠 localStorage 伪造 ✓/×。
-- Bureau meta progression：`aia.bureau-progress.v2` 使用 `formalCases[caseId] / trainingCases[caseId]` 保存 catalog-keyed 长期结案 / 知识事实；旧 v1 `story001 / bootCase000` 会校验后迁移，未知 case id、越过 `CASE 001 → 002 → 003` prerequisite 的伪造结案记录与重复 Duty seed 都会被拒绝。若 v2 key 存在但 JSON 已损坏，reader 会清理坏 v2 并继续尝试仍完整的 v1，而不是直接丢失可恢复进度；损坏的 v1 JSON 也会清理。CASE 001 首次结案后开放 Hub，之后案件板按 prerequisite 逐宗开放；值班工单队列继续跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。
+- Bureau meta progression：`aia.bureau-progress.v2` 使用 `formalCases[caseId] / trainingCases[caseId]` 保存 catalog-keyed 长期结案 / 知识事实；旧 v1 `story001 / bootCase000` 会校验后迁移，未知 case id、越过 `CASE 001 → 002 → 003 → 004` prerequisite 的伪造结案记录与重复 Duty seed 都会被拒绝。若 v2 key 存在但 JSON 已损坏，reader 会清理坏 v2 并继续尝试仍完整的 v1，而不是直接丢失可恢复进度；损坏的 v1 JSON 也会清理。CASE 001 首次结案后开放 Hub，之后案件板按 prerequisite 逐宗开放；值班工单队列继续跳过已归档 seed，并只消费不含 syndrome / diagnosis / test / audit 的 symptom-safe preview。
 - Story 训练 / 预算校验：训练 accuracy 与 errorCount 必须符合当前 seed 的真实训练样本数，complexity 必须匹配 `MODEL_REGISTRY`；额外审计次数只能在此前额度确实耗尽后逐次获得，不能手改 `emergencyAudits` 退款。迁移题答案与 correctness 同样按 `TRANSFER_QUESTION` 配置重新核对。
 - Story checkpoint 边界：behavior mistakeId 只接受 `field-###`，feature 必须为合法二元组；匿名事件最多保留最近 500 条并显式累计 `droppedEvents`，避免长局日志反过来毒死 autosave。专项测试还用 80 字符 action + 所有可选 telemetry 字段填满 505 次，确认截断后的 500 条最胖合法事件仍可写入并恢复于 200KB checkpoint 上限内。reader / writer 同时限制 200KB，超限 writer 返回 false 且不覆盖最后有效 checkpoint。
 - BehaviorLogger continuation：刷新恢复沿用同一匿名 sessionId / startedAt，事件时间继续累计；event timestamp / elapsedMs / completed flag 必须和同一 session 时间轴及 stage 一致，显式新局会生成新的随机 session。
@@ -132,7 +132,7 @@ Vitest 当前覆盖：
 - `FormalCaseResume` 网关在 1280×720 下无横向溢出；暂去无尽模式不会删除 Story 存档，放弃旧进度和游戏内小型 RESET 都需要第二次确认才真正清档。
 - localStorage 故障路线会故意让 Story key 的 `setItem` 抛 `QuotaExceededError`：游戏保持可操作并显示 `LOCAL SAVE FAILED`；恢复 Storage 后点击“重试本地保存”，真实写入成功且警告消失。
 
-作弊码路线仍故意从历史 `?debug=1` query 启动并用 `CASE001 OVERFIT` 构造合法 Story checkpoint，但状态修改命令现在还必须自动创建 `aia.qa-backup.v1` 并显示 `QA TEST / SAVE SAFE`。新增 QA Test Bench 浏览器路线先写入真实 Bureau + Story 正常存档，再跨 `CASE 001 OVERFIT → DUTY 6006`，最后一键恢复：要求原 URL 精确返回、原 `aia.*` entries 逐字相等、测试 Duty session 与 backup 都消失。另一条路线确认普通 URL 完全不显示 QA 按钮，`?qa=1` 才显示 `QA BENCH / OPEN`，并实际用“任意 DUTY SEED”输入 7421 打开正式案件。
+作弊码路线仍故意从历史 `?debug=1` query 启动并用 `CASE001 OVERFIT` 构造合法 Story checkpoint，但状态修改命令现在还必须自动创建 `aia.qa-backup.v1` 并显示 `QA TEST / SAVE SAFE`。QA Test Bench 浏览器路线先写入真实 Bureau + Story 正常存档，再跨 `CASE 001 OVERFIT → CASE 002 → CASE 003 → CASE 004 → DUTY 6006`，最后一键恢复：要求原 URL 精确返回、原 `aia.*` entries 逐字相等、测试 Duty session 与 backup 都消失。另一条路线确认普通 URL 完全不显示 QA 按钮，`?qa=1` 才显示 `QA BENCH / OPEN`；它还直接用 `CASE 004 · 干净验证` 中间 stage 快捷入口落到第三谜题，并验证 checkpoint 由普通 session reader 接受，随后再用“任意 DUTY SEED”输入 7421 打开正式案件。
 
 无尽 onboarding / 证据路线现在验证：
 

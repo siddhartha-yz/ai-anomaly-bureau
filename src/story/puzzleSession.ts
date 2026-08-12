@@ -27,6 +27,20 @@ export function puzzleSessionKey(caseId: FormalCaseId, seed: number) {
   return `aia.formal-puzzle.v${PUZZLE_SESSION_VERSION}.${caseId}.${seed}`
 }
 
+export function createPuzzleCheatSession(config: AuthoredPuzzleConfig, seed: number, stageId?: string): PuzzleSession | undefined {
+  const stage = stageId === undefined ? 0 : config.stages.findIndex((candidate) => candidate.id === stageId)
+  if (stage < 0) return undefined
+  return {
+    version: PUZZLE_SESSION_VERSION,
+    caseId: config.definition.id as FormalCaseId,
+    seed,
+    stage,
+    checks: stage,
+    mistakes: 0,
+    solved: false,
+  }
+}
+
 function isPuzzleRun(value: unknown, config: AuthoredPuzzleConfig, currentStage: number): value is PuzzleRun {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>

@@ -373,7 +373,7 @@ type BehaviorEvent = {
 
 - 普通 URL 不显示测试入口；显式 `?qa=1` 才在右下角显示 `QA BENCH / OPEN`，也可继续用 Backquote / Ctrl+Shift+K。
 - 第一次执行任何会改状态的命令（除 `HELP`）时，`qa/testBench.ts` 会把当前全部 `aia.*` localStorage key（不含自身 backup）保存到 `aia.qa-backup.v1`，同时记录测试开始 URL。第二次跳转复用原快照，绝不把测试中的脏状态覆盖成“原存档”。
-- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED、CASE 002、CASE 003、CASE 004、Bureau、Training、四类代表 Duty 卡片，以及“任意 Duty seed”数字输入；新增手工案件可以直接从自己的正式 runtime 起点测试，不要求测试者重跑前置关或记命令。
+- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE 002/003/004 既可从头进入，也可直接跳到阈值、稳定传感器、重切分、干净验证、最终规则等中间 stage；另保留 Bureau、Training、四类代表 Duty 卡片和“任意 Duty seed”数字输入。authored-case stage jump 不是裸改 `stage`：`createPuzzleCheatSession()` 会按目标 stage 重建满足正式 validator 的 accepted-check 数，再由普通 `writePuzzleSession()` 写入，因此刷新 / resume 仍走同一 session reader。
 - 测试会话中右下角持续显示 `QA TEST / SAVE SAFE`；“全新用户状态”只有在有效 backup 存在时才允许清掉当前 `aia.*` working state。
 - “恢复原存档并结束测试”先删除测试产生的游戏 key，再逐字恢复原 entries，最后才删除 backup 并返回原 URL；若恢复写入失败，backup 保留以便重试。
 - `CASE001 ...` 仍使用真实 reducer、模型训练、审计和实验记录构造版本化 Story checkpoint；`BUREAU UNLOCK` 仍走正式 `BureauProgress`；`TRAINING` 打开 Training 000；`DUTY <seed>` 清理该测试 seed 的 Endless session 后进入正式案件。命令执行后通过正常路由重载，不在 React 内存里注入一套作弊 state。

@@ -13,17 +13,21 @@ describe('cheat code parser', () => {
   it('accepts memorable story, authored-case, bureau, training, and duty aliases', () => {
     expect(parseCheatCode('case001 overfit')).toEqual({ ok: true, instruction: { kind: 'story', target: 'overfit', seed: undefined } })
     expect(parseCheatCode('STORY:FINAL@777')).toEqual({ ok: true, instruction: { kind: 'story', target: 'final', seed: 777 } })
-    expect(parseCheatCode('case002')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-002' } })
+    expect(parseCheatCode('case002')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-002', stageId: undefined } })
+    expect(parseCheatCode('case002 threshold')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-002', stageId: 'threshold' } })
     expect(parseCheatCode('CASE003')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-003' } })
+    expect(parseCheatCode('CASE003 SENSOR')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-003', stageId: 'stable-sensor' } })
     expect(parseCheatCode('bureau unlock')).toEqual({ ok: true, instruction: { kind: 'bureau-unlock' } })
     expect(parseCheatCode('boot')).toEqual({ ok: true, instruction: { kind: 'training' } })
-    expect(parseCheatCode('case004')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004' } })
+    expect(parseCheatCode('case004')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: undefined } })
+    expect(parseCheatCode('case004 model')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: 'clean-model' } })
     expect(parseCheatCode('duty 6003')).toEqual({ ok: true, instruction: { kind: 'duty', seed: 6003 } })
   })
 
   it('rejects malformed seeds and unknown commands without guessing', () => {
     expect(parseCheatCode('duty nope')).toMatchObject({ ok: false })
     expect(parseCheatCode('story overfit -1')).toMatchObject({ ok: false })
+    expect(parseCheatCode('case004 nope')).toMatchObject({ ok: false })
     expect(parseCheatCode('teleport moon')).toMatchObject({ ok: false })
   })
 })

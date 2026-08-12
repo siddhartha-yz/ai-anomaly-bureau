@@ -5,7 +5,8 @@ import { clearEndlessSession } from '../endless/session'
 import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY, createStoryCheatSession, parseCheatCode } from '../game/cheats'
 import { clearStorySession, writeStorySession } from '../game/session'
 import { beginQaSession, clearQaWorkingState, qaSnapshotSummary, readQaSnapshot, restoreQaSession, type QaSnapshot } from '../qa/testBench'
-import { clearPuzzleSession } from '../story/puzzleSession'
+import { AUTHORED_PUZZLE_CASES } from '../story/authoredCasePuzzles'
+import { clearPuzzleSession, createPuzzleCheatSession, writePuzzleSession } from '../story/puzzleSession'
 
 const EXAMPLES = [
   ['CASE001 ERRORS', '跳到第一次现场翻车后的误判调查'],
@@ -29,8 +30,13 @@ const QA_PRESETS = [
   ['CASE001 FINAL', 'CASE 001 · 最终审计', '修复方案已经通过正式未知审计'],
   ['CASE001 CLOSED', 'CASE 001 · 结案', '打开合法 CASE CLOSED 案卷'],
   ['CASE002', 'CASE 002 · 指标谜题', '从头测试分类别召回与多解阈值约束'],
+  ['CASE002 THRESHOLD', 'CASE 002 · 阈值谜题', '直接测试多解阈值约束，不重放指标拆分'],
   ['CASE003', 'CASE 003 · 环境谜题', '从头测试白天 / 夜班分布变化与稳定观察通道'],
+  ['CASE003 SENSOR', 'CASE 003 · 稳定传感器', '直接测试跨环境控制变量与多解稳定特征'],
   ['CASE004', 'CASE 004 · 泄漏谜题', '从头测试验证身份重叠、分组切分与真正泛化'],
+  ['CASE004 RESPLIT', 'CASE 004 · 重切分', '直接测试记录 / 日期 / 实体三种切分'],
+  ['CASE004 MODEL', 'CASE 004 · 干净验证', '直接比较身份记忆、稳定结构与机位捷径'],
+  ['CASE004 COMPOSE', 'CASE 004 · 最终规则', '直接测试部署语义上的未知验证定义'],
   ['BUREAU UNLOCK', '调查局 Hub', '创建合法入职事实并打开办公室'],
   ['TRAINING', 'TRAINING 000', '直接进入训练中心案件'],
   ['DUTY 6000', 'DUTY · Feature gap', '全新 seed 6000，不恢复旧 Duty session'],
@@ -107,7 +113,7 @@ export function CheatTerminal() {
     setError(false)
     const instruction = parsed.instruction
     if (instruction.kind === 'help') {
-      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE002；CASE003；CASE004；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
+      setMessage('可用：CASE001 ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE002 [THRESHOLD/TRANSFER]；CASE003 [SENSOR/CAUSAL]；CASE004 [RESPLIT/MODEL/COMPOSE]；BUREAU UNLOCK；TRAINING；DUTY <seed>。')
       return
     }
 
@@ -140,7 +146,19 @@ export function CheatTerminal() {
         setMessage('无法识别手工案件入口。')
         return
       }
+      const config = AUTHORED_PUZZLE_CASES[definition.id as keyof typeof AUTHORED_PUZZLE_CASES]
+      if (!config) {
+        setError(true)
+        setMessage('无法识别手工案件配置。')
+        return
+      }
       clearPuzzleSession(window.localStorage, definition.id, seed)
+      const checkpoint = createPuzzleCheatSession(config, seed, instruction.stageId)
+      if (!checkpoint || !writePuzzleSession(window.localStorage, checkpoint)) {
+        setError(true)
+        setMessage(`无法准备 ${formalCaseCode(definition)} 的测试检查点。`)
+        return
+      }
       let progress = readBureauProgress(window.localStorage)
       // QA authored-case jumps materialize only the prerequisite closure facts.
       // This stays catalog-driven so future authored cases do not need another bespoke branch.
