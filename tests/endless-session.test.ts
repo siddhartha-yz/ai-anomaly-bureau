@@ -3,7 +3,7 @@ import { evaluate } from '../src/ml/evaluate'
 import { projectSamples } from '../src/ml/features'
 import { MODEL_REGISTRY } from '../src/ml/registry'
 import { createEndlessCase, enumerateEndlessSolutions } from '../src/endless/generator'
-import { accuracyBand } from '../src/endless/uiTypes'
+import { accuracyBand, experimentDelta } from '../src/endless/uiTypes'
 import { ENDLESS_SESSION_VERSION, endlessSessionKey, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
 
 class MemoryStorage implements StorageLike {
@@ -290,10 +290,10 @@ describe('endless local session persistence', () => {
     const trainPoints = projectSamples(caseData.train, secondConfig.features)
     const train = evaluate(MODEL_REGISTRY[secondConfig.model].fit(trainPoints), trainPoints).accuracy
     const audit = caseData.audit(secondConfig.model, secondConfig.features)
-    value.history.push({
+    const secondRun = {
       id: 2,
       model: secondConfig.model,
-      features: [...secondConfig.features],
+      features: [...secondConfig.features] as EndlessSessionData['features'],
       train,
       test: audit.accuracy,
       errors: audit.errorCount,
@@ -301,6 +301,11 @@ describe('endless local session persistence', () => {
       predictionHit: true,
       recall: audit.recall,
       reliable: caseData.isReliable(audit),
+    }
+    const secondDelta = experimentDelta(value.history[0], secondRun)
+    value.history.push({
+      ...secondRun,
+      ...(secondDelta === 'fields-only' || secondDelta === 'model-only' ? { causalPrediction: 'improved' as const } : {}),
     })
     value.model = secondConfig.model
     value.features = [...secondConfig.features]
@@ -320,6 +325,63 @@ describe('endless local session persistence', () => {
 
     const forgedRunCheckpoint = { ...value, lastDiagnosisRunCount: 0 }
     storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedRunCheckpoint))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
+  it('rejects histories that erase or invent causal preregistrations after an audit', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const caseData = createEndlessCase(6000)
+    const controlled = enumerateEndlessSolutions(caseData).find((candidate) => {
+      const next = {
+        ...value.history[0],
+        id: 2,
+        model: candidate.model,
+        features: [...candidate.features] as EndlessSessionData['features'],
+      }
+      const delta = experimentDelta(value.history[0], next)
+      return delta === 'fields-only' || delta === 'model-only'
+    })
+    expect(controlled).toBeDefined()
+    if (!controlled) return
+
+    const trainPoints = projectSamples(caseData.train, controlled.features)
+    const train = evaluate(MODEL_REGISTRY[controlled.model].fit(trainPoints), trainPoints).accuracy
+    const audit = caseData.audit(controlled.model, controlled.features)
+    const controlledRun = {
+      id: 2,
+      model: controlled.model,
+      features: [...controlled.features] as EndlessSessionData['features'],
+      train,
+      test: audit.accuracy,
+      errors: audit.errorCount,
+      prediction: accuracyBand(audit.accuracy),
+      predictionHit: true,
+      causalPrediction: 'improved' as const,
+      recall: audit.recall,
+      reliable: caseData.isReliable(audit),
+    }
+    value.history.push(controlledRun)
+    value.model = controlledRun.model
+    value.features = controlledRun.features
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(value))
+    expect(readEndlessSession(storage, 6000)).toEqual(value)
+
+    const erasedForecast = structuredClone(value)
+    delete erasedForecast.history[1].causalPrediction
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(erasedForecast))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const fabricatedBaselineForecast = structuredClone(session())
+    fabricatedBaselineForecast.history[0].causalPrediction = 'null'
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(fabricatedBaselineForecast))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const repeated = structuredClone(value)
+    repeated.history.push({ ...repeated.history[1], id: 3, causalPrediction: 'null' })
+    repeated.model = repeated.history[2].model
+    repeated.features = repeated.history[2].features
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(repeated))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 

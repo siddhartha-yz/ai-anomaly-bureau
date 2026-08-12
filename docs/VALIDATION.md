@@ -18,8 +18,8 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：25 个测试文件、153 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-DlqNthfS.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Vitest：25 个测试文件、154 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-D6-DveY9.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
 - Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → CASE 005 → Bureau Hub、五类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004/005 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
@@ -305,7 +305,7 @@ Windows 真机截图仍作为最终美术判断基准；headless Chromium 主要
 - GitHub Pages 已上线；当前没有针对 CDN 缓存传播延迟的专项测试。
 - 外部中文像素字体网络不可用时会回退到系统 CJK 字体，功能不受影响，但视觉会变化。
 - opening fingerprint 已进一步削弱：`H-CONTEXT / H-RECORDS / H-COVERAGE` 的 positive finding 现在都能出现在 **四种 syndrome** 中。shift 仍有真实环境/设备变化，但其他案件可带有非主因的运营批次变化；overfit 仍有真实噪声，但其他案件可带 benign quality alert；imbalance 仍真的使用偏斜训练集，但其他案件也可能来自偏斜的上游历史档案池，而本次模型训练子集保持平衡。三组 400-seed 回归都要求对应 signal 覆盖四种 syndrome，且目标 syndrome 在 positive finding 中占比低于 65%。因此“资料夹亮了”只能说明该来源值得追查，不能直接当病名答案。
-- Duty session 升到 **v6**。v5/v4/v3 以及可兼容的 v2 实验历史仍可迁移，但迁移时重新封存 causal-source folders，避免旧存档中已经读过的 H-COVERAGE 在新版本里静默变成另一条 finding；v2 distribution-shift 仍因旧 field world 不兼容而作废，写入新 key 失败时保留旧存档。
+- Duty session 升到 **v6**。v5/v4/v3 以及可兼容的 v2 实验历史仍可迁移，但迁移时重新封存 causal-source folders，避免旧存档中已经读过的 H-COVERAGE 在新版本里静默变成另一条 finding；v2 distribution-shift 仍因旧 field world 不兼容而作废，写入新 key 失败时保留旧存档。当前 reader 还会复核每条历史实验的预注册关系：只有 `fields-only / model-only` 单变量实验必须携带事前 causal forecast，baseline / repeat / mixed 不得事后伪造 forecast；因此删除一次预测失误或给旧实验补写“预注册”都会使 checkpoint 作废。
 
 ## 下一步真实玩家测试重点
 

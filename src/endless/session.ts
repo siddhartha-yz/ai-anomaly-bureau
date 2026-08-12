@@ -4,7 +4,7 @@ import { evaluate } from '../ml/evaluate'
 import { projectSamples } from '../ml/features'
 import type { FeatureKey, Label } from '../ml/types'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
-import { accuracyBand, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceSupported, discriminatingExperiment, earnedCaseLeadReviewCount, experimentConfigKey, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceSupported, discriminatingExperiment, earnedCaseLeadReviewCount, experimentConfigKey, experimentDelta, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -141,6 +141,14 @@ function fieldInspectionMatchesGeneratedWorld(caseData: ReturnType<typeof create
   return Boolean(mistake && mistake.actual === inspection.actual && mistake.predicted === inspection.predicted)
 }
 
+function causalPreregistrationsMatchExperimentPlans(history: EndlessRunRecord[]) {
+  return history.every((run, index) => {
+    const delta = experimentDelta(history[index - 1], run)
+    const controlled = delta === 'fields-only' || delta === 'model-only'
+    return controlled ? run.causalPrediction !== undefined : run.causalPrediction === undefined
+  })
+}
+
 function solvedClosureMatchesInvestigation(caseData: ReturnType<typeof createEndlessCase>, item: EndlessSessionData) {
   if (!item.diagnosis) return false
   const distinctConfigCount = new Set(item.history.map((run) => experimentConfigKey(run.model, run.features))).size
@@ -187,6 +195,7 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   const runIds = new Set(history.map((run) => run.id))
   if (history.some((run, index) => run.id !== index + 1)) return false
   if (history.some((run) => !runMatchesGeneratedWorld(caseData, run))) return false
+  if (!causalPreregistrationsMatchExperimentPlans(history)) return false
   const minimumEmergencyCredits = Math.max(0, history.length - 5)
   const maximumEmergencyCredits = Math.max(0, history.length - 4)
   if (item.emergencyCredits < minimumEmergencyCredits || item.emergencyCredits > maximumEmergencyCredits) return false
