@@ -11,7 +11,7 @@ import { canInspectCaseLead, EndlessArchiveEvidence, EndlessLeadBoard, EndlessOb
 import { EndlessPlot, type EndlessAudit } from './EndlessPlot'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
 import { ENDLESS_SESSION_VERSION, clearEndlessSession, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession } from './session'
-import { accuracyBand, caseLeadForecastStats, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, dutyForecastCalibrationPenalty, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, caseLeadForecastStats, causalForecastStats, compareExperimentRecords, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceLeadId, diagnosisSourceStatus, diagnosisSourceSupported, discriminatingExperiment, dutyCausalForecastPenalty, experimentConfigKey, experimentDelta, experimentPlanDelta, latestDiscriminatingExperiment, latestFalsifiedDiscriminatingExperiment, latestReliableDiscriminatingExperiment, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 function calculateTrainAccuracy(caseData: ReturnType<typeof createEndlessCase>, model: ModelId, features: [FeatureKey, FeatureKey]) {
   const points = projectSamples(caseData.train, features)
@@ -368,10 +368,11 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
       + history.filter((record) => record.predictionHit).length * 2
       + controlledComparisons * 3 - mixedComparisons * 3,
   )
-  // Wrong preregistered forecasts remain useful evidence, but top investigation
-  // ratings should distinguish calibrated reasoning from choosing an answer at random.
-  // Source forecasts carry a smaller penalty than directional intervention forecasts.
-  const forecastCalibrationPenalty = dutyForecastCalibrationPenalty(causalForecast.misses, sourceForecast.misses)
+  // Directional intervention forecasts are testable against a controlled experiment,
+  // so misses affect the investigation grade. Source forecasts are still sealed-before-open
+  // commitments, but benign source confounds are intentionally not fully inferable from
+  // public evidence; their HIT/MISS is therefore preserved for reflection, not grading.
+  const forecastCalibrationPenalty = dutyCausalForecastPenalty(causalForecast.misses)
   const score = Math.max(40, scoreBeforeCausalCalibration - forecastCalibrationPenalty)
   const grade = score >= 95 ? 'S' : score >= 85 ? 'A' : score >= 72 ? 'B' : 'C'
 
@@ -567,7 +568,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>FINAL CONFIG</small><strong>{caseData.featureNames[bestReliable.features[0]]} + {caseData.featureNames[bestReliable.features[1]]}</strong><span>{MODEL_META[bestReliable.model].label}</span></article>
               <article><small>FIELD EVIDENCE</small><strong>{Math.round(bestReliable.test * 100)}%</strong><span>最低类别召回 {Math.round(Math.min(bestReliable.recall.cat, bestReliable.recall.bread) * 100)}%</span></article>
               <article><small>INVESTIGATION</small><strong>{history.length} 次审计</strong><span>{controlledComparisons} 次单变量对照 · 现场预测命中 {history.filter((record) => record.predictionHit).length} 次 · 因果预测 {causalForecast.hits}/{causalForecast.total}</span></article>
-              <article><small>SOURCE FORECAST</small><strong>{sourceForecast.hits}/{sourceForecast.total} 命中</strong><span>{sourceForecast.total ? `${sourceForecast.misses} 次来源预判失误${sourceForecast.misses ? `，评级 - ${sourceForecast.misses * 2}` : ''}；预判只在打开来源前可修改` : '旧存档来源没有预判记录，不计入本项'}</span></article>
+              <article><small>SOURCE FORECAST</small><strong>{sourceForecast.hits}/{sourceForecast.total} 命中</strong><span>{sourceForecast.total ? `${sourceForecast.misses} 次来源预判与实际不符；用于复盘取证直觉，不计调查评级` : '旧存档来源没有预判记录，不计入本项'}</span></article>
               <article><small>EVIDENCE CHAIN</small><strong>{citedEvidence.records.length === 2 ? citedEvidence.records.map((record) => `E${String(record.id).padStart(2, '0')}`).join(' + ') : '未记录'}</strong><span>{closureEvidenceLabel}{closureEvidenceComparison ? ` · FIELD ${Math.round(citedEvidence.records[0].test * 100)}% → ${Math.round(citedEvidence.records[1].test * 100)}%` : ''}</span></article>
               <article><small>FALSIFICATION</small><strong>{citedFalsificationSummary ?? '未记录'}</strong><span>{sourceFalsificationLead ? '原因来源的明确阴性事实' : citedInterventionFalsification ? '与支持证据锚定的竞争轴预注册 null result' : '本案没有封存独立反证'}</span></article>
               <article><small>CAUSAL SUPPORT</small><strong>{closureSupportLead ? `${closureSupportLead.label} · SIGNAL` : '受控实验干预证据'}</strong><span>{closureSupportLead?.finding ?? '本病因没有专属正向来源；支持来自被引用的 material 单变量实验。'}</span></article>
@@ -576,7 +577,7 @@ export function EndlessMode({ initialSeed, onExit, onSeedChange, onResolved, exi
               <article><small>ARCHIVE</small><strong>{inspectedArchiveIds.length} 条档案复核</strong><span>{caseData.archiveAlerts.length ? `本案共有 ${caseData.archiveAlerts.length} 条质量告警` : '本案无额外质量告警'}</span></article>
             </div>
           )}
-          <div className="endless-rank"><strong>{grade}</strong><span>{score}/100</span><small>可靠未知表现 {Math.round((bestReliable?.test ?? best) * 100)}% · 最低类别召回 {Math.round(Math.min(bestReliable?.recall.cat ?? 0, bestReliable?.recall.bread ?? 0) * 100)}% · {history.length} 次审计</small><small>实验设计：{controlledComparisons} 次单变量对照 · {mixedComparisons} 次同时改字段与模型 · 因果预测 {causalForecast.hits}/{causalForecast.total}{causalForecast.misses ? `（${causalForecast.misses} 次失误，- ${causalForecast.misses * 3}）` : ''} · 来源预判 {sourceForecast.hits}/{sourceForecast.total}{sourceForecast.misses ? `（${sourceForecast.misses} 次失误，- ${sourceForecast.misses * 2}）` : ''}</small></div>
+          <div className="endless-rank"><strong>{grade}</strong><span>{score}/100</span><small>可靠未知表现 {Math.round((bestReliable?.test ?? best) * 100)}% · 最低类别召回 {Math.round(Math.min(bestReliable?.recall.cat ?? 0, bestReliable?.recall.bread ?? 0) * 100)}% · {history.length} 次审计</small><small>实验设计：{controlledComparisons} 次单变量对照 · {mixedComparisons} 次同时改字段与模型 · 因果预测 {causalForecast.hits}/{causalForecast.total}{causalForecast.misses ? `（${causalForecast.misses} 次失误，- ${causalForecast.misses * 3}）` : ''} · 来源预判 {sourceForecast.hits}/{sourceForecast.total}（只复盘，不计分）</small></div>
           <div className="endless-solved-actions"><button type="button" onClick={nextCase}>生成下一起案件</button><button type="button" onClick={onExit}>{exitLabel}</button></div>
         </section>
       )}

@@ -111,8 +111,8 @@ export function caseLeadForecastStats(
   return { total, hits, misses: total - hits }
 }
 
-export function dutyForecastCalibrationPenalty(causalMisses: number, sourceMisses: number) {
-  return causalMisses * 3 + sourceMisses * 2
+export function dutyCausalForecastPenalty(causalMisses: number) {
+  return causalMisses * 3
 }
 
 export function earnedCaseLeadReviewCount(history: EndlessRunRecord[]) {

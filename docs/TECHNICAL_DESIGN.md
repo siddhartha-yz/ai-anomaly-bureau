@@ -327,7 +327,7 @@ baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家�
 
 普通玩家可见的 `observables.ts` 只使用：训练标签 + 现场**无标签**特征分布。它提供：历史类别分离、现场分布变化与旧样本几何矛盾等信号。正式 Sensor Deck 不再把四个字段统一压成 `旧差异 X/5 / 现场变化 Y/5` 排行；玩家需要切换二维投影观察 `FIELD MATRIX`。自动 evidence-policy 仍可把同一类可见统计压缩成策略分数用于批量验证，但不允许读取隐藏 syndrome/test label 再假装推理。
 
-正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位；fields-only / model-only 还必须做方向性 causal pre-registration。`causalForecastStats()` 从相邻正式记录中汇总这些因果预测的 hit / miss，baseline、repeat、mixed 不计入。原因来源另由 `caseLeadForecastStats()` 只统计已经真实打开、且旧存档中确实存在预测记录的来源。结案评分沿用既有实验次数 / 现场预测 / 额外额度 / controlled-vs-mixed 结构，再通过 `dutyForecastCalibrationPenalty()` 对每次 causal miss 扣 3 分、每次 source miss 扣 2 分；错误预测仍保留为有效实验 / 来源事实，但会降低调查评级，避免两种预注册退化成无成本随机选择。旧 v6 存档中已经打开但没有历史 `caseLeadPredictions` 的来源不补造 miss，也不追溯扣分。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
+正式审计初始 5 次；训练免费。每次审计前玩家先预测现场准确率档位；fields-only / model-only 还必须做方向性 causal pre-registration。`causalForecastStats()` 从相邻正式记录中汇总这些因果预测的 hit / miss，baseline、repeat、mixed 不计入。原因来源另由 `caseLeadForecastStats()` 只统计已经真实打开、且旧存档中确实存在预测记录的来源。结案评分沿用既有实验次数 / 现场预测 / 额外额度 / controlled-vs-mixed 结构，并通过 `dutyCausalForecastPenalty()` 对每次 causal miss 扣 3 分；source forecast 的 HIT/MISS 只进入结案复盘，不参与评分。原因是 benign source confound 有意跨 syndrome 存在，部分结果由未公开 seed bucket 决定，玩家在来源解封前没有稳定可推断的公开事实；把 source miss 计分会把随机性混入调查评级。错误来源预判仍被完整封存，因此“先承诺、后揭晓”的纪律保留，旧 v6 存档中已经打开但没有历史 `caseLeadPredictions` 的来源也不会伪造记录。结案要求：存在 `accuracy >= .85 && min(class recall) >= .75` 的可靠实验，并提交正确病因。额度耗尽时可以申请一次补充审计并扣评级，不形成死锁。
 
 ## 自动玩法平衡
 `balance.ts` 同时执行：
