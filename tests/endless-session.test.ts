@@ -303,6 +303,17 @@ describe('endless local session persistence', () => {
     duplicateLead.inspectedCaseLeadIds = ['quality', 'quality']
     storage.setItem(endlessSessionKey(6000), JSON.stringify(duplicateLead))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const forgedEmergencyCredit = session()
+    forgedEmergencyCredit.emergencyCredits = 1
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedEmergencyCredit))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const unpaidExtraAudits = session()
+    unpaidExtraAudits.history = Array.from({ length: 6 }, (_, index) => ({ ...unpaidExtraAudits.history[0], id: index + 1 }))
+    unpaidExtraAudits.emergencyCredits = 0
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(unpaidExtraAudits))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 
   it('distinguishes blank storage from resumable progress and derives remaining budget', () => {

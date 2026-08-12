@@ -187,6 +187,9 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   const runIds = new Set(history.map((run) => run.id))
   if (history.some((run, index) => run.id !== index + 1)) return false
   if (history.some((run) => !runMatchesGeneratedWorld(caseData, run))) return false
+  const minimumEmergencyCredits = Math.max(0, history.length - 5)
+  const maximumEmergencyCredits = Math.max(0, history.length - 4)
+  if (item.emergencyCredits < minimumEmergencyCredits || item.emergencyCredits > maximumEmergencyCredits) return false
   if (item.lastDiagnosisRunCount > history.length || item.lastDiagnosisConfigCount > history.length) return false
   if (new Set(item.selectedEvidenceRunIds).size !== item.selectedEvidenceRunIds.length) return false
   if (item.selectedEvidenceRunIds.some((runId) => !runIds.has(runId))) return false
