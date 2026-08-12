@@ -218,6 +218,32 @@ describe('endless local session persistence', () => {
     }
   })
 
+  it('rejects contradictory diagnosis and solved-state relationships', () => {
+    const storage = new MemoryStorage()
+
+    const impossibleAttempt = session()
+    impossibleAttempt.diagnosisAttempts = 1
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleAttempt))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const forgedSolved = session()
+    forgedSolved.solved = true
+    forgedSolved.diagnosis = 'feature-gap'
+    forgedSolved.submittedDiagnosis = 'feature-gap'
+    forgedSolved.diagnosisAttempts = 1
+    forgedSolved.selectedEvidenceRunIds = [1]
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedSolved))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const impossibleOutcome = session()
+    impossibleOutcome.solved = true
+    impossibleOutcome.diagnosisAttempts = 1
+    impossibleOutcome.lastDiagnosisOutcome = 'wrong'
+    impossibleOutcome.submittedDiagnosis = createEndlessCase(6000).diagnosis.correct
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleOutcome))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
   it('rejects impossible cross-field session relationships', () => {
     const storage = new MemoryStorage()
     const impossibleCitation = session()

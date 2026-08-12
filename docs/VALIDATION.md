@@ -18,8 +18,8 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：25 个测试文件、150 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-dFjybJbT.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Vitest：25 个测试文件、151 个测试全部通过。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-DVJkzyKj.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
 - Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → Bureau Hub、四类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
@@ -151,7 +151,7 @@ Vitest 当前覆盖：
 - 两个不同配置本身不再足够：有效引用必须是 material fields-only / model-only comparison；同配置、mixed change、变化太小的单变量对照都会被拒绝。有效引用还必须触及至少一个可靠端点，防止把历史中无关的可靠 mixed 配置与另一组 material 对照事后拼成结案解释。回归测试专门构造“E01→E02 material 但仍不可靠，E03 通过无关 mixed 路径可靠”的断链历史，要求诊断引用保持未就绪；把 E02 本身改成可靠端点后才恢复就绪。有效引用只生成字段 / 模型 / 指标变化，不替玩家解释 syndrome。
 - 错误诊断后，原样复现不会解锁改口；必须产生新的 material controlled evidence，而且下一份证据包必须包含这条新记录；若依赖 intervention falsification，则配套 competing-axis null 也必须在上一次诊断后新取得，旧 null 不可复用。浏览器测试还专门验证“从可靠方案只改一个因素后性能显著下降”同样能作为 falsification 证据重新开放报告。
 - 诊断锁且额度为 0 时，sticky 导航会直接定位到“申请 1 次补充审计”，验证有限预算不形成软锁。
-- 正式无尽 session 按 seed 保存在本地：普通刷新不会返还正式审计额度；错误诊断锁、引用状态和已检查证据也会恢复。模式入口显式显示未结案件 / 剩余额度，生成全新案件需要二次确认。
+- 正式无尽 session 按 seed 保存在本地：普通刷新不会返还正式审计额度；错误诊断锁、引用状态和已检查证据也会恢复。恢复时不仅按 seed 重算每次实验指标与已检查误判，还拒绝自相矛盾的诊断 / 结案状态：没有真实提交记录不能凭 `solved` 进入 CASE CLOSED，已结案记录必须与该 seed 的正确诊断、两条引用证据和至少一个可靠实验同时一致。模式入口显式显示未结案件 / 剩余额度，生成全新案件需要二次确认。
 - 已结案 session 也会显示为 `RESOLVED CASE SAVED`；浏览器路线会从剧情页重新进入无尽入口、重开同一结案案卷并核对引用证据，再从该案生成下一 seed。
 - adversarial refresh 路线验证：错误诊断后刷新仍保持锁定，之后即使取得 E03，继续引用旧 E01+E02 也不能提交，必须把新记录写进报告。
 - `FieldManual` 的键盘路线验证焦点进入、Tab 环、Escape 关闭与焦点恢复；SVG 档案异常的 Space 激活会阻止默认 button 滚动语义。

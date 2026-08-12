@@ -168,6 +168,18 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (item.selectedEvidenceRunIds.some((runId) => !runIds.has(runId))) return false
   if (item.inspectedFieldErrors.some((error) => !runIds.has(error.runId) || !fieldInspectionMatchesGeneratedWorld(caseData, history, error))) return false
   if (item.inspectedCaseLeadIds.length > earnedCaseLeadReviewCount(history)) return false
+  if (item.diagnosisAttempts === 0) {
+    if (item.submittedDiagnosis !== undefined || item.lastDiagnosisOutcome !== undefined) return false
+    if (item.lastDiagnosisConfigCount !== 0 || item.lastDiagnosisRunCount !== 0) return false
+  } else if (item.submittedDiagnosis === undefined) {
+    return false
+  }
+  if (item.lastDiagnosisOutcome !== undefined && item.solved) return false
+  if (item.solved) {
+    if (item.diagnosisAttempts < 1) return false
+    if (item.diagnosis !== caseData.diagnosis.correct || item.submittedDiagnosis !== caseData.diagnosis.correct) return false
+    if (item.selectedEvidenceRunIds.length !== 2 || !history.some((run) => run.reliable)) return false
+  }
   if (item.auditComplete) {
     const latest = history.at(-1)
     if (!item.trained || !latest || latest.model !== item.model || !sameFeatureSet(latest.features, item.features)) return false
