@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { clearDutyProgress, createDutyCasePreview, readDutyResume } from '../src/bureau/duty'
+import { createEndlessCase } from '../src/endless/generator'
 import { ENDLESS_SESSION_VERSION, endlessSessionKey, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
+import { accuracyBand } from '../src/endless/uiTypes'
+import { evaluate } from '../src/ml/evaluate'
+import { projectSamples } from '../src/ml/features'
+import { MODEL_REGISTRY } from '../src/ml/registry'
 
 class MemoryStorage implements StorageLike {
   values = new Map<string, string>()
@@ -22,26 +27,32 @@ describe('Bureau Duty adapter', () => {
 
   it('summarizes and clears Duty persistence without exposing session internals to App', () => {
     const storage = new MemoryStorage()
+    const caseData = createEndlessCase(6002)
+    const model = caseData.baseline.model
+    const features = [...caseData.baseline.features] as EndlessSessionData['features']
+    const trainPoints = projectSamples(caseData.train, features)
+    const train = evaluate(MODEL_REGISTRY[model].fit(trainPoints), trainPoints).accuracy
+    const audit = caseData.audit(model, features)
     const saved: EndlessSessionData = {
       version: ENDLESS_SESSION_VERSION,
       seed: 6002,
-      features: ['warmth', 'roundness'],
+      features,
       activeSlot: 1,
-      model: 'linear',
+      model,
       trained: true,
       auditComplete: true,
       emergencyCredits: 0,
       history: [{
         id: 1,
-        model: 'linear',
-        features: ['warmth', 'roundness'],
-        train: .8,
-        test: .7,
-        errors: 5,
-        prediction: 'mid',
+        model,
+        features,
+        train,
+        test: audit.accuracy,
+        errors: audit.errorCount,
+        prediction: accuracyBand(audit.accuracy),
         predictionHit: true,
-        recall: { cat: .8, bread: .6 },
-        reliable: false,
+        recall: audit.recall,
+        reliable: caseData.isReliable(audit),
       }],
       diagnosisAttempts: 0,
       lastDiagnosisConfigCount: 0,

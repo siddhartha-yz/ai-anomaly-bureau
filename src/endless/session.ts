@@ -1,7 +1,10 @@
 import type { ModelId } from '../ml/registry'
+import { MODEL_REGISTRY } from '../ml/registry'
+import { evaluate } from '../ml/evaluate'
+import { projectSamples } from '../ml/features'
 import type { FeatureKey, Label } from '../ml/types'
-import type { EndlessCaseLeadId, EndlessSyndrome } from './generator'
-import { earnedCaseLeadReviewCount, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
+import { accuracyBand, earnedCaseLeadReviewCount, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -114,6 +117,30 @@ function sameFeatureSet(a: [FeatureKey, FeatureKey], b: [FeatureKey, FeatureKey]
   return a.every((feature) => b.includes(feature)) && b.every((feature) => a.includes(feature))
 }
 
+function sameRate(a: number, b: number) {
+  return Math.abs(a - b) < 1e-9
+}
+
+function runMatchesGeneratedWorld(caseData: ReturnType<typeof createEndlessCase>, run: EndlessRunRecord) {
+  const trainPoints = projectSamples(caseData.train, run.features)
+  const train = evaluate(MODEL_REGISTRY[run.model].fit(trainPoints), trainPoints).accuracy
+  const audit = caseData.audit(run.model, run.features)
+  return sameRate(run.train, train)
+    && sameRate(run.test, audit.accuracy)
+    && run.errors === audit.errorCount
+    && sameRate(run.recall.cat, audit.recall.cat)
+    && sameRate(run.recall.bread, audit.recall.bread)
+    && run.reliable === caseData.isReliable(audit)
+    && run.predictionHit === (run.prediction === accuracyBand(audit.accuracy))
+}
+
+function fieldInspectionMatchesGeneratedWorld(caseData: ReturnType<typeof createEndlessCase>, history: EndlessRunRecord[], inspection: InspectedFieldError) {
+  const run = history.find((item) => item.id === inspection.runId)
+  if (!run) return false
+  const mistake = caseData.audit(run.model, run.features).mistakes.find((item) => item.id === inspection.sampleId)
+  return Boolean(mistake && mistake.actual === inspection.actual && mistake.predicted === inspection.predicted)
+}
+
 function isSessionData(value: unknown, seed: number): value is EndlessSessionData {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<EndlessSessionData>
@@ -132,12 +159,14 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (!isCaseLeadPredictions(item.caseLeadPredictions)) return false
   if (!Array.isArray(item.inspectedFieldErrors) || !item.inspectedFieldErrors.every(isInspectedFieldError)) return false
   const history = item.history
+  const caseData = createEndlessCase(seed)
   const runIds = new Set(history.map((run) => run.id))
   if (history.some((run, index) => run.id !== index + 1)) return false
+  if (history.some((run) => !runMatchesGeneratedWorld(caseData, run))) return false
   if (item.lastDiagnosisRunCount > history.length || item.lastDiagnosisConfigCount > history.length) return false
   if (new Set(item.selectedEvidenceRunIds).size !== item.selectedEvidenceRunIds.length) return false
   if (item.selectedEvidenceRunIds.some((runId) => !runIds.has(runId))) return false
-  if (item.inspectedFieldErrors.some((error) => !runIds.has(error.runId))) return false
+  if (item.inspectedFieldErrors.some((error) => !runIds.has(error.runId) || !fieldInspectionMatchesGeneratedWorld(caseData, history, error))) return false
   if (item.inspectedCaseLeadIds.length > earnedCaseLeadReviewCount(history)) return false
   if (item.auditComplete) {
     const latest = history.at(-1)

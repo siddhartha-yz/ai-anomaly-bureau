@@ -330,7 +330,7 @@ baseline 前三份来源统一 `SEALED`。第一次正式审计之后，玩家�
 
 `session.ts` 当前使用 `aia.endless-session.v6.<seed>` 保存版本化本地调查状态。存档仍只包含玩家已经拥有的配置、audit history、诊断/引用、已打开 causal source 与已检查错误，不保存 generator 内部 test IDs / syndrome answer。
 
-版本迁移按数据语义处理，而不是机械改 version：当前 Duty session 为 v6。v6 没有改模型或现场样本，因此 v5/v4/v3 audit history 可以保留；但 `H-COVERAGE` finding 的语义从“训练数据精确构成”扩展为“上游档案池构成”，所以迁移时会把 `inspectedCaseLeadIds` 清空，让玩家重新打开 causal-source folders，而不是静默改写已经读过的证据。迁移仍遵守**先成功写 canonical v6，再删除唯一旧副本**；写入失败时旧原件保留。v2 非 shift 也可直接迁到 v6 并从未打开 causal source 开始；v2 distribution-shift 因 v3 已改变 field world 仍必须作废，v1 继续明确清理。运行时 guard 继续校验 metric 范围、run 顺序、引用 ID、audit/config 一致性等关系；剩余审计额度仍由 `5 + emergencyCredits - history.length` 重建，因此刷新不会退款。
+版本迁移按数据语义处理，而不是机械改 version：当前 Duty session 为 v6。v6 没有改模型或现场样本，因此 v5/v4/v3 audit history 可以保留；但 `H-COVERAGE` finding 的语义从“训练数据精确构成”扩展为“上游档案池构成”，所以迁移时会把 `inspectedCaseLeadIds` 清空，让玩家重新打开 causal-source folders，而不是静默改写已经读过的证据。迁移仍遵守**先成功写 canonical v6，再删除唯一旧副本**；写入失败时旧原件保留。v2 非 shift 也可直接迁到 v6 并从未打开 causal source 开始；v2 distribution-shift 因 v3 已改变 field world 仍必须作废，v1 继续明确清理。reader 不只校验 metric 范围、run 顺序、引用 ID、audit/config 一致性：它会按 seed 重建生成案件并逐条重算训练 / FIELD 指标、两类 recall、可靠性、预测命中与已检查误判，防止合法范围内的伪造数值改变因果状态；剩余审计额度仍由 `5 + emergencyCredits - history.length` 重建，因此刷新不会退款。
 
 零基础指标说明与案件解释分离：正式审计和 `FieldManual` 只定义 `TRAIN`、`FIELD`、分类别 recall 的字面语义，不根据当前结果生成 syndrome 建议。`FieldManual` 作为 `aria-modal` 会把焦点移入对话框、约束 Tab、支持 Escape，并在关闭后恢复到原触发按钮；SVG 档案异常支持 Enter / Space，Space 会 `preventDefault()` 以符合 button 语义。
 

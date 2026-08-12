@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { evaluate } from '../src/ml/evaluate'
+import { projectSamples } from '../src/ml/features'
+import { MODEL_REGISTRY } from '../src/ml/registry'
+import { createEndlessCase } from '../src/endless/generator'
+import { accuracyBand } from '../src/endless/uiTypes'
 import { ENDLESS_SESSION_VERSION, endlessSessionKey, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
 
 class MemoryStorage implements StorageLike {
@@ -9,26 +14,33 @@ class MemoryStorage implements StorageLike {
 }
 
 function session(seed = 6000): EndlessSessionData {
+  const caseData = createEndlessCase(seed)
+  const model = caseData.baseline.model
+  const features = [...caseData.baseline.features] as EndlessSessionData['features']
+  const trainPoints = projectSamples(caseData.train, features)
+  const train = evaluate(MODEL_REGISTRY[model].fit(trainPoints), trainPoints).accuracy
+  const audit = caseData.audit(model, features)
+  const firstMistake = audit.mistakes[0]
   return {
     version: ENDLESS_SESSION_VERSION,
     seed,
-    features: ['warmth', 'roundness'],
+    features,
     activeSlot: 1,
-    model: 'linear',
+    model,
     trained: true,
     auditComplete: true,
     emergencyCredits: 0,
     history: [{
       id: 1,
-      model: 'linear',
-      features: ['warmth', 'roundness'],
-      train: .56,
-      test: .46,
-      errors: 15,
-      prediction: 'low',
+      model,
+      features,
+      train,
+      test: audit.accuracy,
+      errors: audit.errorCount,
+      prediction: accuracyBand(audit.accuracy),
       predictionHit: true,
-      recall: { cat: .79, bread: .14 },
-      reliable: false,
+      recall: audit.recall,
+      reliable: caseData.isReliable(audit),
     }],
     diagnosisAttempts: 0,
     lastDiagnosisConfigCount: 0,
@@ -36,7 +48,9 @@ function session(seed = 6000): EndlessSessionData {
     selectedEvidenceRunIds: [],
     inspectedArchiveIds: [],
     inspectedCaseLeadIds: [],
-    inspectedFieldErrors: [{ runId: 1, sampleId: 'field-002', actual: 'bread', predicted: 'cat' }],
+    inspectedFieldErrors: firstMistake
+      ? [{ runId: 1, sampleId: firstMistake.id, actual: firstMistake.actual, predicted: firstMistake.predicted }]
+      : [],
     solved: false,
   }
 }
@@ -48,7 +62,7 @@ describe('endless local session persistence', () => {
     expect(writeEndlessSession(storage, value)).toBe(true)
     expect(readEndlessSession(storage, 6000)).toEqual(value)
     const raw = storage.getItem(endlessSessionKey(6000)) ?? ''
-    expect(raw).toContain('field-002')
+    if (value.inspectedFieldErrors[0]) expect(raw).toContain(value.inspectedFieldErrors[0].sampleId)
     expect(raw).not.toMatch(/test-cat|test-bread|syndrome|diagnosis\.correct/)
   })
 
@@ -181,6 +195,27 @@ describe('endless local session persistence', () => {
     invalid.history[0].test = 5
     storage.setItem(endlessSessionKey(6000), JSON.stringify(invalid))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
+  it('rejects plausible-looking metrics or inspected mistakes that do not belong to the generated seed', () => {
+    const storage = new MemoryStorage()
+    const forgedMetric = session()
+    forgedMetric.history[0].test = Math.max(0, forgedMetric.history[0].test - .01)
+    forgedMetric.history[0].errors = Math.max(0, forgedMetric.history[0].errors - 1)
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedMetric))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const forgedPrediction = session()
+    forgedPrediction.history[0].predictionHit = !forgedPrediction.history[0].predictionHit
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedPrediction))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const forgedInspection = session()
+    if (forgedInspection.inspectedFieldErrors[0]) {
+      forgedInspection.inspectedFieldErrors[0].actual = forgedInspection.inspectedFieldErrors[0].actual === 'cat' ? 'bread' : 'cat'
+      storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedInspection))
+      expect(readEndlessSession(storage, 6000)).toBeUndefined()
+    }
   })
 
   it('rejects impossible cross-field session relationships', () => {
