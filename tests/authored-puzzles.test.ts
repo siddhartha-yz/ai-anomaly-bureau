@@ -80,12 +80,20 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
   })
 
   it('makes CASE 005 separate ranking from probability calibration before reusing a fixed risk policy', () => {
-    expect(evaluateCalibration('raw')).toMatchObject({ ece: .1, brier: .16 })
-    expect(evaluateCalibration('calibrated')).toMatchObject({ ece: 0, brier: .15 })
-    expect(evaluateCalibration('hard').ece).toBeCloseTo(.2)
-    expect(evaluateCalibration('hard').brier).toBeCloseTo(.2)
+    expect(evaluateCalibration('raw').ece).toBeCloseTo(.09)
+    expect(evaluateCalibration('raw').brier).toBeCloseTo(.158)
+    expect(evaluateCalibration('calibrated').ece).toBeCloseTo(.03)
+    expect(evaluateCalibration('calibrated').brier).toBeCloseTo(.15)
+    expect(evaluateCalibration('hard').ece).toBeCloseTo(.21)
+    expect(evaluateCalibration('hard').brier).toBeCloseTo(.21)
     const config = AUTHORED_PUZZLE_CASES[STORY_CASE_005.id]
     expect(config.stages.map((stage) => stage.id)).toEqual(['reliability', 'calibrate', 'policy'])
+    expect(config.stages[0].evidence?.rows).toEqual([
+      ['20%', '25', '8%'], ['40%', '25', '36%'], ['60%', '25', '68%'], ['80%', '25', '92%'],
+    ])
+    expect(config.stages[1].evidence?.rows).toEqual([
+      ['20%', '10', '10%', '10%'], ['40%', '10', '30%', '30%'], ['60%', '10', '70%', '70%'], ['80%', '10', '90%', '90%'],
+    ])
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
     expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
   })

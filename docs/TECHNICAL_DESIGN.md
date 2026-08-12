@@ -236,7 +236,7 @@ App 路由的正常产品语义是：
 
 ## 手工案件 runtime 分层
 
-CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004/005 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。CASE 005 用 4 个概率 bucket 的 40 份独立审计样本实时计算 ECE / Brier，再比较原始概率、保持排序的校准映射和硬标签伪概率；最终把固定 65% 风险政策作用在原始或校准概率上，直接计算干预人数与高风险召回。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
+CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004/005 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。CASE 005 明确拆成 40 人 CALIBRATION split 与另 100 人 AUDIT split：单调映射只由前者拟合，ECE / Brier 与 65% 风险政策效果只在后者计算，防止为了教学“漂亮的 0% ECE”反而把 CASE 004 的独立验证原则破坏掉；玩家仍比较原始概率、保持排序的校准映射和硬标签伪概率。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
 
 这类短案件使用独立 `aia.formal-puzzle.v1.<caseId>.<seed>` checkpoint，只保存 stage / checks / mistakes / 当前选择 / 最近一次结果 / solved，不复制 CASE 001 的 fitted model 或匿名行为日志。`FormalCaseResumeSummary` 允许 runtime 自己提供 `CHECKS / REVISIONS` 等语义标签，因此通用恢复页不会假装每个案件都有“审计额度”。
 
