@@ -200,6 +200,11 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
     if (item.lastDiagnosisConfigCount !== 0 || item.lastDiagnosisRunCount !== 0) return false
   } else if (item.submittedDiagnosis === undefined) {
     return false
+  } else if (!item.solved) {
+    if (item.lastDiagnosisOutcome === undefined || item.lastDiagnosisRunCount < 2 || item.lastDiagnosisConfigCount < 2) return false
+    const diagnosisHistory = history.slice(0, item.lastDiagnosisRunCount)
+    const diagnosisConfigCount = new Set(diagnosisHistory.map((run) => experimentConfigKey(run.model, run.features))).size
+    if (diagnosisConfigCount !== item.lastDiagnosisConfigCount) return false
   }
   if (item.lastDiagnosisOutcome !== undefined && item.solved) return false
   if (item.solved) {

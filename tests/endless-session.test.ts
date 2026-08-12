@@ -276,6 +276,53 @@ describe('endless local session persistence', () => {
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 
+  it('rejects forged failed-diagnosis checkpoints that bypass the fresh-evidence lock', () => {
+    const storage = new MemoryStorage()
+    const value = session()
+    const caseData = createEndlessCase(6000)
+    const secondConfig = enumerateEndlessSolutions(caseData).find((candidate) =>
+      candidate.model !== value.history[0].model
+      || candidate.features.some((feature, index) => feature !== value.history[0].features[index]),
+    )
+    expect(secondConfig).toBeDefined()
+    if (!secondConfig) return
+
+    const trainPoints = projectSamples(caseData.train, secondConfig.features)
+    const train = evaluate(MODEL_REGISTRY[secondConfig.model].fit(trainPoints), trainPoints).accuracy
+    const audit = caseData.audit(secondConfig.model, secondConfig.features)
+    value.history.push({
+      id: 2,
+      model: secondConfig.model,
+      features: [...secondConfig.features],
+      train,
+      test: audit.accuracy,
+      errors: audit.errorCount,
+      prediction: accuracyBand(audit.accuracy),
+      predictionHit: true,
+      recall: audit.recall,
+      reliable: caseData.isReliable(audit),
+    })
+    value.model = secondConfig.model
+    value.features = [...secondConfig.features]
+    value.diagnosisAttempts = 1
+    value.submittedDiagnosis = (['feature-gap', 'overfit-noise', 'distribution-shift', 'class-imbalance'] as const)
+      .find((diagnosis) => diagnosis !== caseData.diagnosis.correct)
+    value.lastDiagnosisOutcome = 'wrong'
+    value.lastDiagnosisConfigCount = 2
+    value.lastDiagnosisRunCount = 2
+
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(value))
+    expect(readEndlessSession(storage, 6000)).toEqual(value)
+
+    const forgedConfigCheckpoint = { ...value, lastDiagnosisConfigCount: 0 }
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedConfigCheckpoint))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const forgedRunCheckpoint = { ...value, lastDiagnosisRunCount: 0 }
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(forgedRunCheckpoint))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+  })
+
   it('rejects impossible cross-field session relationships', () => {
     const storage = new MemoryStorage()
     const impossibleCitation = session()
