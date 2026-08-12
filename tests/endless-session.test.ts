@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { evaluate } from '../src/ml/evaluate'
 import { projectSamples } from '../src/ml/features'
 import { MODEL_REGISTRY } from '../src/ml/registry'
-import { createEndlessCase } from '../src/endless/generator'
+import { createEndlessCase, enumerateEndlessSolutions } from '../src/endless/generator'
 import { accuracyBand } from '../src/endless/uiTypes'
 import { ENDLESS_SESSION_VERSION, endlessSessionKey, hasEndlessSessionProgress, readEndlessSession, remainingEndlessAuditCredits, writeEndlessSession, type EndlessSessionData, type StorageLike } from '../src/endless/session'
 
@@ -241,6 +241,38 @@ describe('endless local session persistence', () => {
     impossibleOutcome.lastDiagnosisOutcome = 'wrong'
     impossibleOutcome.submittedDiagnosis = createEndlessCase(6000).diagnosis.correct
     storage.setItem(endlessSessionKey(6000), JSON.stringify(impossibleOutcome))
+    expect(readEndlessSession(storage, 6000)).toBeUndefined()
+
+    const noCausalChain = session()
+    const caseData = createEndlessCase(6000)
+    const solution = enumerateEndlessSolutions(caseData).find((candidate) => candidate.reliable)
+    expect(solution).toBeDefined()
+    if (!solution) return
+    const repeated = { ...noCausalChain.history[0], id: 2 }
+    const trainPoints = projectSamples(caseData.train, solution.features)
+    const train = evaluate(MODEL_REGISTRY[solution.model].fit(trainPoints), trainPoints).accuracy
+    const audit = caseData.audit(solution.model, solution.features)
+    const reliableRun = {
+      id: 3,
+      model: solution.model,
+      features: [...solution.features] as EndlessSessionData['features'],
+      train,
+      test: audit.accuracy,
+      errors: audit.errorCount,
+      prediction: accuracyBand(audit.accuracy),
+      predictionHit: true,
+      recall: audit.recall,
+      reliable: caseData.isReliable(audit),
+    }
+    noCausalChain.history = [noCausalChain.history[0], repeated, reliableRun]
+    noCausalChain.model = reliableRun.model
+    noCausalChain.features = reliableRun.features
+    noCausalChain.solved = true
+    noCausalChain.diagnosisAttempts = 1
+    noCausalChain.diagnosis = caseData.diagnosis.correct
+    noCausalChain.submittedDiagnosis = noCausalChain.diagnosis
+    noCausalChain.selectedEvidenceRunIds = [1, 2]
+    storage.setItem(endlessSessionKey(6000), JSON.stringify(noCausalChain))
     expect(readEndlessSession(storage, 6000)).toBeUndefined()
   })
 

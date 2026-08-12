@@ -4,7 +4,7 @@ import { evaluate } from '../ml/evaluate'
 import { projectSamples } from '../ml/features'
 import type { FeatureKey, Label } from '../ml/types'
 import { createEndlessCase, type EndlessCaseLeadId, type EndlessSyndrome } from './generator'
-import { accuracyBand, earnedCaseLeadReviewCount, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
+import { accuracyBand, competingAxisNullResult, diagnosisEvidenceStatus, diagnosisInterventionAxis, diagnosisSourceSupported, discriminatingExperiment, earnedCaseLeadReviewCount, experimentConfigKey, type BandPrediction, type CaseLeadPrediction, type CaseLeadPredictions, type CausalPrediction, type EndlessRunRecord, type InspectedFieldError } from './uiTypes'
 
 export const ENDLESS_SESSION_VERSION = 6
 const PREVIOUS_ENDLESS_SESSION_VERSION = 5
@@ -141,6 +141,30 @@ function fieldInspectionMatchesGeneratedWorld(caseData: ReturnType<typeof create
   return Boolean(mistake && mistake.actual === inspection.actual && mistake.predicted === inspection.predicted)
 }
 
+function solvedClosureMatchesInvestigation(caseData: ReturnType<typeof createEndlessCase>, item: EndlessSessionData) {
+  if (!item.diagnosis) return false
+  const distinctConfigCount = new Set(item.history.map((run) => experimentConfigKey(run.model, run.features))).size
+  if (distinctConfigCount < 2 || distinctConfigCount <= item.lastDiagnosisConfigCount) return false
+  if (!item.inspectedCaseLeadIds.length) return false
+
+  const citedEvidence = diagnosisEvidenceStatus(item.history, item.selectedEvidenceRunIds, item.lastDiagnosisRunCount)
+  if (!citedEvidence.ready || citedEvidence.records.length !== 2) return false
+  const citedDiscrimination = discriminatingExperiment(citedEvidence.records[0], citedEvidence.records[1])
+  if (!citedDiscrimination.discriminating || citedDiscrimination.axis !== diagnosisInterventionAxis(item.diagnosis)) return false
+
+  const sourceFalsification = item.inspectedCaseLeadIds.some((id) =>
+    caseData.leadSources.find((lead) => lead.id === id)?.result === 'clear',
+  )
+  const interventionFalsification = competingAxisNullResult(item.history, {
+    first: citedEvidence.records[0],
+    second: citedEvidence.records[1],
+    comparison: citedDiscrimination,
+  }, item.lastDiagnosisRunCount)
+  if (!sourceFalsification && !interventionFalsification) return false
+
+  return diagnosisSourceSupported(item.diagnosis, item.inspectedCaseLeadIds, caseData.leadSources)
+}
+
 function isSessionData(value: unknown, seed: number): value is EndlessSessionData {
   if (!value || typeof value !== 'object') return false
   const item = value as Partial<EndlessSessionData>
@@ -178,7 +202,8 @@ function isSessionData(value: unknown, seed: number): value is EndlessSessionDat
   if (item.solved) {
     if (item.diagnosisAttempts < 1) return false
     if (item.diagnosis !== caseData.diagnosis.correct || item.submittedDiagnosis !== caseData.diagnosis.correct) return false
-    if (item.selectedEvidenceRunIds.length !== 2 || !history.some((run) => run.reliable)) return false
+    if (!history.some((run) => run.reliable)) return false
+    if (!solvedClosureMatchesInvestigation(caseData, item as EndlessSessionData)) return false
   }
   if (item.auditComplete) {
     const latest = history.at(-1)
