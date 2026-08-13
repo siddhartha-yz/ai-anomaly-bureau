@@ -48,7 +48,7 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 - `boolean`
 - `boolean-stream`
 
-当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session：每个 STEP 只消费一个新样本，并把 `STREAM EQUAL / COUNT TRUE / STREAM LENGTH` 的累计状态带到下一 tick；不再为每个 tick 从第 1 个样本重算整条前缀。`DIVIDE` 读取当前累计量，因此比例会随时钟变化。没有 stream 的标量机器仍保留逐节点 STEP。
+当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
 
 ## 当前 primitive
 
@@ -80,8 +80,8 @@ stream：
 - 连线本身可直接点选、查看端点并删除，错误接线不再需要拆掉整个节点；
 - 标量输入与 boolean stream 可直接修改；
 - `PLAY` 执行整张图；
-- `STEP` 在标量机器中逐节点推进，在 stream 机器中逐样本时钟推进；
-- stream STEP 会逐次显示 1/N、2/N… 的前缀、累计计数与当前比例；
+- `STEP` 在标量机器中逐节点推进；在 stream 机器中同样逐节点推进，只有当前样本的全部节点执行完才把 sample clock +1；
+- stream STEP 会显示 `SAMPLE i/N · NODE j/M`，可以观察同一个样本依次经过 source、比较、累计器、算术节点与 output；
 - 已求值 wire 显示真实当前值，包括当前时钟已经放行的 stream 前缀；
 - Runtime 面板显示实际求值顺序；
 - `RESET SIGNAL` 只清执行状态，不清机器；

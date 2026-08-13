@@ -145,7 +145,7 @@ export function SimulatorV3() {
       const frame = timeline.at(-1)!
       setRuntime(frame.result)
       setStepIndex(frame.result.steps.length - 1)
-      setRuntimeSession(frame.totalTicks > 1 ? { tick: frame.tick, totalTicks: frame.totalTicks, values: frame.result.values } : null)
+      setRuntimeSession(frame.totalTicks > 1 ? { tick: frame.tick, totalTicks: frame.totalTicks, nodeIndex: 0, values: frame.result.values } : null)
       setClockTickIndex(frame.tick - 1)
       setStatus(frame.totalTicks > 1
         ? `运行完成：${frame.totalTicks} 个样本时钟已执行。`
@@ -164,11 +164,16 @@ export function SimulatorV3() {
         }
         const stepped = stepRuntimeSession(graph, session)
         const frame = stepped.frame
-        setRuntime(frame.result)
-        setStepIndex(frame.result.steps.length - 1)
+        const previousSteps = runtime?.steps ?? []
+        const currentStep = frame.result.steps[0]
+        const sampleStart = session.nodeIndex === 0
+        const steps = sampleStart ? [currentStep] : [...previousSteps, currentStep]
+        setRuntime({ steps, values: frame.result.values })
+        setStepIndex(steps.length - 1)
         setRuntimeSession(stepped.session)
-        setClockTickIndex(frame.tick - 1)
-        setStatus(`SAMPLE ${frame.tick}/${frame.totalTicks} · 当前只放行前 ${frame.tick} 个样本。`)
+        setClockTickIndex(stepped.session.tick - 1)
+        const node = graph.nodes.find((item) => item.id === currentStep.nodeId)
+        setStatus(`SAMPLE ${frame.tick}/${frame.totalTicks} · NODE ${frame.nodeIndex + 1}/${frame.nodeCount}${node ? ` · ${NODE_DEFINITIONS[node.kind].title}` : ''}${frame.sampleComplete ? ' · SAMPLE COMPLETE' : ''}`)
         return
       }
       const result = runtime ?? evaluateGraph(graph)
@@ -237,7 +242,7 @@ export function SimulatorV3() {
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
         {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { setGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
         <section><small>WIRE MODE</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : 'IDLE'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
-        {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{clockTickIndex < 0 ? `0 / ${streamClockLength(graph)}` : `${clockTickIndex + 1} / ${streamClockLength(graph)}`}</strong><p>STEP 每次只放行一个新样本；COUNT、LENGTH 与 DIVIDE 会随时钟累计变化。</p></section>}
+        {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{runtimeSession ? `${runtimeSession.tick} / ${streamClockLength(graph)} · NODE ${runtimeSession.nodeIndex + 1}` : `0 / ${streamClockLength(graph)}`}</strong><p>STEP 每次只执行当前样本的一个节点；走完整张图后才推进到下一个样本。</p></section>}
         <section><small>STEP TRACE</small>{runtime ? runtime.steps.map((item, index) => <div key={item.nodeId} className={`sim-trace-row ${index <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.nodeId}</span><strong>{Object.values(item.outputs).map(formatValue).join(', ')}</strong></div>) : <p>PLAY 或 STEP 后，这里显示当前时钟内的实际求值顺序。</p>}</section>
         <section><small>SANDBOX CONTRACT</small><p>React 只编辑图。真实求值由独立 TypeScript graph/runtime 完成；以后关卡只提供 I/O 与测试，不拥有模拟器规则。</p></section>
       </aside>

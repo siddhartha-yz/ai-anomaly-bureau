@@ -84,27 +84,32 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(timeline[3].result.values[signalKey('out', 'value')]).toBe(.5)
   })
 
-  it('keeps stream accumulator state across STEP calls instead of rebuilding prior samples', () => {
+  it('steps through one node at a time inside each sample clock and preserves accumulator state', () => {
     const graph = matchRatioGraph()
     let session = createRuntimeSession(graph)
-    const first = stepRuntimeSession(graph, session)
-    session = first.session
+    const firstNode = stepRuntimeSession(graph, session)
+    session = firstNode.session
+    expect(firstNode.frame.sampleComplete).toBe(false)
+    expect(firstNode.frame.nodeIndex).toBe(0)
+    expect(firstNode.frame.result.steps[0].nodeId).toBe('predictions')
+    expect(session.tick).toBe(0)
+    expect(session.nodeIndex).toBe(1)
+    expect(session.values[signalKey('predictions', 'value')]).toEqual([true])
+    expect(session.values[signalKey('out', 'value')]).toBeUndefined()
+
+    for (let index = 1; index < 7; index += 1) session = stepRuntimeSession(graph, session).session
     expect(session.tick).toBe(1)
+    expect(session.nodeIndex).toBe(0)
     expect(session.values[signalKey('correct', 'count')]).toBe(1)
     expect(session.values[signalKey('total', 'count')]).toBe(1)
+    expect(session.values[signalKey('out', 'value')]).toBe(1)
 
-    const second = stepRuntimeSession(graph, session)
-    session = second.session
+    for (let index = 0; index < 7; index += 1) session = stepRuntimeSession(graph, session).session
     expect(session.tick).toBe(2)
     expect(session.values[signalKey('equal', 'result')]).toEqual([true, false])
     expect(session.values[signalKey('correct', 'count')]).toBe(1)
     expect(session.values[signalKey('total', 'count')]).toBe(2)
     expect(session.values[signalKey('out', 'value')]).toBe(.5)
-
-    const third = stepRuntimeSession(graph, session)
-    expect(third.session.values[signalKey('equal', 'result')]).toEqual([true, false, false])
-    expect(third.session.values[signalKey('correct', 'count')]).toBe(1)
-    expect(third.session.values[signalKey('total', 'count')]).toBe(3)
   })
 
   it('rejects elementwise stream comparison when the two streams have different lengths', () => {

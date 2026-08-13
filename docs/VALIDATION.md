@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、172 个测试全部通过；Simulator V3 当前 10 条纯 graph/runtime 测试，覆盖 typed connection、标量求值、stream 组合、异常输入、逐节点 STEP、逐样本 clock timeline 与跨 STEP 持久 accumulator state。
-- Vite production build：通过；当前本地构建为 `assets/index-CWuqvEBs.js` + `assets/index-DThRaOe7.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 38 条 Chromium E2E，完整串行套件 **38/38** 通过。V3 现覆盖阈值机、直接点选/删除错误 wire 后原地重接，以及由通用 stream / 计数 / 长度 / 除法 primitive 自由组合出的比例机器；stream 路线额外验证 STEP 按样本推进：第 1 个样本时输出 1.00、第 2 个样本时累计比例变为 0.50，PLAY 才跑完 4 个样本时钟。V2 2 条和 Legacy 33 条路线继续完整回归。
+- Vitest：27 个测试文件、172 个测试全部通过；Simulator V3 当前 10 条纯 graph/runtime 测试，覆盖 typed connection、标量求值、stream 组合、异常输入、逐节点 STEP、逐样本 clock timeline，以及“同一样本内逐节点、跨样本持久 accumulator”的二维 scheduler state。
+- Vite production build：通过；当前本地构建为 `assets/index-BWWEd_G7.js` + `assets/index-i-MjK9ig.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 38 条 Chromium E2E，完整串行套件 **38/38** 通过。V3 现覆盖阈值机、直接点选/删除错误 wire 后原地重接，以及由通用 stream / 计数 / 长度 / 除法 primitive 自由组合出的比例机器；stream 路线额外验证第一次 STEP 只执行 `SAMPLE 1/4 · NODE 1/7`，此时最终 output 仍为空且只有第一段 wire 带信号；走完 7 个节点后才得到第一个样本的 1.00，第二个样本走完整图后累计比例变为 0.50。V2 2 条和 Legacy 33 条路线继续完整回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

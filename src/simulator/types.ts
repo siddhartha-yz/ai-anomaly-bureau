@@ -65,12 +65,16 @@ export type RuntimeResult = {
 export type RuntimeFrame = {
   tick: number
   totalTicks: number
+  nodeIndex: number
+  nodeCount: number
+  sampleComplete: boolean
   result: RuntimeResult
 }
 
 export type RuntimeSession = {
   tick: number
   totalTicks: number
+  nodeIndex: number
   values: Record<string, SignalValue>
 }
 
