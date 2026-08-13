@@ -48,6 +48,34 @@ function matchRatioGraph(): SimulatorGraph {
   return graph
 }
 
+function recallLikeGraph(): SimulatorGraph {
+  let graph: SimulatorGraph = {
+    nodes: [
+      { ...createNode('boolean-stream-input', 'predictions', 0, 0), config: { values: [true, false, true, true] } },
+      { ...createNode('boolean-stream-input', 'truthPositive', 0, 0), config: { values: [true, true, false, true] } },
+      createNode('stream-and', 'truePositive', 0, 0),
+      createNode('count-true', 'caught', 0, 0),
+      createNode('count-true', 'positiveTotal', 0, 0),
+      createNode('divide', 'ratio', 0, 0),
+      createNode('number-output', 'out', 0, 0),
+    ],
+    wires: [],
+  }
+  const wires = [
+    ['predictions', 'value', 'truePositive', 'a'],
+    ['truthPositive', 'value', 'truePositive', 'b'],
+    ['truePositive', 'result', 'caught', 'stream'],
+    ['truthPositive', 'value', 'positiveTotal', 'stream'],
+    ['caught', 'count', 'ratio', 'a'],
+    ['positiveTotal', 'count', 'ratio', 'b'],
+    ['ratio', 'result', 'out', 'value'],
+  ] as const
+  for (const [fromNodeId, fromPortId, toNodeId, toPortId] of wires) {
+    graph = connect(graph, { id: `${fromNodeId}-${toNodeId}-${toPortId}`, fromNodeId, fromPortId, toNodeId, toPortId })
+  }
+  return graph
+}
+
 describe('Simulator V3 pure graph/runtime', () => {
   it('builds a threshold machine from primitives and evaluates actual signals', () => {
     const result = evaluateGraph(thresholdGraph())
@@ -71,6 +99,16 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(result.values[signalKey('correct', 'count')]).toBe(2)
     expect(result.values[signalKey('total', 'count')]).toBe(4)
     expect(result.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
+  it('lets players compose a recall-like conditional metric without a Recall node', () => {
+    const graph = recallLikeGraph()
+    expect(graph.nodes.some((node) => node.kind.includes('recall'))).toBe(false)
+    const result = evaluateGraph(graph)
+    expect(result.values[signalKey('truePositive', 'result')]).toEqual([true, false, false, true])
+    expect(result.values[signalKey('caught', 'count')]).toBe(2)
+    expect(result.values[signalKey('positiveTotal', 'count')]).toBe(3)
+    expect(result.values[signalKey('out', 'value')]).toBeCloseTo(2 / 3)
   })
 
   it('advances stream machines one sample clock at a time instead of revealing the whole stream at once', () => {

@@ -23,7 +23,16 @@ BOOLEAN STREAM ──┘                 │                ├─ DIVIDE ──
                                    └─ STREAM LENGTH ┘
 ```
 
-后者已经能表达通用“逐项是否相同的比例”。它不是专门的 Accuracy 节点；模拟器只提供更低层的比较、计数、长度与除法。
+这已经能表达通用“逐项是否相同的比例”。本轮又补上更底层的 `STREAM AND`，因此玩家还可以自己构造条件比例：
+
+```text
+PREDICTED POSITIVE ──┐
+                     ├─ STREAM AND ── COUNT TRUE ─┐
+TRUE POSITIVE LABEL ─┘                            ├─ DIVIDE ──► NUMBER OUTPUT
+TRUE POSITIVE LABEL ─────── COUNT TRUE ───────────┘
+```
+
+这张图行为上等价于“找回了多少真实正类”的比例，但模拟器仍然没有 Accuracy / Recall 成品节点；它只提供布尔组合、计数与除法。
 
 ![Simulator V3 construction sandbox](assets/simulator-v3.png)
 
@@ -48,7 +57,7 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 - `boolean`
 - `boolean-stream`
 
-当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
+当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / STREAM AND / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
 
 ## 当前 primitive
 
@@ -65,6 +74,7 @@ stream：
 
 - `BOOLEAN STREAM`
 - `STREAM EQUAL`
+- `STREAM AND`
 - `COUNT TRUE`
 - `STREAM LENGTH`
 

@@ -75,6 +75,19 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
       return { result: a.map((value, index) => value === b[index]) }
     },
   },
+  'stream-and': {
+    kind: 'stream-and',
+    title: 'STREAM AND',
+    short: 'AND',
+    inputs: [input('a', 'a', 'boolean-stream'), input('b', 'b', 'boolean-stream')],
+    outputs: [output('result', 'result', 'boolean-stream')],
+    evaluate: (inputs) => {
+      const a = booleanStream(inputs.a, 'STREAM AND.a')
+      const b = booleanStream(inputs.b, 'STREAM AND.b')
+      if (a.length !== b.length) throw new Error('STREAM AND 两路 stream 长度必须一致。')
+      return { result: a.map((value, index) => value && b[index]) }
+    },
+  },
   'count-true': {
     kind: 'count-true',
     title: 'COUNT TRUE',
@@ -120,6 +133,7 @@ export const SIMULATOR_PALETTE: readonly SimulatorNodeKind[] = [
   'boolean-output',
   'boolean-stream-input',
   'stream-equal',
+  'stream-and',
   'count-true',
   'stream-length',
   'divide',

@@ -81,13 +81,13 @@ function evaluateStreamMicroStep(graph: SimulatorGraph, session: RuntimeSession)
     const nextValue = node.config?.values?.[tick - 1]
     if (typeof nextValue !== 'boolean') throw new Error(`${definition.title} 在 SAMPLE ${tick} 没有可用值。`)
     outputs = { value: [...previous, nextValue] }
-  } else if (node.kind === 'stream-equal') {
+  } else if (node.kind === 'stream-equal' || node.kind === 'stream-and') {
     const a = inputs.a as readonly boolean[]
     const b = inputs.b as readonly boolean[]
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== tick || b.length !== tick) throw new Error('STREAM EQUAL 需要当前时钟的两路 boolean stream。')
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== tick || b.length !== tick) throw new Error(`${definition.title} 需要当前时钟的两路 boolean stream。`)
     const key = signalKey(node.id, 'result')
     const previous = Array.isArray(session.values[key]) ? session.values[key] as readonly boolean[] : []
-    outputs = { result: [...previous, a[tick - 1] === b[tick - 1]] }
+    outputs = { result: [...previous, node.kind === 'stream-equal' ? a[tick - 1] === b[tick - 1] : a[tick - 1] && b[tick - 1]] }
   } else if (node.kind === 'count-true') {
     const stream = inputs.stream as readonly boolean[]
     if (!Array.isArray(stream) || stream.length !== tick) throw new Error('COUNT TRUE 需要当前时钟的 boolean stream。')

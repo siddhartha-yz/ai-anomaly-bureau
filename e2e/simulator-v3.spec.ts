@@ -8,7 +8,7 @@ test('default route is an empty construction simulator, not a scripted level', a
   await page.reload()
   await expect(page.getByLabel('AI系统模拟器 V3')).toBeVisible()
   await expect(page.getByLabel('构造画布')).toContainText('EMPTY CONSTRUCTION BOARD')
-  await expect(page.getByLabel('元件库').getByRole('button')).toHaveCount(10)
+  await expect(page.getByLabel('元件库').getByRole('button')).toHaveCount(11)
   await expect(page.getByLabel('元件库').getByRole('button', { name: /ACCURACY/i })).toHaveCount(0)
   await expect(page.getByText(/OBJECTIVE|PASS LINE|LEVEL 01/)).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
@@ -67,6 +67,40 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.reload()
   await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('—')
+})
+
+test('player can compose a recall-like conditional metric from generic stream primitives', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 BOOLEAN STREAM' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN STREAM' }).click()
+  await page.getByRole('button', { name: '添加 STREAM AND' }).click()
+  await page.getByRole('button', { name: '添加 COUNT TRUE' }).click()
+  await page.getByRole('button', { name: '添加 COUNT TRUE' }).click()
+  await page.getByRole('button', { name: '添加 DIVIDE' }).click()
+  await page.getByRole('button', { name: '添加 NUMBER OUTPUT' }).click()
+
+  await page.getByLabel('boolean_stream_input_1 stream').fill('1,0,1,1')
+  await page.getByLabel('boolean_stream_input_2 stream').fill('1,1,0,1')
+
+  const connect = async (from: string, to: string) => {
+    await page.getByRole('button', { name: from }).click()
+    await page.getByRole('button', { name: to }).click()
+  }
+  await connect('boolean_stream_input_1 输出 stream boolean-stream', 'stream_and_1 输入 a boolean-stream')
+  await connect('boolean_stream_input_2 输出 stream boolean-stream', 'stream_and_1 输入 b boolean-stream')
+  await connect('stream_and_1 输出 result boolean-stream', 'count_true_1 输入 stream boolean-stream')
+  await connect('boolean_stream_input_2 输出 stream boolean-stream', 'count_true_2 输入 stream boolean-stream')
+  await connect('count_true_1 输出 count number', 'divide_1 输入 a number')
+  await connect('count_true_2 输出 count number', 'divide_1 输入 b number')
+  await connect('divide_1 输出 result number', 'number_output_1 输入 value number')
+
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('number_output_1 输出值')).toHaveText('0.67')
+  await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个样本时钟已执行')
+  await expect(page.getByLabel('元件库').getByRole('button', { name: /RECALL/i })).toHaveCount(0)
 })
 
 test('player can compose a generic match ratio from stream primitives', async ({ page }) => {

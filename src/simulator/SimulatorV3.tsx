@@ -92,6 +92,7 @@ export function SimulatorV3() {
       'boolean-output': { x: 820, y: 205 },
       'boolean-stream-input': { x: 60, y: 80 },
       'stream-equal': { x: 310, y: 150 },
+      'stream-and': { x: 310, y: 300 },
       'count-true': { x: 540, y: 90 },
       'stream-length': { x: 540, y: 300 },
       divide: { x: 770, y: 190 },

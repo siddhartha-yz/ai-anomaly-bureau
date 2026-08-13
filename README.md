@@ -22,7 +22,7 @@
 
 默认入口现在是一张空白 Construction Board。除标量 primitive 外，已加入通用 boolean stream、逐项比较、计数、长度与除法 primitive；玩家自己放节点、拉 typed wire、改输入，再用 `PLAY / STEP` 看真实信号沿图传播。
 
-没有 LEVEL、正确答案按钮，也没有 Accuracy / Recall 这类成品 ML 节点。最小验证只是亲手搭出 `0.72 > 0.60 → TRUE`。模拟器核心是独立纯 TypeScript graph/runtime，React 只负责编辑与可视化。详细边界见 [`docs/SIMULATOR_V3.md`](docs/SIMULATOR_V3.md)。
+没有 LEVEL、正确答案按钮，也没有 Accuracy / Recall 这类成品 ML 节点。除了阈值机，当前低层 stream primitive 已能让玩家自己搭出 Accuracy-like 匹配比例，以及 `STREAM AND + COUNT TRUE + DIVIDE` 组成的 Recall-like 条件比例。模拟器核心是独立纯 TypeScript graph/runtime，React 只负责编辑与可视化。详细边界见 [`docs/SIMULATOR_V3.md`](docs/SIMULATOR_V3.md)。
 
 V2 工作台仍可通过 `?v2=1` 打开；旧剧情/Bureau/Duty 通过 `?legacy=1` 打开。
 

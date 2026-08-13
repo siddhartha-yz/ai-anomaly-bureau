@@ -17,6 +17,7 @@ export type SimulatorNodeKind =
   | 'boolean-output'
   | 'boolean-stream-input'
   | 'stream-equal'
+  | 'stream-and'
   | 'count-true'
   | 'stream-length'
   | 'divide'
