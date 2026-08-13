@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const BOARD_KEY = 'aia.simulator-v3.board.v1'
 const BLUEPRINT_KEY = 'aia.simulator-v3.blueprints.v1'
+const COMPONENT_KEY = 'aia.simulator-v3.components.v1'
 
 test('default route is an empty construction simulator, not a scripted level', async ({ page }) => {
   await page.goto('/')
@@ -242,4 +243,54 @@ test('player can save a working fragment as a reusable blueprint and place anoth
 
   await page.reload()
   await expect(page.getByLabel('我的蓝图')).toContainText('MY GATE')
+})
+
+
+test('player can encapsulate a primitive circuit as a typed component and reuse it', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate(([boardKey, componentKey]) => { localStorage.removeItem(boardKey); localStorage.removeItem(componentKey) }, [BOARD_KEY, COMPONENT_KEY])
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
+  await page.getByRole('button', { name: 'constant_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 b number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
+
+  // Encapsulate a real two-node construction: the 0.6 constant becomes an
+  // internal implementation detail, so the reusable component exposes only
+  // score -> boolean instead of merely repainting one primitive as a black box.
+  await page.getByRole('button', { name: '选择 constant_1' }).click()
+  await page.getByRole('button', { name: '选择 greater_than_1' }).click()
+  await page.getByLabel('蓝图名称').fill('MY THRESHOLD')
+  await page.getByRole('button', { name: 'SAVE COMPONENT' }).click()
+  await expect(page.getByLabel('我的组件')).toContainText('MY THRESHOLD')
+  await expect(page.getByLabel('模拟器状态')).toContainText('COMPONENT SAVED · MY THRESHOLD · 1 IN / 1 OUT')
+
+  await page.getByLabel('我的组件').getByRole('button', { name: /MY THRESHOLD/ }).click()
+  const component = page.locator('.sim-component-instance').filter({ hasText: 'MY THRESHOLD' }).first()
+  await expect(component).toBeVisible()
+  await expect(component).toContainText('BLACK BOX')
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
+  await expect(page.getByLabel('构造画布')).not.toContainText('constant_1_unit')
+  await expect(page.getByLabel('构造画布')).not.toContainText('greater_than_1_unit')
+
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await component.getByRole('button', { name: /输入 a number/ }).click()
+  await component.getByRole('button', { name: /输出 result boolean/ }).click()
+  await page.getByRole('button', { name: 'boolean_output_2 输入 value boolean' }).click()
+
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('boolean_output_2 输出值')).toHaveText('TRUE')
+  await expect(component).toContainText('result: TRUE')
+
+  await page.reload()
+  await expect(page.getByLabel('我的组件')).toContainText('MY THRESHOLD')
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'MY THRESHOLD' }).first()).toBeVisible()
 })

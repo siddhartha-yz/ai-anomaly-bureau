@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
+import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance } from '../src/simulator/components'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
@@ -289,6 +290,56 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(copiedGt).toBeTruthy()
     expect(copiedOut).toBeTruthy()
     expect(expanded.wires.some((wire) => wire.fromNodeId === copiedGt?.id && wire.toNodeId === copiedOut?.id)).toBe(true)
+  })
+
+  it('infers typed black-box boundaries around internal wiring, not around every primitive port', () => {
+    const graph = thresholdGraph()
+    const component = createComponentDefinition(graph, ['threshold', 'gt'], 'cmp1', 'threshold gate')
+    expect(component.ports.map((port) => `${port.direction}:${port.label}:${port.type}`)).toEqual([
+      'input:a:number',
+      'output:result:boolean',
+    ])
+    expect(component.nodes).toHaveLength(2)
+    expect(component.wires).toHaveLength(1)
+  })
+
+  it('runs an instantiated player component through its exposed boundary ports', () => {
+    const source = thresholdGraph()
+    const definition = createComponentDefinition(source, ['threshold', 'gt'], 'cmp2', 'threshold gate')
+    let graph: SimulatorGraph = {
+      nodes: [
+        { ...createNode('number-input', 'score2', 0, 0), config: { value: .72 } },
+        createNode('boolean-output', 'out2', 0, 0),
+      ],
+      wires: [],
+      components: [],
+    }
+    graph = instantiateComponent(graph, definition, { x: 200, y: 100 })
+    const instance = graph.components?.[0]
+    expect(instance).toBeTruthy()
+    const inputA = instance!.boundaryMap.in_1
+    const result = instance!.boundaryMap.out_1
+    graph = connect(graph, { id: 'ca', fromNodeId: 'score2', fromPortId: 'value', toNodeId: inputA.nodeId, toPortId: inputA.portId })
+    graph = connect(graph, { id: 'co', fromNodeId: result.nodeId, fromPortId: result.portId, toNodeId: 'out2', toPortId: 'value' })
+    expect(evaluateGraph(graph).values[signalKey('out2', 'value')]).toBe(true)
+  })
+
+  it('moves and deletes a component instance as one construction unit', () => {
+    const definition = createComponentDefinition(thresholdGraph(), ['gt', 'out'], 'cmp3', 'gate output')
+    let graph = instantiateComponent(createEmptyGraph(), definition, { x: 120, y: 80 })
+    const instance = graph.components?.[0]
+    expect(instance).toBeTruthy()
+    const original = graph.nodes.map((node) => ({ id: node.id, x: node.x, y: node.y }))
+    graph = moveComponentInstance(graph, instance!.id, 220, 180)
+    for (const before of original) {
+      const after = graph.nodes.find((node) => node.id === before.id)!
+      expect(after.x - before.x).toBe(100)
+      expect(after.y - before.y).toBe(100)
+    }
+    graph = removeComponentInstance(graph, instance!.id)
+    expect(graph.nodes).toHaveLength(0)
+    expect(graph.wires).toHaveLength(0)
+    expect(graph.components).toHaveLength(0)
   })
 
 })

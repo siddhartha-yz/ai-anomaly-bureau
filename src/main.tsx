@@ -19,6 +19,7 @@ import './styles/story-puzzle.css'
 import './styles/cheat-terminal.css'
 import './styles/lab-v2.css'
 import './styles/simulator-v3.css'
+import './styles/simulator-components.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

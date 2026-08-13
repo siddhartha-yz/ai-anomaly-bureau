@@ -30,6 +30,7 @@ export type SimulatorNode = {
   kind: SimulatorNodeKind
   x: number
   y: number
+  componentInstanceId?: string
   config?: {
     value?: number
     label?: string
@@ -49,6 +50,33 @@ export type SimulatorWire = {
 export type SimulatorGraph = {
   nodes: SimulatorNode[]
   wires: SimulatorWire[]
+  components?: SimulatorComponentInstance[]
+}
+
+export type SimulatorComponentPort = {
+  id: string
+  label: string
+  type: SignalType
+  direction: PortDirection
+  nodeId: string
+  portId: string
+}
+
+export type SimulatorComponentDefinition = {
+  id: string
+  name: string
+  nodes: SimulatorNode[]
+  wires: SimulatorWire[]
+  ports: SimulatorComponentPort[]
+}
+
+export type SimulatorComponentInstance = {
+  id: string
+  definitionId: string
+  x: number
+  y: number
+  nodeIds: string[]
+  boundaryMap: Record<string, PortAddress>
 }
 
 export type PortAddress = {

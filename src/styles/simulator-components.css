@@ -1,0 +1,21 @@
+.sim-component-list { margin-top: 14px; padding-top: 10px; border-top: 1px solid #2c4650; }
+.sim-component-list > small { color: #6fa99e; font-size: .48rem; letter-spacing: .1em; }
+.sim-component-list > button { width: 100%; margin-top: 7px; display: grid; grid-template-columns: 32px 1fr; gap: 8px; align-items: center; padding: 7px; border: 1px solid #32635a; background: #0c1816; color: #b7ddd4; text-align: left; cursor: pointer; }
+.sim-component-list > button > b { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #4b8a7d; color: #84d2bf; font-size: .5rem; }
+.sim-component-list span, .sim-component-list strong, .sim-component-list small { display: block; }
+.sim-component-list strong { font-size: .55rem; }
+.sim-component-list button small { margin-top: 3px; color: #6f958c; font-size: .43rem; }
+.sim-component-instance { position: absolute; border: 2px solid #438474; background: linear-gradient(180deg, #0d1c19, #0a1413); box-shadow: 5px 5px 0 #020504, inset 0 0 0 1px rgba(100,190,166,.12); user-select: none; cursor: move; }
+.sim-component-head { height: 37px; display: grid; grid-template-columns: 30px 1fr 22px; align-items: center; gap: 5px; padding: 4px 5px; border-bottom: 1px solid #31594f; background: #11231f; }
+.sim-component-head > b { height: 26px; display: grid; place-items: center; border: 1px solid #4e9a87; color: #88d8c4; font-size: .56rem; }
+.sim-component-head span, .sim-component-head strong, .sim-component-head small { display: block; min-width: 0; }
+.sim-component-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d8f0ea; font-size: .54rem; }
+.sim-component-head small { margin-top: 2px; color: #658f85; font-size: .42rem; }
+.sim-component-head button { border: 0; background: transparent; color: #75968f; cursor: pointer; font-size: .9rem; }
+.sim-component-core { position: absolute; inset: 37px 28px 8px; display: grid; align-content: center; justify-items: center; gap: 3px; color: #77a99e; }
+.sim-component-core > small { font-size: .4rem; letter-spacing: .08em; }
+.sim-component-core > strong { color: #9bd7c8; font-size: .55rem; letter-spacing: .08em; }
+.sim-component-core > output { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #72d8ad; font-size: .43rem; }
+.sim-component-ports { position: absolute; top: 37px; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 7px; }
+.sim-component-ports.inputs { left: -8px; align-items: flex-start; }
+.sim-component-ports.outputs { right: -8px; align-items: flex-end; }

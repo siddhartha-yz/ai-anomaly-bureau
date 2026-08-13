@@ -4,7 +4,7 @@ import type { PortAddress, SignalType, SimulatorGraph, SimulatorNode, SimulatorN
 export type ConnectionCheck = { ok: true } | { ok: false; reason: string }
 
 export function createEmptyGraph(): SimulatorGraph {
-  return { nodes: [], wires: [] }
+  return { nodes: [], wires: [], components: [] }
 }
 
 export function createNode(kind: SimulatorNodeKind, id: string, x: number, y: number): SimulatorNode {
