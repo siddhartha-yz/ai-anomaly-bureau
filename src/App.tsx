@@ -9,6 +9,7 @@ import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
 import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY } from './game/cheats'
 import { LabV2 } from './lab/LabV2'
+import { SimulatorV3 } from './simulator/SimulatorV3'
 import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
 import { trainingCaseRuntime } from './training/registry'
 
@@ -179,12 +180,14 @@ function LegacyApp() {
 function App() {
   const params = new URLSearchParams(window.location.search)
   const explicitV2 = params.get('v2') === '1'
+  const explicitSimulator = params.get('sim') === '1'
   const explicitLegacy = params.get('legacy') === '1'
     || params.has('seed')
     || params.has('mode')
     || params.has('debug')
 
-  if (explicitV2 || !explicitLegacy) return <LabV2 />
+  if (explicitSimulator || (!explicitV2 && !explicitLegacy)) return <SimulatorV3 />
+  if (explicitV2) return <LabV2 />
   return <LegacyApp />
 }
 

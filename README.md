@@ -1,9 +1,11 @@
-# AI异常调查局 · AI System Lab V2
+# AI异常调查局 · Simulator V3
 
-> 当前正在进行一次玩法重构。默认入口已经切到 **V2 vertical slice**：不再以“读案件 → 选答案 → 看反馈”为主，而是让玩家在同一台 AI 工作台上安装探针、改输入信号、调阈值、切环境并运行真实测试。旧 CASE / Bureau / Duty 仍保留为 `?legacy=1`，但已经冻结，不再代表当前核心玩法方向。
+> 当前主线已进一步下沉到 **Construction Sandbox**：先做一个本身可玩的系统构造模拟器，再从模拟器里长出教学关卡。V2 工作台和旧 CASE / Bureau / Duty 都保留为实验资产，但不再定义默认核心玩法。
 
 <p align="center">
   <a href="https://siddhartha-yz.github.io/ai-anomaly-bureau/"><strong>▶ 在线试玩 / Live Demo</strong></a>
+  ·
+  <a href="docs/SIMULATOR_V3.md">Simulator V3</a>
   ·
   <a href="docs/V2_VERTICAL_SLICE.md">V2 Vertical Slice</a>
   ·
@@ -14,23 +16,17 @@
   <a href="docs/VALIDATION.md">验证记录</a>
 </p>
 
-![AI System Lab V2 工作台](docs/assets/v2-workbench.png)
+![Simulator V3 construction sandbox](docs/assets/simulator-v3.png)
 
-## V2：30 秒理解玩法
+## V3：先验证模拟器
 
-当前三关只验证一件事：**AI 教学能不能先成为“搭系统”的游戏。**
+默认入口现在是一张空白 Construction Board。当前只有 `NUMBER INPUT / CONSTANT / GREATER THAN / BOOLEAN OUTPUT` 四个底层 primitive；玩家自己放节点、拉 typed wire、改数值，再用 `PLAY / STEP` 看真实信号沿图传播。
 
-```text
-LEVEL 01  TRAIN 很高 → FIELD 翻车 → 解锁 TEST PROBE
-                    ↓
-LEVEL 02  总体分很高 → 少数病例仍出事 → 解锁 CLASS PROBE
-                    ↓
-LEVEL 03  DAY 很稳定 → NIGHT 崩掉 → 解锁 ENV SWITCH
-```
+没有 LEVEL、正确答案按钮，也没有 Accuracy / Recall 这类成品 ML 节点。最小验证只是亲手搭出 `0.72 > 0.60 → TRUE`。模拟器核心是独立纯 TypeScript graph/runtime，React 只负责编辑与可视化。详细边界见 [`docs/SIMULATOR_V3.md`](docs/SIMULATOR_V3.md)。
 
-新原语会真的留在工作台里并被下一关继续使用。玩家不提交“正确解释”，只修改系统后按 `RUN`；是否过关由真实约束计算。完整设计与下一轮真人测试门槛见 [`docs/V2_VERTICAL_SLICE.md`](docs/V2_VERTICAL_SLICE.md)。
+V2 工作台仍可通过 `?v2=1` 打开；旧剧情/Bureau/Duty 通过 `?legacy=1` 打开。
 
-## Legacy V1
+## V2 / Legacy V1
 
 下面内容记录此前 CASE 001 → CASE 005 → Bureau → Duty 的 V1 设计与实现，仍由完整自动测试保护，便于复用其中的数据、模型和内容资产。它不再是默认玩家体验。
 

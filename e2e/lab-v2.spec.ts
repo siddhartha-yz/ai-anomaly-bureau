@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { LAB_V2_SESSION_KEY } from '../src/lab/v2Session'
 
 test('V2 default route is a build-run-fix workbench, not an authored option flow', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/?v2=1')
   await expect(page.getByLabel('AI系统实验室 V2')).toBeVisible()
   await expect(page.getByLabel('AI实验工作台')).toBeVisible()
   await expect(page.locator('.puzzle-option-grid')).toHaveCount(0)

@@ -1,8 +1,8 @@
-# V2 Vertical Slice / Legacy 回归验证记录
+# Simulator V3 / V2 / Legacy 回归验证记录
 
 验证日期：2026-08-13
 
-> 当前默认入口已切换到 AI System Lab V2；Legacy V1 仍保留完整回归保护。本文件后半部分继续保存 V1 的历史验证细节。
+> 当前默认入口已切换到 Simulator V3 / Construction Sandbox；V2 与 Legacy V1 仍保留完整回归保护。本文件后半部分继续保存 V1 的历史验证细节。
 
 ## 发布级验证命令
 
@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：26 个测试文件、162 个测试全部通过；V2 engine / primitive progression 额外固定“配置改变后上一次测量立即失效，必须重新 RUN”。
-- Vite production build：通过；当前本地构建为 `assets/index-tYAiuPGi.js` + `assets/index-BZlfEZuT.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 35 条 Chromium E2E，完整串行套件 **35/35** 通过。V2 除默认根路由、failure-before-fix、工具继承与跨环境控制变量外，还显式检查 feature / threshold / environment 修改后仪表只显示 `RUN REQUIRED`，不会实时预览 88%、minority recall 或 DAY/NIGHT 双环境答案；原 33 条 Legacy 路线继续覆盖 CASE 001→005、Bureau、QA、Training 与 Duty。
+- Vitest：27 个测试文件、168 个测试全部通过；新增 6 条 Simulator V3 纯 graph/runtime 测试，覆盖 typed connection、真实阈值求值、不完整图拒绝、STEP 可见值和环路拒绝。
+- Vite production build：通过；当前本地构建为 `assets/index-EcQninoT.js` + `assets/index-DThRaOe7.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 37 条 Chromium E2E，完整串行套件 **37/37** 通过。新增 V3 路线真实从空白板放入 4 个 primitive、拖拽三根 typed wire、执行 `0.72 > 0.60 → TRUE`、RESET 后逐节点 STEP，并验证刷新保留构造；V2 2 条和 Legacy 33 条路线继续完整回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

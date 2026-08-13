@@ -1,6 +1,6 @@
 # 《AI异常调查局》产品设计
 
-> **状态：V1 Legacy。** 2026-08-13 起默认玩家体验已切换到 `AI System Lab V2` vertical slice。本文件以下内容保留为旧系统资产与设计历史，不再作为新核心玩法的 source of truth。当前方向见 [`V2_VERTICAL_SLICE.md`](V2_VERTICAL_SLICE.md)。
+> **状态：V1 Legacy。** 2026-08-13 起默认玩家体验进一步切换到 `Simulator V3 / Construction Sandbox`。V1 与 V2 都保留为实验资产，但不再作为新核心玩法的 source of truth。当前方向见 [`SIMULATOR_V3.md`](SIMULATOR_V3.md)。
 
 ## 一句话定位
 一款把机器学习系统拆成可操作调查谜题的浏览器游戏。新人从“橘猫被识别成面包”建立训练 / 未知数据直觉，随后通过连续手工案件逐步加入分类别指标、阈值取舍、环境变化与控制变量，再把这些方法带进程序化 Duty。CASE 001 的 **20～30 分钟**仍只是首个长篇 onboarding 的设计目标；CASE 002+ 刻意改成更短、更可组合的系统谜题。

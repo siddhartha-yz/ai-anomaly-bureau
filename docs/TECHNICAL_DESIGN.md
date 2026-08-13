@@ -1,6 +1,6 @@
 # 《AI异常调查局》技术设计
 
-> **V2 reset note（2026-08-13）：** 默认根路由现使用 `src/lab/` 下的独立工作台实现；本文件主体仍主要描述 Legacy V1。V2 的三层边界、状态键与测试门槛见 [`V2_VERTICAL_SLICE.md`](V2_VERTICAL_SLICE.md)。
+> **V3 reset note（2026-08-13）：** 默认根路由现使用 `src/simulator/` 的独立 graph/runtime + Construction Board；本文件主体仍主要描述 Legacy V1。当前模拟器边界见 [`SIMULATOR_V3.md`](SIMULATOR_V3.md)。
 
 ## 技术架构
 - React + TypeScript + Vite。

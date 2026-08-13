@@ -1,5 +1,7 @@
 # AI异常调查局 V2 · Vertical Slice
 
+> **状态：第二原型 / 已停止扩展。** V2 证明“工作台”仍可能退化成按钮按按乐；当前默认方向已转向独立 Simulator V3，见 [`SIMULATOR_V3.md`](SIMULATOR_V3.md)。
+
 ## 当前方向
 
 V1 已冻结为 Legacy。V2 不再把“案件文本 → 选项 → 正误反馈”作为核心玩法。

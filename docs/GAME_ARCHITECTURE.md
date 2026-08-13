@@ -1,6 +1,6 @@
 # AI异常调查局 · Game Architecture v1
 
-> **状态：Legacy / frozen。** 默认入口已切换到 V2 工作台；V1 的 Bureau / Story / Duty 仍保留并继续回归测试，但暂不扩展新案件。V2 当前架构与迁移门槛见 [`V2_VERTICAL_SLICE.md`](V2_VERTICAL_SLICE.md)。
+> **状态：Legacy / frozen。** 默认入口已切换到 Simulator V3；V1 Bureau / Story / Duty 与 V2 工作台继续保留回归，但暂不扩展内容。当前模拟器架构见 [`SIMULATOR_V3.md`](SIMULATOR_V3.md)。
 
 这份文档定义的是**游戏骨架**，不是某一关的 UI 规格。后续新增剧情案件、训练内容或程序化故障时，优先保持这里的循环与职责边界，而不是继续把功能直接堆进 `App.tsx` 或某一个模式入口。
 
