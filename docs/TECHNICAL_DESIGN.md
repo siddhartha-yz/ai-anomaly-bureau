@@ -1,5 +1,7 @@
 # 《AI异常调查局》技术设计
 
+> **V2 reset note（2026-08-13）：** 默认根路由现使用 `src/lab/` 下的独立工作台实现；本文件主体仍主要描述 Legacy V1。V2 的三层边界、状态键与测试门槛见 [`V2_VERTICAL_SLICE.md`](V2_VERTICAL_SLICE.md)。
+
 ## 技术架构
 - React + TypeScript + Vite。
 - SVG 负责散点、误判标记和决策边界，不引入图表库。

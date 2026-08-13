@@ -1,9 +1,11 @@
-# AI异常调查局：失控的分类器
+# AI异常调查局 · AI System Lab V2
 
-> 给机器学习零基础新生玩的浏览器调查游戏：CASE 001 用“橘猫被识别成面包”建立监督学习直觉，CASE 002/003/004/005 再把分类别召回、阈值取舍、环境变化、控制变量、数据切分和概率校准做成短系统谜题；Duty 用有限实验预算反复训练 **提出假设 → 做实验 → 看证据 → 下诊断**。20–30 分钟只对应当前 CASE 001 长篇 onboarding 的设计目标，仍等待更多真人计时验证。
+> 当前正在进行一次玩法重构。默认入口已经切到 **V2 vertical slice**：不再以“读案件 → 选答案 → 看反馈”为主，而是让玩家在同一台 AI 工作台上安装探针、改输入信号、调阈值、切环境并运行真实测试。旧 CASE / Bureau / Duty 仍保留为 `?legacy=1`，但已经冻结，不再代表当前核心玩法方向。
 
 <p align="center">
   <a href="https://siddhartha-yz.github.io/ai-anomaly-bureau/"><strong>▶ 在线试玩 / Live Demo</strong></a>
+  ·
+  <a href="docs/V2_VERTICAL_SLICE.md">V2 Vertical Slice</a>
   ·
   <a href="docs/PRODUCT_DESIGN.md">产品设计</a>
   ·
@@ -12,9 +14,27 @@
   <a href="docs/VALIDATION.md">验证记录</a>
 </p>
 
-![AI异常调查局主界面](docs/assets/hero.png)
+![AI System Lab V2 工作台](docs/assets/v2-workbench.png)
 
-## 30 秒理解玩法
+## V2：30 秒理解玩法
+
+当前三关只验证一件事：**AI 教学能不能先成为“搭系统”的游戏。**
+
+```text
+LEVEL 01  TRAIN 很高 → FIELD 翻车 → 解锁 TEST PROBE
+                    ↓
+LEVEL 02  总体分很高 → 少数病例仍出事 → 解锁 CLASS PROBE
+                    ↓
+LEVEL 03  DAY 很稳定 → NIGHT 崩掉 → 解锁 ENV SWITCH
+```
+
+新原语会真的留在工作台里并被下一关继续使用。玩家不提交“正确解释”，只修改系统后按 `RUN`；是否过关由真实约束计算。完整设计与下一轮真人测试门槛见 [`docs/V2_VERTICAL_SLICE.md`](docs/V2_VERTICAL_SLICE.md)。
+
+## Legacy V1
+
+下面内容记录此前 CASE 001 → CASE 005 → Bureau → Duty 的 V1 设计与实现，仍由完整自动测试保护，便于复用其中的数据、模型和内容资产。它不再是默认玩家体验。
+
+### 旧版 30 秒理解玩法
 
 你接手一台校园流浪动物识别机器人。它非常自信——也非常离谱：**一只橘猫被识别成了面包。**
 

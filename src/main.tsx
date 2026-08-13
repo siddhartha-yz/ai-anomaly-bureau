@@ -17,6 +17,7 @@ import './styles/endless-onboarding.css'
 import './styles/bureau-hub.css'
 import './styles/story-puzzle.css'
 import './styles/cheat-terminal.css'
+import './styles/lab-v2.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

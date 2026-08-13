@@ -1,6 +1,8 @@
-# V1 发布验证记录
+# V2 Vertical Slice / Legacy 回归验证记录
 
-验证日期：2026-08-12
+验证日期：2026-08-13
+
+> 当前默认入口已切换到 AI System Lab V2；Legacy V1 仍保留完整回归保护。本文件后半部分继续保存 V1 的历史验证细节。
 
 ## 发布级验证命令
 
@@ -18,10 +20,10 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：25 个测试文件、154 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-Cwr5NkFk.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
-- Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → CASE 005 → Bureau Hub、五类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004/005 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
-- GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
+- Vitest：26 个测试文件、161 个测试全部通过；新增 7 条 V2 engine / primitive progression 测试。
+- Vite production build：通过；当前本地构建为 `assets/index-B5XOwgkb.js` + `assets/index-C7XmY1hq.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 35 条 Chromium E2E，35/35 均已实际执行并通过。由于 local-shell 单次命令 120 秒上限，完整命令在前 29 条均通过后被外部终止；随后显式补跑剩余 4 条 Legacy 路线（4/4）和 2 条 V2 路线（2/2）。V2 新覆盖默认根路由确实进入工作台、核心界面不出现 authored option grid，以及 TEST PROBE → CLASS PROBE → ENV SWITCH 三关连续继承、真实阈值操作、同一 feature 跨 DAY/NIGHT 验证与刷新恢复；原 33 条 Legacy 路线继续覆盖 CASE 001→005、Bureau、QA、Training 与 Duty。
+- GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标
 
@@ -90,7 +92,7 @@ Vitest 当前覆盖：
 
 ## Playwright 浏览器 E2E
 
-`e2e/happy-path.spec.ts` 当前包含 **33 条**真实 Chromium 路线；本轮冻结源码完整执行 33/33。
+`e2e/happy-path.spec.ts` 当前仍包含 **33 条** Legacy Chromium 路线；本轮因单次 shell 120 秒上限采用 `29 + 4` 分段实际执行，33/33 均通过。`e2e/lab-v2.spec.ts` 另含 **2 条** V2 工作台路线并 2/2 通过，总计 35/35。
 
 调查局宏观框架单独验证：
 

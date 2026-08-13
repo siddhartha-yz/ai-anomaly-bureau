@@ -8,12 +8,13 @@ import { FormalCaseResume } from './components/FormalCaseResume'
 import { EndlessIntro } from './endless/EndlessIntro'
 import { EndlessMode } from './endless/EndlessMode'
 import { CHEAT_AUTO_RESUME_KEY, CHEAT_FORMAL_CASE_ID_KEY } from './game/cheats'
+import { LabV2 } from './lab/LabV2'
 import { formalCaseRuntime, readFormalCaseResumes } from './story/registry'
 import { trainingCaseRuntime } from './training/registry'
 
 type AppMode = 'hub' | 'formal-case' | 'endless-intro' | 'training' | 'endless'
 
-function App() {
+function LegacyApp() {
   const params = new URLSearchParams(window.location.search)
   const initialSeed = Number(params.get('seed')) || 20260809
   const requestedMode = params.get('mode')
@@ -173,6 +174,18 @@ function App() {
       } : undefined}
     />
   )
+}
+
+function App() {
+  const params = new URLSearchParams(window.location.search)
+  const explicitV2 = params.get('v2') === '1'
+  const explicitLegacy = params.get('legacy') === '1'
+    || params.has('seed')
+    || params.has('mode')
+    || params.has('debug')
+
+  if (explicitV2 || !explicitLegacy) return <LabV2 />
+  return <LegacyApp />
 }
 
 export default App
