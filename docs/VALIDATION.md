@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、179 个测试全部通过；Simulator V3 当前 17 条纯 graph/runtime/blueprint 测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、异常输入、逐节点 STEP、逐样本 clock timeline、跨样本持久 accumulator、“只执行真正连到 OUTPUT 的电路、允许画布上保留未完成 scratch fragment”的执行边界，以及 Blueprint 只保存选区内部拓扑、再次实例化时生成独立 node/wire id。
-- Vite production build：通过；当前本地构建为 `assets/index-B-VxjLlW.js` + `assets/index-CUhxjk5q.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 41 条 Chromium E2E，完整串行套件 **41/41** 通过。V3 现覆盖阈值机、number score stream → threshold → boolean stream 的逐样本路径、直接点选/删除错误 wire 后原地重接、允许未完成的旁路元件留在画布而不阻塞已接到 OUTPUT 的完整机器、由通用 stream primitive 自由组合出的 Accuracy-like 匹配比例与 Recall-like 条件比例机器，以及“选择已有机器片段 → 保存 Blueprint → 从 MY BLUEPRINTS 放入独立副本 → 刷新后继续存在”的复用路线；stream 路线额外验证第一次 STEP 只执行 `SAMPLE 1/4 · NODE 1/7`，此时最终 output 仍为空且只有第一段 wire 带信号；走完 7 个节点后才得到第一个样本的 1.00，第二个样本走完整图后累计比例变为 0.50。PLAY 现在复用同一逐节点 scheduler，不再瞬间跳最终结果；阈值机 E2E 会在 NODE 1/4 后真实 PAUSE，确认 output 仍为空、仅第一段 wire 带信号，再从冻结现场继续 PLAY 到最终 TRUE。V2 2 条和 Legacy 33 条路线继续完整回归。
+- Vitest：27 个测试文件、180 个测试全部通过；Simulator V3 当前 18 条纯 graph/runtime/blueprint 测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、异常输入、逐节点 STEP、逐样本 clock timeline、跨样本持久 accumulator、runtime cursor / breakpoint 前置定位、“只执行真正连到 OUTPUT 的电路、允许画布上保留未完成 scratch fragment”的执行边界，以及 Blueprint 只保存选区内部拓扑、再次实例化时生成独立 node/wire id。
+- Vite production build：通过；当前本地构建为 `assets/index-Tr-KvS4X.js` + `assets/index-4nliUnVZ.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 41 条 Chromium E2E，完整串行套件 **41/41** 通过。V3 现覆盖阈值机、number score stream → threshold → boolean stream 的逐样本路径、直接点选/删除错误 wire 后原地重接、允许未完成的旁路元件留在画布而不阻塞已接到 OUTPUT 的完整机器、由通用 stream primitive 自由组合出的 Accuracy-like 匹配比例与 Recall-like 条件比例机器，以及“选择已有机器片段 → 保存 Blueprint → 从 MY BLUEPRINTS 放入独立副本 → 刷新后继续存在”的复用路线；stream 路线额外验证第一次 STEP 只执行 `SAMPLE 1/4 · NODE 1/7`，此时最终 output 仍为空且只有第一段 wire 带信号；走完 7 个节点后才得到第一个样本的 1.00，第二个样本走完整图后累计比例变为 0.50。PLAY 现在复用同一逐节点 scheduler，不再瞬间跳最终结果；阈值机 E2E 先在 `GREATER THAN` 设置断点，确认 PLAY 在该节点执行前停止、output 仍为空且只有两条上游 wire 带信号，再用 STEP 执行该节点、取消断点并继续到 TRUE；原有 PAUSE / wire repair / STEP 调试也继续覆盖。V2 2 条和 Legacy 33 条路线继续完整回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

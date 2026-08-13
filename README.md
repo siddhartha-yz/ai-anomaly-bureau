@@ -20,7 +20,7 @@
 
 ## V3：先验证模拟器
 
-默认入口现在是一张空白 Construction Board。除标量 primitive 外，已加入通用 boolean stream、逐项比较、计数、长度与除法 primitive；玩家自己放节点、拉 typed wire、改输入，再用 `PLAY / STEP` 看真实信号沿图传播。
+默认入口现在是一张空白 Construction Board。除标量 primitive 外，已加入通用 boolean stream、逐项比较、计数、长度与除法 primitive；玩家自己放节点、拉 typed wire、改输入，再用 `PLAY / STEP` 看真实信号沿图传播。节点还可设置断点，让 PLAY 在真正执行该节点前冻结现场，再检查上游 wire 或单步继续。
 
 没有 LEVEL、正确答案按钮，也没有 Accuracy / Recall 这类成品 ML 节点。除了标量阈值机，当前 `NUMBER STREAM → STREAM >` 已能让一串模型分数逐样本产生预测，再接低层 stream primitive 自己搭出 Accuracy-like 匹配比例，以及 `STREAM AND + COUNT TRUE + DIVIDE` 组成的 Recall-like 条件比例。玩家还可以选择一组节点保存为 Blueprint；Blueprint 保存内部拓扑，再次放入时复制真实节点/连线并保留边界端口，开始形成“我造的结构以后还能继续用”的构造循环。模拟器核心是独立纯 TypeScript graph/runtime，React 只负责编辑与可视化。详细边界见 [`docs/SIMULATOR_V3.md`](docs/SIMULATOR_V3.md)。
 

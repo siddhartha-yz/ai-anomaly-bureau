@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
-import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
+import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
 function thresholdGraph(): SimulatorGraph {
@@ -200,6 +200,17 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(session.values[signalKey('correct', 'count')]).toBe(1)
     expect(session.values[signalKey('total', 'count')]).toBe(2)
     expect(session.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
+  it('exposes the exact next node so playback can pause before a breakpoint executes', () => {
+    const graph = matchRatioGraph()
+    let session = createRuntimeSession(graph)
+    expect(runtimeCursorNodeId(graph, session)).toBe('predictions')
+    session = stepRuntimeSession(graph, session).session
+    expect(runtimeCursorNodeId(graph, session)).toBe('truth')
+    for (let index = 1; index < 7; index += 1) session = stepRuntimeSession(graph, session).session
+    expect(session.tick).toBe(1)
+    expect(runtimeCursorNodeId(graph, session)).toBe('predictions')
   })
 
   it('rejects elementwise stream comparison when the two streams have different lengths', () => {

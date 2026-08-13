@@ -59,6 +59,15 @@ export function createRuntimeSession(graph: SimulatorGraph): RuntimeSession {
   return { tick: 0, totalTicks: streamClockLength(graph), nodeIndex: 0, values: {} }
 }
 
+export function runtimeCursorNodeId(graph: SimulatorGraph, session?: RuntimeSession | null) {
+  graph = executionGraph(graph)
+  const order = topologicalOrder(graph)
+  if (!order.length) return undefined
+  if (!session) return order[0]
+  if (session.totalTicks > 0 && session.tick >= session.totalTicks && session.nodeIndex === 0) return undefined
+  return order[session.nodeIndex]
+}
+
 function evaluateStreamMicroStep(graph: SimulatorGraph, session: RuntimeSession): RuntimeFrame {
   graph = executionGraph(graph)
   if (!session.totalTicks) throw new Error('当前图没有 sample clock。')

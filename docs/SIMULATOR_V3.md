@@ -60,7 +60,7 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 
 当前 stream 仍是一个 typed value。`NUMBER STREAM → STREAM >` 已能把连续分数逐样本转成布尔决策流，并与 COUNT / AND / DIVIDE 等通用原语继续组合；runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / STREAM AND / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
 
-`PLAY` 现在也不再瞬间跳到最终结果：它复用同一个 scheduler，按当前速度逐节点自动推进；运行中按钮切换为 `PAUSE`，暂停后保留当前 wire value、sample clock 与 accumulator 状态，可以检查线路、手动 STEP，再从原位置继续 PLAY。速度只改变调度间隔，不改变 runtime 结果。
+`PLAY` 现在也不再瞬间跳到最终结果：它复用同一个 scheduler，按当前速度逐节点自动推进；运行中按钮切换为 `PAUSE`，暂停后保留当前 wire value、sample clock 与 accumulator 状态，可以检查线路、手动 STEP，再从原位置继续 PLAY。速度只改变调度间隔，不改变 runtime 结果。节点标题栏还能设置断点：PLAY 会在目标节点执行前冻结，玩家可先查看上游 wire，再用 STEP 单独执行该节点；stream 机器会在每个样本再次经过该节点时继续命中断点。
 
 ## 当前 primitive
 
@@ -96,6 +96,7 @@ stream：
 - 标量输入与 boolean stream 可直接修改；
 - `PLAY` 沿真实 scheduler 自动逐节点执行，不直接揭示最终状态；
 - `PAUSE` 可冻结当前执行现场，再检查 wire value / trace 或改用 STEP；恢复 PLAY 从冻结位置继续；
+- 任意节点可设 `BREAKPOINT`；自动 PLAY 在执行该节点前暂停，不提前产生该节点输出，适合定位复杂线路中的第一处行为分歧；
 - `SPEED` 提供从 0.5× 到 FAST 的调试速度，只改变播放节奏；
 - `STEP` 在标量机器中逐节点推进；在 stream 机器中同样逐节点推进，只有当前样本的全部节点执行完才把 sample clock +1；
 - stream STEP 会显示 `SAMPLE i/N · NODE j/M`，可以观察同一个样本依次经过 source、比较、累计器、算术节点与 output；

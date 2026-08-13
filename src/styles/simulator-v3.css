@@ -57,7 +57,7 @@
 .sim-wire-layer text { fill: #8bc5ff; font-size: 13px; font-weight: 800; paint-order: stroke; stroke: #07101a; stroke-width: 4px; }
 .sim-node { position: absolute; border: 2px solid #3a4c61; background: #0d141d; box-shadow: 4px 4px 0 #020305; user-select: none; cursor: move; }
 .sim-node.active { border-color: #5f9bc7; box-shadow: 4px 4px 0 #020305, inset 0 0 18px rgba(60,137,196,.12); }
-.sim-node-head { height: 37px; display: grid; grid-template-columns: 30px 1fr 22px 22px; align-items: center; gap: 6px; padding: 4px 5px; border-bottom: 1px solid #2d3a4a; background: #121b26; }
+.sim-node-head { height: 37px; display: grid; grid-template-columns: 30px 1fr 18px 22px 22px; align-items: center; gap: 4px; padding: 4px 5px; border-bottom: 1px solid #2d3a4a; background: #121b26; }
 .sim-node-head > b { height: 26px; display: grid; place-items: center; border: 1px solid #49698b; color: #90c2f7; font-size: .56rem; }
 .sim-node-head span, .sim-node-head strong, .sim-node-head small { display: block; min-width: 0; }.sim-node-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .54rem; }.sim-node-head small { margin-top: 2px; color: #5e7085; font-size: .42rem; }.sim-node-head button { border: 0; background: transparent; color: #68798c; cursor: pointer; font-size: .9rem; }
 .sim-node > input { position: absolute; left: 22%; right: 22%; bottom: 12px; width: 56%; margin: 0; padding: 4px 5px; border: 1px solid #33465d; border-radius: 0; background: #080e15; color: #e1e9f1; text-align: center; font-size: .56rem; }
@@ -75,6 +75,9 @@
 @media (max-width: 760px) { .sim-v3-shell { padding-inline: 8px; }.sim-v3-header { align-items: flex-start; padding: 10px 0; }.sim-v3-layout { grid-template-columns: 1fr; }.sim-palette, .sim-inspector { min-height: 0; }.sim-inspector { grid-column: auto; display: block; }.sim-board-wrap { overflow-x: auto; }.sim-board { min-width: 720px; }.sim-toolbar { align-items: flex-start; flex-direction: column; } }
 
 .sim-node.selected { border-color: #e5bf4b; box-shadow: 4px 4px 0 #020305, inset 0 0 0 1px rgba(229,191,75,.45); }
+.sim-node.breakpoint { box-shadow: 4px 4px 0 #020305, inset 0 0 0 2px #ff6f61; }
+.sim-node-head .sim-node-breakpoint { color: #505b68; font-size: .66rem; }
+.sim-node-head .sim-node-breakpoint[aria-pressed="true"] { color: #ff786c; text-shadow: 0 0 8px rgba(255,120,108,.65); }
 .sim-node-head .sim-node-select[aria-pressed="true"] { color: #f0cc5f; background: #2a230d; }
 .sim-blueprint-list { margin-top: 14px; padding-top: 10px; border-top: 1px solid #283645; }
 .sim-blueprint-list > small { color: #8d7840; font-size: .48rem; letter-spacing: .1em; }
