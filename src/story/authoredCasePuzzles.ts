@@ -533,10 +533,22 @@ const CASE_005_AUDIT_BUCKETS: readonly CalibrationBucket[] = [
 ]
 
 type CalibrationStrategy = 'raw' | 'calibrated' | 'hard'
+function calibrationBucketKey(score: number) {
+  return String(score).replace(/^0/, '')
+}
+
+function fitCalibrationMap(buckets: readonly CalibrationBucket[]) {
+  return Object.fromEntries(buckets.map((bucket) => [calibrationBucketKey(bucket.score), bucket.positives / bucket.count]))
+}
+
 const CALIBRATION_MAP: Record<CalibrationStrategy, Record<string, number>> = {
-  raw: { '.2': .2, '.4': .4, '.6': .6, '.8': .8 },
-  calibrated: { '.2': .1, '.4': .3, '.6': .7, '.8': .9 },
-  hard: { '.2': 0, '.4': 0, '.6': 1, '.8': 1 },
+  raw: Object.fromEntries(CASE_005_CALIBRATION_BUCKETS.map((bucket) => [calibrationBucketKey(bucket.score), bucket.score])),
+  calibrated: fitCalibrationMap(CASE_005_CALIBRATION_BUCKETS),
+  hard: Object.fromEntries(CASE_005_CALIBRATION_BUCKETS.map((bucket) => [calibrationBucketKey(bucket.score), bucket.score >= .5 ? 1 : 0])),
+}
+
+function calibratedRiskRows(): readonly (readonly string[])[] {
+  return CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), pct(CALIBRATION_MAP.calibrated[calibrationBucketKey(bucket.score)])])
 }
 
 export function evaluateCalibration(strategy: CalibrationStrategy) {
@@ -544,7 +556,7 @@ export function evaluateCalibration(strategy: CalibrationStrategy) {
   let ece = 0
   let brier = 0
   for (const bucket of CASE_005_AUDIT_BUCKETS) {
-    const probability = CALIBRATION_MAP[strategy][String(bucket.score).replace(/^0/, '')]
+    const probability = CALIBRATION_MAP[strategy][calibrationBucketKey(bucket.score)]
     const observedRate = bucket.positives / bucket.count
     ece += bucket.count / total * Math.abs(probability - observedRate)
     brier += (bucket.positives * (1 - probability) ** 2 + (bucket.count - bucket.positives) * probability ** 2) / total
@@ -569,7 +581,7 @@ function decisionMetrics(strategy: 'raw-policy' | 'calibrated-policy' | 'lower-r
   const positives = CASE_005_AUDIT_BUCKETS.reduce((sum, bucket) => sum + bucket.positives, 0)
   const total = CASE_005_AUDIT_BUCKETS.reduce((sum, bucket) => sum + bucket.count, 0)
   for (const bucket of CASE_005_AUDIT_BUCKETS) {
-    const probability = probabilities[String(bucket.score).replace(/^0/, '')]
+    const probability = probabilities[calibrationBucketKey(bucket.score)]
     if (probability >= threshold) {
       treated += bucket.count
       caught += bucket.positives
@@ -638,12 +650,7 @@ const case005: AuthoredPuzzleConfig = {
         title: 'FROZEN_CALIBRATION / POLICY CARD',
         note: '映射来自独立 CALIBRATION split，已冻结。政策阈值来自处置成本，不是模型调参旋钮。',
         columns: ['RAW SCORE', 'CALIBRATED RISK'],
-        rows: [
-          ['20%', '10%'],
-          ['40%', '30%'],
-          ['60%', '70%'],
-          ['80%', '90%'],
-        ],
+        rows: calibratedRiskRows(),
       },
       options: [
         { id: 'raw-policy', label: '原始概率直接套 65% 阈值', detail: '仍把未经校准的输出当真实风险。', resultTitle: '漏掉一整档真实高风险病人', resultMetrics: decisionMetrics('raw-policy'), resultNote: '原始 60% 档没有进入干预，但独立审计里这一档已有 68% 恶化。高风险召回只有 45%。' },

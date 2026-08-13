@@ -101,6 +101,9 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(config.stages[2].evidence?.rows).toEqual([
       ['20%', '10%'], ['40%', '30%'], ['60%', '70%'], ['80%', '90%'],
     ])
+    expect(config.stages[2].evidence?.rows).toEqual(
+      config.stages[1].evidence?.rows.map(([score, , observed]) => [score, observed]),
+    )
     expect(config.stages[2].evidence?.columns).not.toContain('POLICY')
     expect(config.stages[2].brief).not.toContain('60% 档实际有 68% 恶化')
     expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])

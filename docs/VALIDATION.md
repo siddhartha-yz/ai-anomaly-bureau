@@ -19,7 +19,7 @@ npm run test:e2e
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
 - Vitest：25 个测试文件、154 个测试全部通过。
-- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-D6-DveY9.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
+- Vite production build：通过；当前冻结 runtime 构建为 `assets/index-BEbPrJwj.js` + `assets/index-B__UcwdL.css`（生产发布后再记录远端哈希）。
 - Playwright：33 条 Chromium E2E 全部通过（完整串行套件 33/33 通过），覆盖新人 CASE 001 → 正式入职 → CASE 002 → CASE 003 → CASE 004 → CASE 005 → Bureau Hub、五类 Formal Case checkpoint / 恢复、CASE 002 多解阈值约束、CASE 003 跨环境稳定特征、CASE 004 身份台账 / 分组切分 / 干净验证、合法作弊 checkpoint、可逆 QA Test Bench、`?qa=1` 对 CASE 002/003/004/005 的免重放入口、Boot Case 000、Duty cause-source sealing、syndrome-level competing causes、support + falsification 诊断 gate、生成器 falsification-route 可解性、H-FIELDS / H-MODEL 区分实验、因果预注册、显式证据引用、现场误判、session 刷新恢复、错误诊断锁、1280×720、分布变化、额度恢复与类别不平衡。架构 import 护栏另由 ESLint 在 CI 中执行。
 - GitHub Actions CI：通过；GitHub runner 已真实执行 lint、typecheck、unit tests、build、Chromium E2E。
 
