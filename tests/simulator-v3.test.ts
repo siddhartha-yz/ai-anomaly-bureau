@@ -20,6 +20,34 @@ function thresholdGraph(): SimulatorGraph {
   return graph
 }
 
+function matchRatioGraph(): SimulatorGraph {
+  let graph: SimulatorGraph = {
+    nodes: [
+      { ...createNode('boolean-stream-input', 'predictions', 0, 0), config: { values: [true, false, true, true] } },
+      { ...createNode('boolean-stream-input', 'truth', 0, 0), config: { values: [true, true, false, true] } },
+      createNode('stream-equal', 'equal', 0, 0),
+      createNode('count-true', 'correct', 0, 0),
+      createNode('stream-length', 'total', 0, 0),
+      createNode('divide', 'ratio', 0, 0),
+      createNode('number-output', 'out', 0, 0),
+    ],
+    wires: [],
+  }
+  const wires = [
+    ['predictions', 'value', 'equal', 'a'],
+    ['truth', 'value', 'equal', 'b'],
+    ['equal', 'result', 'correct', 'stream'],
+    ['equal', 'result', 'total', 'stream'],
+    ['correct', 'count', 'ratio', 'a'],
+    ['total', 'count', 'ratio', 'b'],
+    ['ratio', 'result', 'out', 'value'],
+  ] as const
+  for (const [fromNodeId, fromPortId, toNodeId, toPortId] of wires) {
+    graph = connect(graph, { id: `${fromNodeId}-${toNodeId}`, fromNodeId, fromPortId, toNodeId, toPortId })
+  }
+  return graph
+}
+
 describe('Simulator V3 pure graph/runtime', () => {
   it('builds a threshold machine from primitives and evaluates actual signals', () => {
     const result = evaluateGraph(thresholdGraph())
@@ -33,6 +61,22 @@ describe('Simulator V3 pure graph/runtime', () => {
     const graph = thresholdGraph()
     graph.nodes = graph.nodes.map((node) => node.id === 'score' ? { ...node, config: { value: .42 } } : node)
     expect(evaluateGraph(graph).values[signalKey('out', 'value')]).toBe(false)
+  })
+
+  it('lets low-level stream primitives compose an accuracy-like ratio without an Accuracy node', () => {
+    const graph = matchRatioGraph()
+    expect(graph.nodes.some((node) => node.kind.includes('accuracy'))).toBe(false)
+    const result = evaluateGraph(graph)
+    expect(result.values[signalKey('equal', 'result')]).toEqual([true, false, false, true])
+    expect(result.values[signalKey('correct', 'count')]).toBe(2)
+    expect(result.values[signalKey('total', 'count')]).toBe(4)
+    expect(result.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
+  it('rejects elementwise stream comparison when the two streams have different lengths', () => {
+    const graph = matchRatioGraph()
+    graph.nodes = graph.nodes.map((node) => node.id === 'truth' ? { ...node, config: { values: [true] } } : node)
+    expect(() => evaluateGraph(graph)).toThrow(/长度必须一致/)
   })
 
   it('rejects incompatible typed connections before runtime', () => {

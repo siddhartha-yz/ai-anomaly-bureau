@@ -2,9 +2,9 @@
 
 ## 目的
 
-V3 暂停继续生产教学关卡，先验证《AI异常调查局》是否拥有一个本身可玩的系统构造模拟器。默认入口现在是空白 Construction Board；V2 工作台保留在 `?v2=1`，旧剧情 / Bureau / Duty 保留在 `?legacy=1`。
+V3 暂停继续生产教学关卡，先验证《AI异常调查局》是否拥有一个本身可玩的系统构造模拟器。默认入口是空白 Construction Board；V2 工作台保留在 `?v2=1`，旧剧情 / Bureau / Duty 保留在 `?legacy=1`。
 
-当前里程碑只有一个：玩家能否不用任何正确答案按钮，自己搭出一台阈值机器。
+当前先验证两层能力：
 
 ```text
 NUMBER INPUT 0.72 ─────┐
@@ -13,6 +13,17 @@ NUMBER INPUT 0.72 ─────┐
                        ▲
 CONSTANT 0.60 ─────────┘
 ```
+
+以及不提供任何成品统计节点时，玩家能否自己组合：
+
+```text
+BOOLEAN STREAM ──┐
+                 ├─ STREAM EQUAL ──┬─ COUNT TRUE ───┐
+BOOLEAN STREAM ──┘                 │                ├─ DIVIDE ──► NUMBER OUTPUT
+                                   └─ STREAM LENGTH ┘
+```
+
+后者已经能表达通用“逐项是否相同的比例”。它不是专门的 Accuracy 节点；模拟器只提供更低层的比较、计数、长度与除法。
 
 ![Simulator V3 construction sandbox](assets/simulator-v3.png)
 
@@ -29,18 +40,35 @@ src/simulator/
   SimulatorV3.tsx   board editor and visualization
 ```
 
-React 不计算 `0.72 > 0.60`。编辑器只生成 `SimulatorGraph`；`runtime.ts` 按拓扑顺序执行节点并产生真实 signal values。
+React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts` 按拓扑顺序执行节点并产生真实 signal values。
+
+## 当前 signal type
+
+- `number`
+- `boolean`
+- `boolean-stream`
+
+当前 stream 仍作为一整个 typed value 在图中传播，`STEP` 仍是逐节点求值，不是假装已经拥有逐样本时钟。真正的 sample-by-sample scheduler 是后续模拟器里程碑。
 
 ## 当前 primitive
 
-第一版刻意只有四个：
+标量：
 
-- `NUMBER INPUT`：产生 number signal。
-- `CONSTANT`：产生固定 number signal。
-- `GREATER THAN`：两个 number 输入，一个 boolean 输出。
-- `BOOLEAN OUTPUT`：接收并暴露 boolean signal。
+- `NUMBER INPUT`
+- `CONSTANT`
+- `GREATER THAN`
+- `BOOLEAN OUTPUT`
+- `NUMBER OUTPUT`
+- `DIVIDE`
 
-没有 Accuracy、Recall、Train/Test Split、Calibration 等成品 ML 概念。以后只有当低层原语足够表达它们时，才允许玩家自行构造或封装这些结构。
+stream：
+
+- `BOOLEAN STREAM`
+- `STREAM EQUAL`
+- `COUNT TRUE`
+- `STREAM LENGTH`
+
+没有 Accuracy、Recall、Train/Test Split、Calibration 等成品 ML 概念。只有当低层原语足够表达这些结构时，才考虑玩家自己构造、封装和复用。
 
 ## 编辑器已经支持
 
@@ -49,20 +77,22 @@ React 不计算 `0.72 > 0.60`。编辑器只生成 `SimulatorGraph`；`runtime.t
 - 从 output port 到 input port 自由连线；
 - typed port 阻止不兼容连接；
 - 删除节点会一并删除相关连线；
-- 输入与常量值可直接修改；
+- 标量输入与 boolean stream 可直接修改；
 - `PLAY` 执行整张图；
 - `STEP` 逐节点推进；
-- 已求值 wire 显示真实当前值；
+- 已求值 wire 显示真实当前值，包括 stream；
 - Runtime 面板显示实际求值顺序；
 - `RESET SIGNAL` 只清执行状态，不清机器；
 - board 自动写入独立 localStorage key，刷新保留机器。
 
+自动放置也会把同类节点错开，避免连续点击两个 stream source 后节点完全重叠；玩家仍可自由拖动布局。
+
 ## 暂时明确不做
 
-本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、Accuracy / Recall 成品节点、Duty / Bureau 迁移、玩家组件封装。
+本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移、玩家组件封装。
 
-下一步优先扩模拟器本身：stream/sample 类型、FILTER / COUNT / DIVIDE 等低层原语、真正的数据逐样本 STEP。只有当玩家可以在自由沙盒里自行搭出 Accuracy / Recall 一类结构后，再讨论关卡系统。
+下一步优先继续补模拟器本身，而不是内容：真正的数据逐样本 STEP、可编辑/删除 wire、更一般的 stream/sample primitive。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 
-V3 的评判标准不是教学目标有没有覆盖，而是：空白板是否让人自然想放元件、拉线；机器运行时信号是否清楚可追踪；错误是否能靠 STEP / wire value 自己定位；同一行为是否允许不同拓扑实现；模拟器是否在没有任何关卡文案时仍值得摆弄。
+V3 的评判标准不是教学目标覆盖率，而是：空白板是否让人自然想放元件、拉线；机器运行时信号是否清楚可追踪；错误是否能靠 STEP / wire value 自己定位；同一行为是否允许不同拓扑实现；模拟器是否在没有任何关卡文案时仍值得摆弄。

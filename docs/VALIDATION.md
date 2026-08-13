@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、168 个测试全部通过；新增 6 条 Simulator V3 纯 graph/runtime 测试，覆盖 typed connection、真实阈值求值、不完整图拒绝、STEP 可见值和环路拒绝。
-- Vite production build：通过；当前本地构建为 `assets/index-EcQninoT.js` + `assets/index-DThRaOe7.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 37 条 Chromium E2E，完整串行套件 **37/37** 通过。新增 V3 路线真实从空白板放入 4 个 primitive、拖拽三根 typed wire、执行 `0.72 > 0.60 → TRUE`、RESET 后逐节点 STEP，并验证刷新保留构造；V2 2 条和 Legacy 33 条路线继续完整回归。
+- Vitest：27 个测试文件、170 个测试全部通过；Simulator V3 当前 8 条纯 graph/runtime 测试，覆盖 typed connection、标量求值、stream 组合、异常输入和 STEP trace。
+- Vite production build：通过；当前本地构建为 `assets/index-CWuqvEBs.js` + `assets/index-DThRaOe7.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 38 条 Chromium E2E，完整串行套件 **38/38** 通过。V3 现覆盖阈值机，以及由通用 stream / 计数 / 长度 / 除法 primitive 自由组合出的比例机器；V2 2 条和 Legacy 33 条路线继续完整回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

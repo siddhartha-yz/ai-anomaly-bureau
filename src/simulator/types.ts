@@ -1,5 +1,5 @@
-export type SignalType = 'number' | 'boolean'
-export type SignalValue = number | boolean
+export type SignalType = 'number' | 'boolean' | 'boolean-stream'
+export type SignalValue = number | boolean | readonly boolean[]
 
 export type PortDirection = 'input' | 'output'
 
@@ -10,7 +10,17 @@ export type PortSpec = {
   direction: PortDirection
 }
 
-export type SimulatorNodeKind = 'number-input' | 'constant' | 'greater-than' | 'boolean-output'
+export type SimulatorNodeKind =
+  | 'number-input'
+  | 'constant'
+  | 'greater-than'
+  | 'boolean-output'
+  | 'boolean-stream-input'
+  | 'stream-equal'
+  | 'count-true'
+  | 'stream-length'
+  | 'divide'
+  | 'number-output'
 
 export type SimulatorNode = {
   id: string
@@ -20,6 +30,7 @@ export type SimulatorNode = {
   config?: {
     value?: number
     label?: string
+    values?: boolean[]
   }
 }
 
