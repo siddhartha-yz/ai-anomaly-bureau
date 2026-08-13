@@ -3,6 +3,7 @@ import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
 import { componentBoundaryAddress, createComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, unpackComponentInstance } from './components'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
+import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { signalKey, type PortAddress, type RuntimeResult, type RuntimeSession, type SignalValue, type SimulatorComponentDefinition, type SimulatorGraph, type SimulatorNodeKind } from './types'
 
@@ -106,7 +107,8 @@ function wirePath(graph: SimulatorGraph, definitions: readonly SimulatorComponen
 }
 
 export function SimulatorV3() {
-  const [graph, setGraph] = useState<SimulatorGraph>(() => readGraph())
+  const [graphHistory, setGraphHistory] = useState(() => createGraphHistory(readGraph()))
+  const graph = graphHistory.present
   const [pendingPort, setPendingPort] = useState<PortAddress | null>(null)
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null)
   const [runtimeSession, setRuntimeSession] = useState<RuntimeSession | null>(null)
@@ -122,8 +124,8 @@ export function SimulatorV3() {
   const [components, setComponents] = useState<SimulatorComponentDefinition[]>(() => readComponents())
   const [blueprintName, setBlueprintName] = useState('')
   const [status, setStatus] = useState('空白板已就绪。拖入元件，自己接线。')
-  const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number } | null>(null)
-  const componentDragRef = useRef<{ instanceId: string; offsetX: number; offsetY: number } | null>(null)
+  const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number; snapshot: SimulatorGraph } | null>(null)
+  const componentDragRef = useRef<{ instanceId: string; offsetX: number; offsetY: number; snapshot: SimulatorGraph } | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -137,6 +139,12 @@ export function SimulatorV3() {
   }, [components])
 
   const visibleValues = useMemo(() => runtime && stepIndex >= 0 ? visibleValuesAfterStep(runtime, stepIndex) : {}, [runtime, stepIndex])
+  const editGraph = useCallback((updater: (current: SimulatorGraph) => SimulatorGraph) => {
+    setGraphHistory((history) => applyGraphEdit(history, updater(history.present)))
+  }, [])
+  const replaceGraph = useCallback((updater: (current: SimulatorGraph) => SimulatorGraph) => {
+    setGraphHistory((history) => replaceGraphPresent(history, updater(history.present)))
+  }, [])
   const nextNodeId = (kind: SimulatorNodeKind) => {
     const prefix = kind.replaceAll('-', '_')
     let index = 1
@@ -172,7 +180,7 @@ export function SimulatorV3() {
     const fallback = defaults[kind]
     const staggerX = sameKindCount * 18
     const staggerY = sameKindCount * 132
-    setGraph((current) => ({ ...current, nodes: [...current.nodes, createNode(kind, id, Math.min(BOARD_W - NODE_W - 18, x ?? fallback.x + staggerX), Math.min(BOARD_H - NODE_H - 18, y ?? fallback.y + staggerY))] }))
+    editGraph((current) => ({ ...current, nodes: [...current.nodes, createNode(kind, id, Math.min(BOARD_W - NODE_W - 18, x ?? fallback.x + staggerX), Math.min(BOARD_H - NODE_H - 18, y ?? fallback.y + staggerY))] }))
     clearRuntime()
     setStatus(`${NODE_DEFINITIONS[kind].title} 已放入画布。`)
   }
@@ -226,7 +234,7 @@ export function SimulatorV3() {
   }
 
   const placeBlueprint = (blueprint: SimulatorBlueprint) => {
-    setGraph((current) => {
+    editGraph((current) => {
       const width = Math.max(...blueprint.nodes.map((node) => node.x)) + NODE_W
       const height = Math.max(...blueprint.nodes.map((node) => node.y)) + NODE_H
       const candidates: { x: number; y: number }[] = []
@@ -247,7 +255,7 @@ export function SimulatorV3() {
   }
 
   const placeComponent = (definition: SimulatorComponentDefinition) => {
-    setGraph((current) => {
+    editGraph((current) => {
       const occupied = [
         ...current.nodes.filter((node) => !node.componentInstanceId).map((node) => ({ x: node.x, y: node.y, w: NODE_W, h: NODE_H })),
         ...(current.components ?? []).map((instance) => ({ x: instance.x, y: instance.y, w: COMPONENT_W, h: COMPONENT_H })),
@@ -277,7 +285,7 @@ export function SimulatorV3() {
     const check = canConnect(graph, from, to)
     if (!check.ok) { setStatus(check.reason); return false }
     const wireId = `wire_${Date.now()}_${graph.wires.length + 1}`
-    setGraph((current) => connect(current, { id: wireId, fromNodeId: from.nodeId, fromPortId: from.portId, toNodeId: to.nodeId, toPortId: to.portId }))
+    editGraph((current) => connect(current, { id: wireId, fromNodeId: from.nodeId, fromPortId: from.portId, toNodeId: to.nodeId, toPortId: to.portId }))
     setPendingPort(null); setSelectedWireId(null); clearRuntime(); setStatus('连线完成。')
     return true
   }
@@ -415,22 +423,57 @@ export function SimulatorV3() {
     advanceStep(false)
   }
 
+  const resetTransientBoardState = useCallback(() => {
+    setPendingPort(null)
+    setSelectedWireId(null)
+    setSelectedNodeIds([])
+    setSelectedComponentInstanceIds([])
+    clearRuntime()
+  }, [clearRuntime])
+
+  const undo = useCallback(() => {
+    if (!graphHistory.past.length) return
+    setGraphHistory((history) => undoGraph(history))
+    resetTransientBoardState()
+    setStatus('UNDO · 已恢复上一步画布状态。')
+  }, [graphHistory.past.length, resetTransientBoardState])
+
+  const redo = useCallback(() => {
+    if (!graphHistory.future.length) return
+    setGraphHistory((history) => redoGraph(history))
+    resetTransientBoardState()
+    setStatus('REDO · 已重新应用下一步画布状态。')
+  }, [graphHistory.future.length, resetTransientBoardState])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, select')) return
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return
+      event.preventDefault()
+      if (event.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [redo, undo])
+
   const updateNumber = (nodeId: string, value: number) => {
-    setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, value } } : node) }))
+    editGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, value } } : node) }))
     clearRuntime()
   }
 
   const updateNumberStream = (nodeId: string, raw: string) => {
     const numberValues = parseNumberStream(raw)
     if (!numberValues) { setStatus('NUMBER STREAM 只接受有限数字，以逗号或空格分隔。'); return }
-    setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, numberValues } } : node) }))
+    editGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, numberValues } } : node) }))
     clearRuntime()
   }
 
   const updateBooleanStream = (nodeId: string, raw: string) => {
     const values = parseBooleanStream(raw)
     if (!values) { setStatus('BOOLEAN STREAM 只接受 1 / 0，以逗号或空格分隔。'); return }
-    setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, values } } : node) }))
+    editGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, values } } : node) }))
     clearRuntime()
   }
 
@@ -440,7 +483,7 @@ export function SimulatorV3() {
     const board = boardRef.current
     if (!node || !board) return
     const rect = board.getBoundingClientRect()
-    dragRef.current = { nodeId, offsetX: (event.clientX - rect.left) * (BOARD_W / rect.width) - node.x, offsetY: (event.clientY - rect.top) * (BOARD_H / rect.height) - node.y }
+    dragRef.current = { nodeId, offsetX: (event.clientX - rect.left) * (BOARD_W / rect.width) - node.x, offsetY: (event.clientY - rect.top) * (BOARD_H / rect.height) - node.y, snapshot: graph }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -451,7 +494,7 @@ export function SimulatorV3() {
     const rect = board.getBoundingClientRect()
     const x = Math.max(8, Math.min(BOARD_W - NODE_W - 8, (event.clientX - rect.left) * (BOARD_W / rect.width) - drag.offsetX))
     const y = Math.max(8, Math.min(BOARD_H - NODE_H - 8, (event.clientY - rect.top) * (BOARD_H / rect.height) - drag.offsetY))
-    setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === drag.nodeId ? { ...node, x, y } : node) }))
+    replaceGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === drag.nodeId ? { ...node, x, y } : node) }))
   }
 
   const startComponentMove = (event: ReactPointerEvent<HTMLDivElement>, instanceId: string) => {
@@ -460,7 +503,7 @@ export function SimulatorV3() {
     const board = boardRef.current
     if (!instance || !board) return
     const rect = board.getBoundingClientRect()
-    componentDragRef.current = { instanceId, offsetX: (event.clientX - rect.left) * (BOARD_W / rect.width) - instance.x, offsetY: (event.clientY - rect.top) * (BOARD_H / rect.height) - instance.y }
+    componentDragRef.current = { instanceId, offsetX: (event.clientX - rect.left) * (BOARD_W / rect.width) - instance.x, offsetY: (event.clientY - rect.top) * (BOARD_H / rect.height) - instance.y, snapshot: graph }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -471,12 +514,19 @@ export function SimulatorV3() {
     const rect = board.getBoundingClientRect()
     const x = Math.max(8, Math.min(BOARD_W - COMPONENT_W - 8, (event.clientX - rect.left) * (BOARD_W / rect.width) - drag.offsetX))
     const y = Math.max(8, Math.min(BOARD_H - COMPONENT_H - 8, (event.clientY - rect.top) * (BOARD_H / rect.height) - drag.offsetY))
-    setGraph((current) => moveComponentInstance(current, drag.instanceId, x, y))
+    replaceGraph((current) => moveComponentInstance(current, drag.instanceId, x, y))
   }
 
   const moveBoardObjects = (event: ReactPointerEvent<HTMLDivElement>) => {
     moveNode(event)
     moveComponent(event)
+  }
+
+  const finishBoardMove = () => {
+    const snapshot = dragRef.current?.snapshot ?? componentDragRef.current?.snapshot
+    if (snapshot) setGraphHistory((history) => recordGraphSnapshot(history, snapshot))
+    dragRef.current = null
+    componentDragRef.current = null
   }
 
   const componentOwner = new Map<string, string>()
@@ -517,11 +567,11 @@ export function SimulatorV3() {
         <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；NUMBER STREAM 可以逐样本过阈值，再接布尔 stream 原语自己拼指标。蓝图复制结构；组件把自己造的结构封成一个 typed 黑盒。这里没有 Accuracy / Recall 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
-        <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { setGraph(createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
-        <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerMove={moveBoardObjects} onPointerUp={() => { dragRef.current = null; componentDragRef.current = null }} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
+        <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" aria-label="撤销画布编辑" disabled={!graphHistory.past.length} onClick={undo}>↶ UNDO</button><button type="button" aria-label="重做画布编辑" disabled={!graphHistory.future.length} onClick={redo}>↷ REDO</button><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { editGraph(() => createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
+        <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{formatValue(value)}</text></g> })}</svg>
           {graph.nodes.filter((node) => !node.componentInstanceId).map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; const breakpoint = breakpointNodeIds.includes(node.id); return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''} ${breakpoint ? 'breakpoint' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
-            <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" className="sim-node-breakpoint" aria-label={`${breakpoint ? '取消断点' : '设置断点'} ${node.id}`} aria-pressed={breakpoint} onClick={() => setBreakpointNodeIds((current) => current.includes(node.id) ? current.filter((id) => id !== node.id) : [...current, node.id])}>●</button><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { setGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setBreakpointNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
+            <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" className="sim-node-breakpoint" aria-label={`${breakpoint ? '取消断点' : '设置断点'} ${node.id}`} aria-pressed={breakpoint} onClick={() => setBreakpointNodeIds((current) => current.includes(node.id) ? current.filter((id) => id !== node.id) : [...current, node.id])}>●</button><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { editGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setBreakpointNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
             {(node.kind === 'number-input' || node.kind === 'constant') && <input aria-label={`${node.id} 数值`} type="number" step="0.01" value={node.config?.value ?? 0} onChange={(event) => updateNumber(node.id, Number(event.target.value))} />}
             {node.kind === 'number-stream-input' && <input aria-label={`${node.id} stream`} title="使用数字，以逗号或空格分隔" type="text" value={(node.config?.numberValues ?? []).join(',')} onChange={(event) => updateNumberStream(node.id, event.target.value)} />}
             {node.kind === 'boolean-stream-input' && <input aria-label={`${node.id} stream`} title="使用 1 / 0，以逗号或空格分隔" type="text" value={(node.config?.values ?? []).map((value) => value ? '1' : '0').join(',')} onChange={(event) => updateBooleanStream(node.id, event.target.value)} />}
@@ -537,7 +587,7 @@ export function SimulatorV3() {
             const outputs = definition.ports.filter((port) => port.direction === 'output')
             const selected = selectedComponentInstanceIds.includes(instance.id)
             return <div key={instance.id} className={`sim-component-instance ${selected ? 'selected' : ''}`} style={{ left: `${instance.x / BOARD_W * 100}%`, top: `${instance.y / BOARD_H * 100}%`, width: `${COMPONENT_W / BOARD_W * 100}%`, height: `${COMPONENT_H / BOARD_H * 100}%` }} onPointerDown={(event) => startComponentMove(event, instance.id)} aria-label={`组件 ${instance.id} ${definition.name}`}>
-              <div className="sim-component-head"><b>IC</b><span><strong>{definition.name}</strong><small>{inputs.length} IN · {outputs.length} OUT</small></span><button type="button" className="sim-component-open" aria-label={`打开组件 ${instance.id}`} title="打开黑盒，把内部 primitive 恢复到画布继续调试" onClick={() => { setGraph((current) => unpackComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setSelectedWireId(null); clearRuntime(); setStatus(`BLACK BOX OPENED · ${definition.name} · 内部 primitive 已恢复到画布，可直接修改或重新封装。`) }}>↗</button><button type="button" className="sim-node-select" aria-label={`选择组件 ${instance.id}`} aria-pressed={selected} onClick={() => toggleComponentSelection(instance.id)}>◇</button><button type="button" aria-label={`删除组件 ${instance.id}`} onClick={() => { const nodeIds = new Set(instance.nodeIds); setGraph((current) => removeComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setBreakpointNodeIds((current) => current.filter((id) => !nodeIds.has(id))); setSelectedWireId(null); clearRuntime() }}>×</button></div>
+              <div className="sim-component-head"><b>IC</b><span><strong>{definition.name}</strong><small>{inputs.length} IN · {outputs.length} OUT</small></span><button type="button" className="sim-component-open" aria-label={`打开组件 ${instance.id}`} title="打开黑盒，把内部 primitive 恢复到画布继续调试" onClick={() => { editGraph((current) => unpackComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setSelectedWireId(null); clearRuntime(); setStatus(`BLACK BOX OPENED · ${definition.name} · 内部 primitive 已恢复到画布，可直接修改或重新封装。`) }}>↗</button><button type="button" className="sim-node-select" aria-label={`选择组件 ${instance.id}`} aria-pressed={selected} onClick={() => toggleComponentSelection(instance.id)}>◇</button><button type="button" aria-label={`删除组件 ${instance.id}`} onClick={() => { const nodeIds = new Set(instance.nodeIds); editGraph((current) => removeComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setBreakpointNodeIds((current) => current.filter((id) => !nodeIds.has(id))); setSelectedWireId(null); clearRuntime() }}>×</button></div>
               <div className="sim-component-core"><small>PLAYER-BUILT</small><strong>BLACK BOX</strong>{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); return address ? <output key={port.id}>{port.label}: {formatValue(visibleValues[signalKey(address.nodeId, address.portId)])}</output> : null })}</div>
               <div className="sim-component-ports inputs">{inputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} className="sim-port input" aria-label={`${definition.name} ${instance.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, address)} onClick={() => choosePort(address, 'input')}><i /><span>{port.label}</span></button> })}</div>
               <div className="sim-component-ports outputs">{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} draggable className={`sim-port output ${pendingPort?.nodeId === address.nodeId && pendingPort.portId === address.portId ? 'pending' : ''}`} aria-label={`${definition.name} ${instance.id} 输出 ${port.label} ${port.type}`} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('application/x-aia-port', `${address.nodeId}::${address.portId}`); setPendingPort(address); setStatus('正在从自定义组件拉线；拖到兼容输入端口。') }} onDragEnd={() => setPendingPort(null)} onClick={() => choosePort(address, 'output')}><span>{port.label}</span><i /></button> })}</div>
@@ -548,7 +598,7 @@ export function SimulatorV3() {
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>Blueprint 复制 primitive 结构；Component 可以把 primitive 与完整自制黑盒再次组合封装，形成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={!selectedNodeIds.length && !selectedComponentInstanceIds.length} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
-                {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { setGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
+                {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { editGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
         <section><small>WIRE MODE</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : 'IDLE'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
         {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{runtimeSession ? `${runtimeSession.tick} / ${streamClockLength(graph)} · NODE ${runtimeSession.nodeIndex + 1}` : `0 / ${streamClockLength(graph)}`}</strong><p>STEP 每次只执行当前样本的一个节点；走完整张图后才推进到下一个样本。</p></section>}
         <section><small>STEP TRACE</small>{runtime ? traceRows.map((item, index) => <div key={`${item.key}-${index}`} className={`sim-trace-row ${item.stepIndex <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.label}</span><strong>{item.value}</strong></div>) : <p>PLAY 或 STEP 后，这里显示当前时钟内的实际求值顺序；自制 Component 只作为一个黑盒显示，不泄露内部节点。</p>}</section>

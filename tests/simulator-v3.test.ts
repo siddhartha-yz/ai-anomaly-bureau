@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
 import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
+import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
@@ -101,6 +102,34 @@ function scoreThresholdGraph(): SimulatorGraph {
   }
   return graph
 }
+
+describe('Simulator V3 graph edit history', () => {
+  it('undoes and redoes structural edits without losing the redo branch until a new edit occurs', () => {
+    const empty = createEmptyGraph()
+    const oneNode = { ...empty, nodes: [createNode('number-input', 'score', 20, 30)] }
+    const twoNodes = { ...oneNode, nodes: [...oneNode.nodes, createNode('boolean-output', 'out', 300, 30)] }
+    let history = createGraphHistory(empty)
+    history = applyGraphEdit(history, oneNode)
+    history = applyGraphEdit(history, twoNodes)
+    expect(history.present.nodes).toHaveLength(2)
+    history = undoGraph(history)
+    expect(history.present.nodes.map((node) => node.id)).toEqual(['score'])
+    history = redoGraph(history)
+    expect(history.present.nodes).toHaveLength(2)
+    history = undoGraph(history)
+    history = applyGraphEdit(history, { ...history.present, nodes: [...history.present.nodes, createNode('constant', 'threshold', 80, 80)] })
+    expect(history.future).toHaveLength(0)
+    expect(redoGraph(history)).toBe(history)
+  })
+
+  it('records one drag snapshot while allowing transient positions to update freely', () => {
+    const start = { ...createEmptyGraph(), nodes: [createNode('number-input', 'score', 20, 30)] }
+    const moved = { ...start, nodes: start.nodes.map((node) => ({ ...node, x: 400, y: 250 })) }
+    let history = createGraphHistory(moved)
+    history = recordGraphSnapshot(history, start)
+    expect(undoGraph(history).present.nodes[0]).toMatchObject({ x: 20, y: 30 })
+  })
+})
 
 describe('Simulator V3 pure graph/runtime', () => {
   it('builds a threshold machine from primitives and evaluates actual signals', () => {
