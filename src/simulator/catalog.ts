@@ -18,6 +18,11 @@ function booleanStream(value: SignalValue, label: string) {
   return value as readonly boolean[]
 }
 
+function numberStream(value: SignalValue, label: string) {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'number' || !Number.isFinite(item))) throw new Error(`${label} 需要 number stream。`)
+  return value as readonly number[]
+}
+
 export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
   'number-input': {
     kind: 'number-input',
@@ -53,6 +58,15 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     outputs: [output('value', 'value', 'boolean')],
     evaluate: (inputs) => ({ value: Boolean(inputs.value) }),
   },
+  'number-stream-input': {
+    kind: 'number-stream-input',
+    title: 'NUMBER STREAM',
+    short: 'NUMS',
+    inputs: [],
+    outputs: [output('value', 'stream', 'number-stream')],
+    defaultConfig: { numberValues: [.72, .31, .88, .54] },
+    evaluate: (_inputs, node) => ({ value: [...(node.config?.numberValues ?? [])] }),
+  },
   'boolean-stream-input': {
     kind: 'boolean-stream-input',
     title: 'BOOLEAN STREAM',
@@ -61,6 +75,18 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     outputs: [output('value', 'stream', 'boolean-stream')],
     defaultConfig: { values: [true, false, true, true, false, true] },
     evaluate: (_inputs, node) => ({ value: [...(node.config?.values ?? [])] }),
+  },
+  'stream-greater-than': {
+    kind: 'stream-greater-than',
+    title: 'STREAM >',
+    short: '>[]',
+    inputs: [input('stream', 'stream', 'number-stream'), input('threshold', 'threshold', 'number')],
+    outputs: [output('result', 'result', 'boolean-stream')],
+    evaluate: (inputs) => {
+      const stream = numberStream(inputs.stream, 'STREAM >.stream')
+      const threshold = Number(inputs.threshold)
+      return { result: stream.map((value) => value > threshold) }
+    },
   },
   'stream-equal': {
     kind: 'stream-equal',
@@ -131,7 +157,9 @@ export const SIMULATOR_PALETTE: readonly SimulatorNodeKind[] = [
   'constant',
   'greater-than',
   'boolean-output',
+  'number-stream-input',
   'boolean-stream-input',
+  'stream-greater-than',
   'stream-equal',
   'stream-and',
   'count-true',

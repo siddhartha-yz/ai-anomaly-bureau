@@ -14,7 +14,9 @@ const BOARD_H = 620
 
 function formatValue(value: SignalValue | undefined) {
   if (value === undefined) return '—'
-  if (Array.isArray(value)) return `[${value.map((item) => item ? 'T' : 'F').join(' ')}]`
+  if (Array.isArray(value)) return value.every((item) => typeof item === 'boolean')
+    ? `[${value.map((item) => item ? 'T' : 'F').join(' ')}]`
+    : `[${value.map((item) => Number(item).toFixed(2)).join(' ')}]`
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
   if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(2)
   return '—'
@@ -24,6 +26,13 @@ function parseBooleanStream(raw: string) {
   const tokens = raw.split(/[\s,;|]+/).map((token) => token.trim()).filter(Boolean)
   if (tokens.some((token) => token !== '0' && token !== '1')) return null
   return tokens.map((token) => token === '1')
+}
+
+function parseNumberStream(raw: string) {
+  const tokens = raw.split(/[\s,;|]+/).map((token) => token.trim()).filter(Boolean)
+  const values = tokens.map(Number)
+  if (values.some((value) => !Number.isFinite(value))) return null
+  return values
 }
 
 function readBlueprints(): SimulatorBlueprint[] {
@@ -110,8 +119,10 @@ export function SimulatorV3() {
       constant: { x: 70, y: 300 },
       'greater-than': { x: 450, y: 205 },
       'boolean-output': { x: 820, y: 205 },
-      'boolean-stream-input': { x: 60, y: 80 },
-      'stream-equal': { x: 310, y: 150 },
+      'number-stream-input': { x: 60, y: 80 },
+      'boolean-stream-input': { x: 60, y: 220 },
+      'stream-greater-than': { x: 310, y: 80 },
+      'stream-equal': { x: 310, y: 220 },
       'stream-and': { x: 310, y: 300 },
       'count-true': { x: 540, y: 90 },
       'stream-length': { x: 540, y: 300 },
@@ -296,6 +307,13 @@ export function SimulatorV3() {
     clearRuntime()
   }
 
+  const updateNumberStream = (nodeId: string, raw: string) => {
+    const numberValues = parseNumberStream(raw)
+    if (!numberValues) { setStatus('NUMBER STREAM 只接受有限数字，以逗号或空格分隔。'); return }
+    setGraph((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, numberValues } } : node) }))
+    clearRuntime()
+  }
+
   const updateBooleanStream = (nodeId: string, raw: string) => {
     const values = parseBooleanStream(raw)
     if (!values) { setStatus('BOOLEAN STREAM 只接受 1 / 0，以逗号或空格分隔。'); return }
@@ -329,7 +347,7 @@ export function SimulatorV3() {
       <aside className="sim-palette" aria-label="元件库"><div className="sim-panel-title"><small>PRIMITIVES</small><strong>元件库</strong></div>
         {SIMULATOR_PALETTE.map((kind) => { const definition = NODE_DEFINITIONS[kind]; return <button type="button" key={kind} draggable onDragStart={(event) => event.dataTransfer.setData('application/x-aia-node', kind)} onClick={() => addNode(kind)} className="sim-palette-item" aria-label={`添加 ${definition.title}`}><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{definition.outputs.map((port) => port.type).join(' · ') || definition.inputs.map((port) => port.type).join(' · ')}</small></span></button> })}
         {blueprints.length > 0 && <div className="sim-blueprint-list" aria-label="我的蓝图"><small>MY BLUEPRINTS</small>{blueprints.map((blueprint) => <button type="button" key={blueprint.id} onClick={() => placeBlueprint(blueprint)}><b>BP</b><span><strong>{blueprint.name}</strong><small>{blueprint.nodes.length} nodes · {blueprint.wires.length} wires</small></span></button>)}</div>}
-        <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；stream 原语可以自己拼出“匹配比例”。这里没有 Accuracy 成品节点。</p></div>
+        <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；NUMBER STREAM 可以逐样本过阈值，再接布尔 stream 原语自己拼指标。这里没有 Accuracy / Recall 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
         <div className="sim-toolbar"><div><small>BOARD</small><strong>{graph.nodes.length} NODES · {graph.wires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { setGraph(createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
@@ -338,6 +356,7 @@ export function SimulatorV3() {
           {graph.nodes.map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
             <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { setGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
             {(node.kind === 'number-input' || node.kind === 'constant') && <input aria-label={`${node.id} 数值`} type="number" step="0.01" value={node.config?.value ?? 0} onChange={(event) => updateNumber(node.id, Number(event.target.value))} />}
+            {node.kind === 'number-stream-input' && <input aria-label={`${node.id} stream`} title="使用数字，以逗号或空格分隔" type="text" value={(node.config?.numberValues ?? []).join(',')} onChange={(event) => updateNumberStream(node.id, event.target.value)} />}
             {node.kind === 'boolean-stream-input' && <input aria-label={`${node.id} stream`} title="使用 1 / 0，以逗号或空格分隔" type="text" value={(node.config?.values ?? []).map((value) => value ? '1' : '0').join(',')} onChange={(event) => updateBooleanStream(node.id, event.target.value)} />}
             {node.kind === 'boolean-output' && <output aria-label={`${node.id} 输出值`}>{formatValue(outputValue)}</output>}
             {node.kind === 'number-output' && <output aria-label={`${node.id} 输出值`}>{formatValue(outputValue)}</output>}

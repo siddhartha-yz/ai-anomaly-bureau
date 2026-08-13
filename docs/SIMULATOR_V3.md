@@ -55,9 +55,10 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 
 - `number`
 - `boolean`
+- `number-stream`
 - `boolean-stream`
 
-当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / STREAM AND / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
+当前 stream 仍是一个 typed value。`NUMBER STREAM → STREAM >` 已能把连续分数逐样本转成布尔决策流，并与 COUNT / AND / DIVIDE 等通用原语继续组合；runtime 已增加持久 sample-clock session，并进一步拆成“样本 × 节点”二维执行游标：每个 STEP 只执行当前样本中的一个拓扑节点，走完整张图后才推进到下一个样本。`STREAM EQUAL / STREAM AND / COUNT TRUE / STREAM LENGTH` 的累计状态跨样本保存，不再为每个 tick 从第 1 个样本重算整条前缀。这样调试时可以看到信号从 source 一步一步穿过比较、计数、除法和 output，而不是按一次 STEP 整张图同时亮起。没有 stream 的标量机器同样保持逐节点 STEP。
 
 `PLAY` 现在也不再瞬间跳到最终结果：它复用同一个 scheduler，按当前速度逐节点自动推进；运行中按钮切换为 `PAUSE`，暂停后保留当前 wire value、sample clock 与 accumulator 状态，可以检查线路、手动 STEP，再从原位置继续 PLAY。速度只改变调度间隔，不改变 runtime 结果。
 
@@ -74,7 +75,9 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 
 stream：
 
+- `NUMBER STREAM`
 - `BOOLEAN STREAM`
+- `STREAM >`（number stream + scalar threshold → boolean stream）
 - `STREAM EQUAL`
 - `STREAM AND`
 - `COUNT TRUE`
@@ -110,7 +113,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。Blueprint 目前只是可复用 schematic，不伪装成黑盒 custom component；动态 typed boundary、嵌套组件与组件内部编辑仍未实现。
 
-下一步优先继续补模拟器本身，而不是内容：先判断 Blueprint 的复用是否真的产生构造欲望，再决定是否升级为带动态 typed boundary 的黑盒 custom component；同时继续补更一般的 sample primitive。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步优先继续补模拟器本身，而不是内容：先判断 Blueprint 的复用是否真的产生构造欲望，再决定是否升级为带动态 typed boundary 的黑盒 custom component；同时继续补更一般的 sample primitive；当前已补齐 number score stream 的逐样本阈值路径。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

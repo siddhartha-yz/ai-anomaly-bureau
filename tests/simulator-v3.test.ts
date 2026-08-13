@@ -77,6 +77,30 @@ function recallLikeGraph(): SimulatorGraph {
   return graph
 }
 
+
+function scoreThresholdGraph(): SimulatorGraph {
+  let graph: SimulatorGraph = {
+    nodes: [
+      { ...createNode('number-stream-input', 'scores', 0, 0), config: { numberValues: [.72, .31, .88, .54] } },
+      { ...createNode('constant', 'threshold', 0, 0), config: { value: .6 } },
+      createNode('stream-greater-than', 'decide', 0, 0),
+      createNode('count-true', 'positiveCount', 0, 0),
+      createNode('number-output', 'out', 0, 0),
+    ],
+    wires: [],
+  }
+  const wires = [
+    ['scores', 'value', 'decide', 'stream'],
+    ['threshold', 'value', 'decide', 'threshold'],
+    ['decide', 'result', 'positiveCount', 'stream'],
+    ['positiveCount', 'count', 'out', 'value'],
+  ] as const
+  for (const [fromNodeId, fromPortId, toNodeId, toPortId] of wires) {
+    graph = connect(graph, { id: `${fromNodeId}-${toNodeId}-${toPortId}`, fromNodeId, fromPortId, toNodeId, toPortId })
+  }
+  return graph
+}
+
 describe('Simulator V3 pure graph/runtime', () => {
   it('builds a threshold machine from primitives and evaluates actual signals', () => {
     const result = evaluateGraph(thresholdGraph())
@@ -90,6 +114,33 @@ describe('Simulator V3 pure graph/runtime', () => {
     const graph = thresholdGraph()
     graph.nodes = graph.nodes.map((node) => node.id === 'score' ? { ...node, config: { value: .42 } } : node)
     expect(evaluateGraph(graph).values[signalKey('out', 'value')]).toBe(false)
+  })
+
+  it('turns a number score stream into boolean decisions one sample at a time', () => {
+    const graph = scoreThresholdGraph()
+    const result = evaluateGraph(graph)
+    expect(result.values[signalKey('decide', 'result')]).toEqual([true, false, true, false])
+    expect(result.values[signalKey('out', 'value')]).toBe(2)
+
+    const timeline = evaluateRuntimeTimeline(graph)
+    expect(timeline).toHaveLength(4)
+    expect(timeline[0].result.values[signalKey('scores', 'value')]).toEqual([.72])
+    expect(timeline[0].result.values[signalKey('decide', 'result')]).toEqual([true])
+    expect(timeline[1].result.values[signalKey('decide', 'result')]).toEqual([true, false])
+    expect(timeline.at(-1)?.result.values[signalKey('out', 'value')]).toBe(2)
+  })
+
+  it('requires all connected number and boolean stream sources to share one sample clock', () => {
+    let graph = scoreThresholdGraph()
+    graph.nodes.push({ ...createNode('boolean-stream-input', 'truth', 0, 0), config: { values: [true] } })
+    graph.nodes.push(createNode('stream-and', 'join', 0, 0))
+    graph.nodes.push(createNode('count-true', 'joinedCount', 0, 0))
+    graph.nodes.push(createNode('number-output', 'joinedOut', 0, 0))
+    graph = connect(graph, { id: 'mix1', fromNodeId: 'decide', fromPortId: 'result', toNodeId: 'join', toPortId: 'a' })
+    graph = connect(graph, { id: 'mix2', fromNodeId: 'truth', fromPortId: 'value', toNodeId: 'join', toPortId: 'b' })
+    graph = connect(graph, { id: 'mix3', fromNodeId: 'join', fromPortId: 'result', toNodeId: 'joinedCount', toPortId: 'stream' })
+    graph = connect(graph, { id: 'mix4', fromNodeId: 'joinedCount', fromPortId: 'count', toNodeId: 'joinedOut', toPortId: 'value' })
+    expect(() => createRuntimeSession(graph)).toThrow(/STREAM SOURCE.*相同长度/)
   })
 
   it('lets low-level stream primitives compose an accuracy-like ratio without an Accuracy node', () => {

@@ -18,9 +18,11 @@ function evaluateGraphInternal(graph: SimulatorGraph, streamLimit?: number): Run
       if (!(key in values)) throw new Error(`${definition.title}.${port.label} 上游尚无可用信号。`)
       inputs[port.id] = values[key]
     }
-    const runtimeNode = node.kind === 'boolean-stream-input' && streamLimit !== undefined
+    const runtimeNode = streamLimit !== undefined && node.kind === 'boolean-stream-input'
       ? { ...node, config: { ...node.config, values: (node.config?.values ?? []).slice(0, streamLimit) } }
-      : node
+      : streamLimit !== undefined && node.kind === 'number-stream-input'
+        ? { ...node, config: { ...node.config, numberValues: (node.config?.numberValues ?? []).slice(0, streamLimit) } }
+        : node
     const outputs = definition.evaluate(inputs, runtimeNode)
     for (const [portId, value] of Object.entries(outputs)) values[signalKey(node.id, portId)] = value
     steps.push({ nodeId: node.id, outputs })
@@ -34,17 +36,21 @@ export function evaluateGraph(graph: SimulatorGraph): RuntimeResult {
 
 export function streamClockLength(graph: SimulatorGraph) {
   graph = executionGraph(graph)
-  const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input')
+  const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input' || node.kind === 'number-stream-input')
   if (!streams.length) return 0
-  return Math.max(...streams.map((node) => node.config?.values?.length ?? 0))
+  return Math.max(...streams.map((node) => node.kind === 'boolean-stream-input'
+    ? node.config?.values?.length ?? 0
+    : node.config?.numberValues?.length ?? 0))
 }
 
 function validateStreamClock(graph: SimulatorGraph) {
   graph = executionGraph(graph)
-  const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input')
+  const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input' || node.kind === 'number-stream-input')
   if (streams.length <= 1) return
-  const lengths = streams.map((node) => node.config?.values?.length ?? 0)
-  if (lengths.some((length) => length !== lengths[0])) throw new Error('所有 BOOLEAN STREAM 必须具有相同长度，才能逐样本运行。')
+  const lengths = streams.map((node) => node.kind === 'boolean-stream-input'
+    ? node.config?.values?.length ?? 0
+    : node.config?.numberValues?.length ?? 0)
+  if (lengths.some((length) => length !== lengths[0])) throw new Error('所有 STREAM SOURCE 必须具有相同长度，才能逐样本运行。')
 }
 
 export function createRuntimeSession(graph: SimulatorGraph): RuntimeSession {
@@ -81,6 +87,21 @@ function evaluateStreamMicroStep(graph: SimulatorGraph, session: RuntimeSession)
     const nextValue = node.config?.values?.[tick - 1]
     if (typeof nextValue !== 'boolean') throw new Error(`${definition.title} 在 SAMPLE ${tick} 没有可用值。`)
     outputs = { value: [...previous, nextValue] }
+  } else if (node.kind === 'number-stream-input') {
+    const key = signalKey(node.id, 'value')
+    const previousValue = session.values[key]
+    const previous = Array.isArray(previousValue) && previousValue.every((item) => typeof item === 'number') ? previousValue as readonly number[] : []
+    const nextValue = node.config?.numberValues?.[tick - 1]
+    if (typeof nextValue !== 'number' || !Number.isFinite(nextValue)) throw new Error(`${definition.title} 在 SAMPLE ${tick} 没有可用值。`)
+    outputs = { value: [...previous, nextValue] }
+  } else if (node.kind === 'stream-greater-than') {
+    const stream = inputs.stream as readonly number[]
+    if (!Array.isArray(stream) || stream.length !== tick || stream.some((item) => typeof item !== 'number')) throw new Error('STREAM > 需要当前时钟的 number stream。')
+    const threshold = Number(inputs.threshold)
+    const key = signalKey(node.id, 'result')
+    const previousValue = session.values[key]
+    const previous = Array.isArray(previousValue) && previousValue.every((item) => typeof item === 'boolean') ? previousValue as readonly boolean[] : []
+    outputs = { result: [...previous, stream[tick - 1] > threshold] }
   } else if (node.kind === 'stream-equal' || node.kind === 'stream-and') {
     const a = inputs.a as readonly boolean[]
     const b = inputs.b as readonly boolean[]

@@ -20,7 +20,7 @@ export function createBlueprint(graph: SimulatorGraph, nodeIds: readonly string[
       ...node,
       x: node.x - minX,
       y: node.y - minY,
-      config: node.config ? { ...node.config, values: node.config.values ? [...node.config.values] : undefined } : undefined,
+      config: node.config ? { ...node.config, values: node.config.values ? [...node.config.values] : undefined, numberValues: node.config.numberValues ? [...node.config.numberValues] : undefined } : undefined,
     })),
     wires: graph.wires
       .filter((wire) => selected.has(wire.fromNodeId) && selected.has(wire.toNodeId))
@@ -50,7 +50,7 @@ export function instantiateBlueprint(graph: SimulatorGraph, blueprint: Simulator
       id,
       x: origin.x + node.x,
       y: origin.y + node.y,
-      config: node.config ? { ...node.config, values: node.config.values ? [...node.config.values] : undefined } : undefined,
+      config: node.config ? { ...node.config, values: node.config.values ? [...node.config.values] : undefined, numberValues: node.config.numberValues ? [...node.config.numberValues] : undefined } : undefined,
     }
   })
   const reservedWireIds = new Set(graph.wires.map((wire) => wire.id))

@@ -9,7 +9,7 @@ test('default route is an empty construction simulator, not a scripted level', a
   await page.reload()
   await expect(page.getByLabel('AI系统模拟器 V3')).toBeVisible()
   await expect(page.getByLabel('构造画布')).toContainText('EMPTY CONSTRUCTION BOARD')
-  await expect(page.getByLabel('元件库').getByRole('button')).toHaveCount(11)
+  await expect(page.getByLabel('元件库').getByRole('button')).toHaveCount(13)
   await expect(page.getByLabel('元件库').getByRole('button', { name: /ACCURACY/i })).toHaveCount(0)
   await expect(page.getByText(/OBJECTIVE|PASS LINE|LEVEL 01/)).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
@@ -75,6 +75,42 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.reload()
   await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('—')
+})
+
+test('number score streams can flow through a threshold primitive into boolean stream logic', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 NUMBER STREAM' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 STREAM >' }).click()
+  await page.getByRole('button', { name: '添加 COUNT TRUE' }).click()
+  await page.getByRole('button', { name: '添加 NUMBER OUTPUT' }).click()
+
+  await page.getByLabel('number_stream_input_1 stream').fill('0.72, 0.31, 0.88, 0.54')
+  await page.getByLabel('constant_1 数值').fill('0.60')
+
+  const connect = async (from: string, to: string) => {
+    await page.getByRole('button', { name: from }).click()
+    await page.getByRole('button', { name: to }).click()
+  }
+  await connect('number_stream_input_1 输出 stream number-stream', 'stream_greater_than_1 输入 stream number-stream')
+  await connect('constant_1 输出 value number', 'stream_greater_than_1 输入 threshold number')
+  await connect('stream_greater_than_1 输出 result boolean-stream', 'count_true_1 输入 stream boolean-stream')
+  await connect('count_true_1 输出 count number', 'number_output_1 输入 value number')
+
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 4 WIRES · CLOCK 0/4')
+  await page.getByRole('button', { name: 'STEP' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('SAMPLE 1/4 · NODE 1/5')
+  await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
+  await expect(page.getByLabel('number_output_1 输出值')).toHaveText('—')
+
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('number_output_1 输出值')).toHaveText('2')
+  await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
+  await expect(page.locator('.sim-wire-layer')).toContainText('[0.72 0.31 0.88 0.54]')
+  await expect(page.locator('.sim-wire-layer')).toContainText('[T F T F]')
 })
 
 test('player can compose a recall-like conditional metric from generic stream primitives', async ({ page }) => {
