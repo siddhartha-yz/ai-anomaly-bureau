@@ -97,6 +97,8 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     ])
     expect(config.stages[1].evidence?.columns).not.toContain('FITTED OUTPUT')
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
+    expect(config.stages[1].options.find((option) => option.id === 'calibrated')?.label).toBe('冻结 10% / 30% / 70% / 90%')
+    expect(config.stages[1].options.find((option) => option.id === 'raw')?.label).toBe('冻结 20% / 40% / 60% / 80%')
     expect(config.stages[2].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK'])
     expect(config.stages[2].evidence?.rows).toEqual([
       ['20%', '10%'], ['40%', '30%'], ['60%', '70%'], ['80%', '90%'],
@@ -107,6 +109,8 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(config.stages[2].evidence?.columns).not.toContain('POLICY')
     expect(config.stages[2].brief).not.toContain('60% 档实际有 68% 恶化')
     expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
+    expect(config.stages[2].options.find((option) => option.id === 'calibrated-policy')?.label).toBe('干预 RAW 60% + 80% 两档；政策仍写 65%')
+    expect(config.stages[2].options.find((option) => option.id === 'lower-raw-threshold')?.label).toBe('干预 RAW 60% + 80% 两档；把政策改成 55%')
   })
 
   it('persists compact case-specific checkpoints and rejects mismatched case identities', () => {
