@@ -40,6 +40,7 @@ const QA_PRESETS = [
   ['CASE004 COMPOSE', 'CASE 004 · 最终规则', '直接测试部署语义上的未知验证定义'],
   ['CASE005', 'CASE 005 · 校准谜题', '从头测试可靠性表、独立校准与风险阈值'],
   ['CASE005 CALIBRATE', 'CASE 005 · 概率校准', '直接比较原始概率、单调校准与硬标签伪概率'],
+  ['CASE005 AUDIT', 'CASE 005 · 独立审计', '直接检查冻结映射在 held-out audit 上是否泛化'],
   ['CASE005 POLICY', 'CASE 005 · 风险政策', '直接测试校准概率与 65% 决策阈值的组合'],
   ['BUREAU UNLOCK', '调查局 Hub', '创建合法入职事实并打开办公室'],
   ['TRAINING', 'TRAINING 000', '直接进入训练中心案件'],

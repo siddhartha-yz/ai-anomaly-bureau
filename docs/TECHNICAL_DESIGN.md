@@ -236,7 +236,7 @@ App 路由的正常产品语义是：
 
 ## 手工案件 runtime 分层
 
-CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004/005 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。CASE 005 明确拆成三份互不重叠的数据：100 人 DIAGNOSTIC split 先暴露概率刻度异常但不参与拟合，40 人 CALIBRATION split 再按各 bucket 的 observed frequency 计算并冻结映射，最后 100 人 AUDIT split 才计算 ECE / Brier 与政策效果。玩家选择映射前看不到最终 AUDIT 的 observed frequency，避免“先偷看最终验证结果再冻结方案”的程序性泄漏；`FROZEN_CALIBRATION` 与后续政策判断继续共用同一份由 CALIBRATION split 推导出的映射，避免题面证据与内部答案各自硬编码后漂移。玩家仍比较原始概率、保持排序的校准映射和硬标签伪概率。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
+CASE 001 继续使用原有 reducer + ML 实验台，因为它需要长篇 progressive disclosure、隐藏测试、误判调查与过拟合陷阱。CASE 002/003/004/005 不复制这个 900 行 runtime，而使用 `StoryPuzzleRuntime`：每个 stage 只声明问题、可操作方案、真实计算结果、允许解与成功后解锁的认知原语。CASE 002 的阈值结果由 54 份固定风险分数真实计算；CASE 003 的白天/夜班结果由历史样本拟合的一维阈值真实计算，同一规则再直接应用到现场数据；CASE 004 则用 16 个物理实体构造记录级、日期级、实体级三种 split，实时计算身份重叠、验证准确率和最低类别召回，再在零重叠 split 上比较身份记忆、材料结构与相机位置三种策略。CASE 005 明确拆成三份互不重叠的数据：100 人 DIAGNOSTIC split 先暴露概率刻度异常但不参与拟合，40 人 CALIBRATION split 再按各 bucket 的 observed frequency 计算并冻结映射，最后 100 人 AUDIT split 才首次公开 observed frequency 并计算 ECE / Brier 与政策效果。校准阶段的正确/错误反馈只读取 CALIBRATION split，连错误方案也看不到 AUDIT 指标；映射冻结后进入独立 `audit` stage，AUDIT 只允许做“是否泛化”的判断，不能再修改本轮映射。这样避免把 held-out audit 通过“试错重选”悄悄变成第二个调参集。`FROZEN_CALIBRATION` 与后续政策判断继续共用同一份由 CALIBRATION split 推导出的映射，避免题面证据与内部答案各自硬编码后漂移。玩家仍比较原始概率、保持排序的校准映射和硬标签伪概率。短案件都允许错误尝试后继续修正，CASE 003 的稳定传感器阶段还接受多个可靠解。`AuthoredPuzzleStage.evidence` 还提供可复用的 player-read 表格证据面板，CASE 004 的第一步要求玩家先从 TRAIN / VALIDATION 台账亲眼发现重复实体，而不是只读结论。
 
 这类短案件使用独立 `aia.formal-puzzle.v1.<caseId>.<seed>` checkpoint，只保存 stage / checks / mistakes / 当前选择 / 最近一次结果 / solved，不复制 CASE 001 的 fitted model 或匿名行为日志。`FormalCaseResumeSummary` 允许 runtime 自己提供 `CHECKS / REVISIONS` 等语义标签，因此通用恢复页不会假装每个案件都有“审计额度”。
 
@@ -373,7 +373,7 @@ type BehaviorEvent = {
 
 - 普通 URL 不显示测试入口；显式 `?qa=1` 才在右下角显示 `QA BENCH / OPEN`，也可继续用 Backquote / Ctrl+Shift+K。
 - 第一次执行任何会改状态的命令（除 `HELP`）时，`qa/testBench.ts` 会把当前全部 `aia.*` localStorage key（不含自身 backup）保存到 `aia.qa-backup.v1`，同时记录测试开始 URL。第二次跳转复用原快照，绝不把测试中的脏状态覆盖成“原存档”。
-- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE 002/003/004/005 既可从头进入，也可直接跳到阈值、稳定传感器、重切分、干净验证、概率校准、风险政策等中间 stage；另保留 Bureau、Training、四类代表 Duty 卡片和“任意 Duty seed”数字输入。authored-case stage jump 不是裸改 `stage`：`createPuzzleCheatSession()` 会按目标 stage 重建满足正式 validator 的 accepted-check 数，再由普通 `writePuzzleSession()` 写入，因此刷新 / resume 仍走同一 session reader。
+- 工作台提供 CASE 001 START / ERRORS / OVERFIT / REPAIR / FINAL / CLOSED；CASE 002/003/004/005 既可从头进入，也可直接跳到阈值、稳定传感器、重切分、干净验证、概率校准、独立审计、风险政策等中间 stage；另保留 Bureau、Training、四类代表 Duty 卡片和“任意 Duty seed”数字输入。authored-case stage jump 不是裸改 `stage`：`createPuzzleCheatSession()` 会按目标 stage 重建满足正式 validator 的 accepted-check 数，再由普通 `writePuzzleSession()` 写入，因此刷新 / resume 仍走同一 session reader。
 - 测试会话中右下角持续显示 `QA TEST / SAVE SAFE`；“全新用户状态”只有在有效 backup 存在时才允许清掉当前 `aia.*` working state。
 - “恢复原存档并结束测试”先删除测试产生的游戏 key，再逐字恢复原 entries，最后才删除 backup 并返回原 URL；若恢复写入失败，backup 保留以便重试。
 - `CASE001 ...` 仍使用真实 reducer、模型训练、审计和实验记录构造版本化 Story checkpoint；`BUREAU UNLOCK` 仍走正式 `BureauProgress`；`TRAINING` 打开 Training 000；`DUTY <seed>` 清理该测试 seed 的 Endless session 后进入正式案件。命令执行后通过正常路由重载，不在 React 内存里注入一套作弊 state。

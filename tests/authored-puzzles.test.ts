@@ -87,7 +87,7 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(evaluateCalibration('hard').ece).toBeCloseTo(.21)
     expect(evaluateCalibration('hard').brier).toBeCloseTo(.21)
     const config = AUTHORED_PUZZLE_CASES[STORY_CASE_005.id]
-    expect(config.stages.map((stage) => stage.id)).toEqual(['reliability', 'calibrate', 'policy'])
+    expect(config.stages.map((stage) => stage.id)).toEqual(['reliability', 'calibrate', 'audit', 'policy'])
     expect(config.stages[0].evidence?.rows).toEqual([
       ['20%', '25', '12%'], ['40%', '25', '32%'], ['60%', '25', '72%'], ['80%', '25', '88%'],
     ])
@@ -99,21 +99,30 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     ])
     expect(config.stages[1].evidence?.columns).not.toContain('FITTED OUTPUT')
     expect(config.stages[1].prompt).toContain('然后才打开此前封存的独立 AUDIT')
+    expect(config.stages[1].actionLabel).toBe('冻结校准方案')
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
     expect(config.stages[1].options.find((option) => option.id === 'calibrated')?.label).toBe('冻结 10% / 30% / 70% / 90%')
     expect(config.stages[1].options.find((option) => option.id === 'raw')?.label).toBe('冻结 20% / 40% / 60% / 80%')
-    expect(config.stages[2].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK'])
+    expect(config.stages[1].options.map((option) => option.resultNote).join(' ')).not.toContain('68%')
+    expect(config.stages[2].evidence?.title).toContain('SEALED_AUDIT')
+    expect(config.stages[2].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK', 'PATIENTS', 'OBSERVED'])
     expect(config.stages[2].evidence?.rows).toEqual([
+      ['20%', '10%', '25', '8%'], ['40%', '30%', '25', '36%'], ['60%', '70%', '25', '68%'], ['80%', '90%', '25', '92%'],
+    ])
+    expect(config.stages[2].correctIds).toEqual(['generalizes'])
+    expect(config.stages[2].options.find((option) => option.id === 'refit-audit')?.resultTitle).toBe('审计集被污染')
+    expect(config.stages[3].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK'])
+    expect(config.stages[3].evidence?.rows).toEqual([
       ['20%', '10%'], ['40%', '30%'], ['60%', '70%'], ['80%', '90%'],
     ])
-    expect(config.stages[2].evidence?.rows).toEqual(
+    expect(config.stages[3].evidence?.rows).toEqual(
       config.stages[1].evidence?.rows.map(([score, , observed]) => [score, observed]),
     )
-    expect(config.stages[2].evidence?.columns).not.toContain('POLICY')
-    expect(config.stages[2].brief).not.toContain('60% 档实际有 68% 恶化')
-    expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
-    expect(config.stages[2].options.find((option) => option.id === 'calibrated-policy')?.label).toBe('干预 RAW 60% + 80% 两档；政策仍写 65%')
-    expect(config.stages[2].options.find((option) => option.id === 'lower-raw-threshold')?.label).toBe('干预 RAW 60% + 80% 两档；把政策改成 55%')
+    expect(config.stages[3].evidence?.columns).not.toContain('POLICY')
+    expect(config.stages[3].brief).not.toContain('60% 档实际有 68% 恶化')
+    expect(config.stages[3].correctIds).toEqual(['calibrated-policy'])
+    expect(config.stages[3].options.find((option) => option.id === 'calibrated-policy')?.label).toBe('干预 RAW 60% + 80% 两档；政策仍写 65%')
+    expect(config.stages[3].options.find((option) => option.id === 'lower-raw-threshold')?.label).toBe('干预 RAW 60% + 80% 两档；把政策改成 55%')
   })
 
   it('persists compact case-specific checkpoints and rejects mismatched case identities', () => {

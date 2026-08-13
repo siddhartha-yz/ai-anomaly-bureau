@@ -562,6 +562,15 @@ function calibratedRiskRows(): readonly (readonly string[])[] {
   return CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), pct(CALIBRATION_MAP.calibrated[calibrationBucketKey(bucket.score)])])
 }
 
+function auditCalibrationRows(): readonly (readonly string[])[] {
+  return CASE_005_AUDIT_BUCKETS.map((bucket) => [
+    pct(bucket.score),
+    pct(CALIBRATION_MAP.calibrated[calibrationBucketKey(bucket.score)]),
+    String(bucket.count),
+    pct(bucket.positives / bucket.count),
+  ])
+}
+
 function evaluateCalibrationOn(buckets: readonly CalibrationBucket[], strategy: CalibrationStrategy) {
   const total = buckets.reduce((sum, bucket) => sum + bucket.count, 0)
   let ece = 0
@@ -585,6 +594,16 @@ function calibrationMetrics(strategy: CalibrationStrategy, buckets: readonly Cal
     { label: '校准误差 ECE', value: pct(result.ece), pass: result.ece <= .05 },
     { label: 'Brier 误差', value: result.brier.toFixed(2), pass: result.brier <= .15 + Number.EPSILON },
     { label: '排序', value: strategy === 'hard' ? '被压成两档' : '保持不变', pass: strategy !== 'hard' },
+  ]
+}
+
+function auditCalibrationMetrics(): readonly PuzzleMetric[] {
+  const raw = evaluateCalibration('raw')
+  const calibrated = evaluateCalibration('calibrated')
+  return [
+    { label: '原始 ECE', value: pct(raw.ece), pass: false },
+    { label: '冻结映射 ECE', value: pct(calibrated.ece), pass: calibrated.ece <= .05 },
+    { label: '冻结映射 Brier', value: calibrated.brier.toFixed(2), pass: calibrated.brier <= .15 + Number.EPSILON },
   ]
 }
 
@@ -639,7 +658,7 @@ const case005: AuthoredPuzzleConfig = {
       title: '保持排序不变，只修正概率刻度',
       brief: 'CASE 004 的规则继续生效：上一页 DIAGNOSTIC 只负责发现问题，下面这份 CALIBRATION split 只负责拟合映射；最终 100 名 AUDIT 病人仍未公开。不要为了概率好看重新训练分类器。',
       prompt: '只根据 CALIBRATION split 冻结一种概率输出方案，然后才打开此前封存的独立 AUDIT。',
-      actionLabel: '运行校准审计',
+      actionLabel: '冻结校准方案',
       evidence: {
         title: 'CALIBRATION_SPLIT / 仅用于拟合',
         note: '这 40 名病人与最终审计集完全分离。只用 RAW SCORE 与 OBSERVED 决定映射；最终输出要由你先选方案，再去独立审计集验证。',
@@ -647,12 +666,33 @@ const case005: AuthoredPuzzleConfig = {
         rows: CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), String(bucket.count), pct(bucket.positives / bucket.count)]),
       },
       options: [
-        { id: 'raw', label: '冻结 20% / 40% / 60% / 80%', detail: '直接把 RAW SCORE 当最终概率，排序和刻度都不变。', resultTitle: '排序还在，刻度仍偏', resultMetrics: calibrationMetrics('raw'), resultNote: '独立审计 ECE 仍为 9%。这不是分类失败，而是概率输出仍不适合承担风险语义。' },
-        { id: 'calibrated', label: '冻结 10% / 30% / 70% / 90%', detail: '逐行读取 40 人校准表中的真实发生频率，保持四档顺序不变。', resultTitle: '概率刻度明显改善', resultMetrics: calibrationMetrics('calibrated'), resultNote: '这组映射只来自校准集；到了另一批审计病人上 ECE 仍从 9% 降到 3%，Brier 也改善。没有追求“审计集 0 误差”，因为那会重新制造数据泄漏。' },
-        { id: 'hard', label: '冻结 0% / 0% / 100% / 100%', detail: '按高低风险硬切成两档，让输出显得更“确定”。', resultTitle: '更自信，不等于更可信', resultMetrics: calibrationMetrics('hard'), resultNote: '概率被压成极端值后 ECE 和 Brier 都更差。校准不是把输出推向 0/1。' },
+        { id: 'raw', label: '冻结 20% / 40% / 60% / 80%', detail: '直接把 RAW SCORE 当最终概率，排序和刻度都不变。', resultTitle: '校准表已经否决原始刻度', resultMetrics: calibrationMetrics('raw', CASE_005_CALIBRATION_BUCKETS), resultNote: '只看 CALIBRATION split 就能发现四档概率与真实频率系统性错位。最终 AUDIT 仍保持封存，不能拿它来帮你换方案。' },
+        { id: 'calibrated', label: '冻结 10% / 30% / 70% / 90%', detail: '逐行读取 40 人校准表中的真实发生频率，保持四档顺序不变。', resultTitle: '映射已冻结', resultMetrics: calibrationMetrics('calibrated', CASE_005_CALIBRATION_BUCKETS), resultNote: '这组映射完全由 CALIBRATION split 决定。现在才有资格打开此前封存的独立 AUDIT；无论审计结果是否完美，都不能回头用它重拟合本轮映射。' },
+        { id: 'hard', label: '冻结 0% / 0% / 100% / 100%', detail: '按高低风险硬切成两档，让输出显得更“确定”。', resultTitle: '校准表拒绝伪概率', resultMetrics: calibrationMetrics('hard', CASE_005_CALIBRATION_BUCKETS), resultNote: '把概率压成 0/1 会远离校准表中的实际发生频率。无需窥看最终 AUDIT，也已经有证据否决它。' },
       ],
       correctIds: ['calibrated'],
-      success: '你只改了概率刻度，没有偷换分类器、排序或验证对象，也没有拿审计集反向调映射。CASE 004 的独立验证原则被真正复用到了校准。',
+      success: '校准映射已经冻结。下一步才解封独立 AUDIT；审计只负责评价，不再拥有修改本轮映射的权限。',
+    },
+    {
+      id: 'audit',
+      kicker: 'HELD-OUT AUDIT / EVALUATE ONLY',
+      title: '映射冻结后，最终审计还能拿来做什么？',
+      brief: '现在才打开 100 名独立 AUDIT 病人。映射已经冻结，因此这页只能回答“它有没有泛化”，不能再根据这批结果改 10% / 30% / 70% / 90%。',
+      prompt: '对照冻结概率与 AUDIT 中的真实频率，这次独立审计支持哪条结论？',
+      actionLabel: '提交审计结论',
+      evidence: {
+        title: 'SEALED_AUDIT / EVALUATION ONLY',
+        note: 'CALIBRATED RISK 来自上一阶段已经冻结的映射；OBSERVED 直到现在才首次公开。审计结果不能反向参与本轮拟合。',
+        columns: ['RAW SCORE', 'CALIBRATED RISK', 'PATIENTS', 'OBSERVED'],
+        rows: auditCalibrationRows(),
+      },
+      options: [
+        { id: 'generalizes', label: '校准明显改善，但独立审计仍允许存在残余误差', detail: '比较冻结概率与真实频率：并不逐档完全相等，但整体偏差已经明显缩小。', resultTitle: '独立审计通过', resultMetrics: auditCalibrationMetrics(), resultNote: '原始 ECE 为 9%，冻结映射在独立 AUDIT 上降到 3%。这才是“校准泛化”的证据，而不是校准集上的 0% 拟合误差。' },
+        { id: 'refit-audit', label: '把 AUDIT 的 8% / 36% / 68% / 92% 写回映射，再算一次', detail: '既然审计频率更接近真实部署，就继续用它微调本轮校准。', resultTitle: '审计集被污染', resultNote: '一旦根据 AUDIT 结果修改映射，这 100 人就不再是独立审计。想继续调参，需要新的校准数据和另一份未见过的审计集。' },
+        { id: 'must-perfect', label: '只有四档概率与 OBSERVED 完全相等，校准才算成功', detail: '独立审计只要出现 2%～6% 的偏差就说明方法失败。', resultTitle: '把有限样本波动误判成失败', resultNote: '独立样本中的发生频率会有抽样波动。这里应比较整体校准误差是否显著改善，而不是要求每个桶逐字复制校准集。' },
+      ],
+      correctIds: ['generalizes'],
+      success: 'CASE 004 的规则在这里闭环：CALIBRATION 用来拟合，AUDIT 只用来评价。看到审计答案以后，本轮模型与映射都已经不能再改。',
     },
     {
       id: 'policy',

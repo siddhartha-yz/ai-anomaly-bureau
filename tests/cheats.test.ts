@@ -22,6 +22,7 @@ describe('cheat code parser', () => {
     expect(parseCheatCode('case004')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: undefined } })
     expect(parseCheatCode('case004 model')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId: 'clean-model' } })
     expect(parseCheatCode('case005')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId: undefined } })
+    expect(parseCheatCode('case005 audit')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId: 'audit' } })
     expect(parseCheatCode('case005 policy')).toEqual({ ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId: 'policy' } })
     expect(parseCheatCode('duty 6003')).toEqual({ ok: true, instruction: { kind: 'duty', seed: 6003 } })
   })

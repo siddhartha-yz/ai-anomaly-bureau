@@ -74,8 +74,8 @@ export function parseCheatCode(raw: string): CheatParseResult {
     return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-004', stageId } }
   }
   if (parts[0] === 'CASE005') {
-    const stageId = ({ RELIABILITY: 'reliability', CALIBRATE: 'calibrate', POLICY: 'policy' } as const)[parts[1] as 'RELIABILITY' | 'CALIBRATE' | 'POLICY']
-    if (parts[1] && !stageId) return { ok: false, message: 'CASE005 跳转支持 RELIABILITY / CALIBRATE / POLICY。' }
+    const stageId = ({ RELIABILITY: 'reliability', CALIBRATE: 'calibrate', AUDIT: 'audit', POLICY: 'policy' } as const)[parts[1] as 'RELIABILITY' | 'CALIBRATE' | 'AUDIT' | 'POLICY']
+    if (parts[1] && !stageId) return { ok: false, message: 'CASE005 跳转支持 RELIABILITY / CALIBRATE / AUDIT / POLICY。' }
     return { ok: true, instruction: { kind: 'authored-case', caseId: 'story-005', stageId } }
   }
 
