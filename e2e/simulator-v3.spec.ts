@@ -38,6 +38,19 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个节点已求值')
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(3)
 
+  // A construction sandbox must support repair without deleting a whole node.
+  await page.locator('.sim-wire-layer g').first().locator('.sim-wire-hit').click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('已选中连线')
+  await page.getByRole('button', { name: 'DELETE WIRE' }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 2 WIRES')
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('GREATER THAN.a 尚未接线')
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 3 WIRES')
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
+
   await page.getByRole('button', { name: 'RESET SIGNAL' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('—')
   await page.getByRole('button', { name: 'STEP' }).click()

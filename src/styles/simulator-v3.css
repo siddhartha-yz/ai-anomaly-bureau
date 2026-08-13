@@ -45,8 +45,13 @@
   linear-gradient(rgba(78,102,128,.08) 1px, transparent 1px),
   linear-gradient(90deg, rgba(78,102,128,.08) 1px, transparent 1px), #080c11; background-size: auto, 20px 20px, 20px 20px, auto; }
 .sim-wire-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.sim-wire-layer g { pointer-events: stroke; cursor: pointer; }
+.sim-wire-layer .sim-wire-hit { stroke: transparent; stroke-width: 14; filter: none; pointer-events: stroke; }
+.sim-wire-layer path:not(.sim-wire-hit), .sim-wire-layer text { pointer-events: none; }
 .sim-wire-layer path { fill: none; stroke: #384a5f; stroke-width: 3; vector-effect: non-scaling-stroke; }
 .sim-wire-layer g.hot path { stroke: #69b7ff; filter: drop-shadow(0 0 4px rgba(74,164,255,.55)); }
+.sim-wire-layer g.hot .sim-wire-hit { stroke: transparent; filter: none; }
+.sim-wire-layer g.selected path:not(.sim-wire-hit) { stroke: #f0c34e; stroke-width: 4; filter: drop-shadow(0 0 5px rgba(240,195,78,.5)); }
 .sim-wire-layer text { fill: #8bc5ff; font-size: 13px; font-weight: 800; paint-order: stroke; stroke: #07101a; stroke-width: 4px; }
 .sim-node { position: absolute; border: 2px solid #3a4c61; background: #0d141d; box-shadow: 4px 4px 0 #020305; user-select: none; cursor: move; }
 .sim-node.active { border-color: #5f9bc7; box-shadow: 4px 4px 0 #020305, inset 0 0 18px rgba(60,137,196,.12); }
@@ -61,6 +66,8 @@
 .sim-empty-board { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; color: #3e4a58; pointer-events: none; }.sim-empty-board b { font-size: .72rem; letter-spacing: .14em; }.sim-empty-board span { font-size: .56rem; }
 .sim-status { margin-top: 12px; min-height: 62px; padding: 10px; border: 1px solid #344355; background: #0a1119; color: #bed0e2; font-size: .58rem; line-height: 1.5; }
 .sim-inspector section { margin-top: 10px; padding: 10px; border: 1px solid #283543; background: #090e14; }.sim-inspector section > small { color: #60738a; font-size: .48rem; letter-spacing: .1em; }.sim-inspector section > strong { display: block; margin-top: 6px; color: #cbd7e4; font-size: .62rem; }.sim-inspector section > p { margin: 7px 0 0; color: #78899b; font-size: .54rem; line-height: 1.55; }
+.sim-wire-inspector { border-color: #66551f !important; background: #151309 !important; }
+.sim-wire-inspector button { width: 100%; margin-top: 9px; padding: 7px; border: 1px solid #8b7022; background: #f0c34e; color: #151006; cursor: pointer; font: 800 .54rem/1 ui-monospace, monospace; }
 .sim-trace-row { margin-top: 6px; display: grid; grid-template-columns: 24px 1fr auto; gap: 6px; padding: 6px; border: 1px solid #202b37; color: #49596a; font-size: .48rem; }.sim-trace-row.done { color: #80bfa7; border-color: #29483e; }.sim-trace-row strong { color: inherit; }
 @media (max-width: 1180px) { .sim-v3-layout { grid-template-columns: 190px 1fr; }.sim-inspector { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 180px repeat(3,1fr); gap: 8px; }.sim-inspector .sim-panel-title { border-bottom: 0; } }
 @media (max-width: 760px) { .sim-v3-shell { padding-inline: 8px; }.sim-v3-header { align-items: flex-start; padding: 10px 0; }.sim-v3-layout { grid-template-columns: 1fr; }.sim-palette, .sim-inspector { min-height: 0; }.sim-inspector { grid-column: auto; display: block; }.sim-board-wrap { overflow-x: auto; }.sim-board { min-width: 720px; }.sim-toolbar { align-items: flex-start; flex-direction: column; } }

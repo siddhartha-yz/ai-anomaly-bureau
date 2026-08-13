@@ -48,7 +48,7 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 - `boolean`
 - `boolean-stream`
 
-当前 stream 仍是一个 typed value，但 runtime 已增加确定性的 sample clock：每个时钟只让 BOOLEAN STREAM 多放行一个样本，然后整张图基于这个前缀重新求值。因此 `COUNT TRUE / STREAM LENGTH / DIVIDE` 会随样本逐步累积，而不是一按 STEP 就看到整条 stream 的最终答案。没有 stream 的标量机器仍保留逐节点 STEP。
+当前 stream 仍是一个 typed value，但 runtime 已增加持久 sample-clock session：每个 STEP 只消费一个新样本，并把 `STREAM EQUAL / COUNT TRUE / STREAM LENGTH` 的累计状态带到下一 tick；不再为每个 tick 从第 1 个样本重算整条前缀。`DIVIDE` 读取当前累计量，因此比例会随时钟变化。没有 stream 的标量机器仍保留逐节点 STEP。
 
 ## 当前 primitive
 
@@ -77,6 +77,7 @@ stream：
 - 从 output port 到 input port 自由连线；
 - typed port 阻止不兼容连接；
 - 删除节点会一并删除相关连线；
+- 连线本身可直接点选、查看端点并删除，错误接线不再需要拆掉整个节点；
 - 标量输入与 boolean stream 可直接修改；
 - `PLAY` 执行整张图；
 - `STEP` 在标量机器中逐节点推进，在 stream 机器中逐样本时钟推进；
@@ -92,7 +93,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移、玩家组件封装。
 
-下一步优先继续补模拟器本身，而不是内容：可编辑/删除 wire、更一般的 sample primitive，以及从“前缀重算”继续演进为真正有状态的 scheduler。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步优先继续补模拟器本身，而不是内容：更一般的 sample primitive、真正的 PLAY/PAUSE 逐 tick 动画，以及玩家自定义 component 的最低可行封装。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

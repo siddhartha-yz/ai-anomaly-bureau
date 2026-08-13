@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
-import { evaluateGraph, evaluateRuntimeTimeline, visibleValuesAfterStep } from '../src/simulator/runtime'
+import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
 function thresholdGraph(): SimulatorGraph {
@@ -82,6 +82,29 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(timeline[0].result.values[signalKey('out', 'value')]).toBe(1)
     expect(timeline[1].result.values[signalKey('out', 'value')]).toBe(.5)
     expect(timeline[3].result.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
+  it('keeps stream accumulator state across STEP calls instead of rebuilding prior samples', () => {
+    const graph = matchRatioGraph()
+    let session = createRuntimeSession(graph)
+    const first = stepRuntimeSession(graph, session)
+    session = first.session
+    expect(session.tick).toBe(1)
+    expect(session.values[signalKey('correct', 'count')]).toBe(1)
+    expect(session.values[signalKey('total', 'count')]).toBe(1)
+
+    const second = stepRuntimeSession(graph, session)
+    session = second.session
+    expect(session.tick).toBe(2)
+    expect(session.values[signalKey('equal', 'result')]).toEqual([true, false])
+    expect(session.values[signalKey('correct', 'count')]).toBe(1)
+    expect(session.values[signalKey('total', 'count')]).toBe(2)
+    expect(session.values[signalKey('out', 'value')]).toBe(.5)
+
+    const third = stepRuntimeSession(graph, session)
+    expect(third.session.values[signalKey('equal', 'result')]).toEqual([true, false, false])
+    expect(third.session.values[signalKey('correct', 'count')]).toBe(1)
+    expect(third.session.values[signalKey('total', 'count')]).toBe(3)
   })
 
   it('rejects elementwise stream comparison when the two streams have different lengths', () => {
