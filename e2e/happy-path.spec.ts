@@ -524,6 +524,11 @@ test('authored CASE 002 through CASE 005 grow one reusable investigation primiti
   await expect(page.getByLabel('本次调查结果')).toContainText('3%')
   await page.getByRole('button', { name: '封存证据 · 进入下一谜题' }).click()
 
+  const policyCard = page.getByLabel('风险阈值应该改，还是概率应该先可信？ 证据档案')
+  await expect(policyCard).toContainText('FROZEN_CALIBRATION')
+  await expect(policyCard).toContainText('60%')
+  await expect(policyCard).toContainText('70%')
+  await expect(policyCard).toContainText('≥65%')
   await page.getByRole('button', { name: /不校准，直接把原始阈值降到 55%/ }).click()
   await page.getByRole('button', { name: '执行处置策略' }).click()
   await expect(page.getByLabel('本次调查结果')).toContainText('HYPOTHESIS REJECTED')

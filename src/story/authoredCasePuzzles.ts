@@ -631,9 +631,20 @@ const case005: AuthoredPuzzleConfig = {
       id: 'policy',
       kicker: 'COMPOSE / CALIBRATION + THRESHOLD',
       title: '风险阈值应该改，还是概率应该先可信？',
-      brief: '医院政策由处置成本确定：估计真实恶化风险 ≥65% 就进入干预。独立审计里原始 60% 档实际有 68% 恶化；校准集拟合出的映射会把它映射为 70%。',
-      prompt: '怎样既遵守 65% 风险政策，又不把 CASE 002 的阈值调参和概率含义混在一起？',
+      brief: '医院政策由处置成本确定：估计真实恶化风险 ≥65% 才进入干预。校准映射已经在上一关冻结；现在只能把它应用到独立审计，不能再看结果改映射或偷改政策阈值。',
+      prompt: '根据冻结的概率映射，怎样执行既定 65% 风险政策？',
       actionLabel: '执行处置策略',
+      evidence: {
+        title: 'FROZEN_CALIBRATION / POLICY CARD',
+        note: '映射来自独立 CALIBRATION split，已冻结。政策阈值来自处置成本，不是模型调参旋钮。',
+        columns: ['RAW SCORE', 'CALIBRATED RISK', 'POLICY'],
+        rows: [
+          ['20%', '10%', '<65%'],
+          ['40%', '30%', '<65%'],
+          ['60%', '70%', '≥65%'],
+          ['80%', '90%', '≥65%'],
+        ],
+      },
       options: [
         { id: 'raw-policy', label: '原始概率直接套 65% 阈值', detail: '仍把未经校准的输出当真实风险。', resultTitle: '漏掉一整档真实高风险病人', resultMetrics: decisionMetrics('raw-policy'), resultNote: '原始 60% 档没有进入干预，但独立审计里这一档已有 68% 恶化。高风险召回只有 45%。' },
         { id: 'calibrated-policy', label: '先校准概率，再保持 65% 政策阈值', detail: '让风险数字先恢复语义，再按既定成本规则行动。', resultTitle: '概率与决策重新对齐', resultMetrics: decisionMetrics('calibrated-policy'), resultNote: '校准后的 70% 档会被纳入干预，高风险召回提升到 78%，同时政策阈值没有被偷偷改写。' },
