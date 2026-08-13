@@ -96,6 +96,7 @@ V2 的核心状态改成：
 7. **控制变量进入状态机。** LEVEL 03 要求同一 feature 在两个环境都通过，不能把不同配置的两次绿灯拼在一起。
 8. **未安装工具时不泄漏其读数。** 没有 TEST PROBE 看不到 UNKNOWN 实时仪表；没有 CLASS PROBE 不显示少数类 Recall；没有 ENV SWITCH 不提前显示 DAY/NIGHT 对照表。
 9. **先经历基线失败，再允许修。** 每关关键控制器在对应新原语安装前锁定：LEVEL 01 不能先换稳定特征，LEVEL 02 不能先把阈值拖到安全区，LEVEL 03 不能先换稳定观察通道。玩家必须先运行默认系统、看到故障，再获得并安装工具。
+10. **结果只能由 RUN 产生。** 改 feature、threshold 或 environment 后，测量面板立即失效为 `RUN REQUIRED`；不能通过实时绿条扫描答案。LEVEL 02 的漏诊计数和 LEVEL 03 的 DAY/NIGHT 双环境成绩也不做配置预览，玩家必须真正执行实验留下记录。
 
 ## 路由与 Legacy 边界
 

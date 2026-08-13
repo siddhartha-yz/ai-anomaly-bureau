@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import {
   LAB_LEVELS,
-  evaluateLevelOne,
-  evaluateScreening,
-  evaluateShift,
   levelOneFeatureLabels,
   screeningScoreRail,
   shiftFeatureLabels,
@@ -68,7 +65,6 @@ function LevelOneControls({ feature, enabled, onChange }: { feature: LevelOneFea
 }
 
 function LevelTwoControls({ threshold, classProbe, onChange }: { threshold: number; classProbe: boolean; onChange: (threshold: number) => void }) {
-  const metrics = evaluateScreening(threshold)
   return <div className="lab-control-block threshold" aria-label="分类阈值控制器">
     <div className="lab-node-label"><small>DECISION THRESHOLD</small><strong>{threshold.toFixed(2)}</strong></div>
     {!classProbe && <span className="lab-control-lock">CONTROL LOCKED · INSTALL CLASS PROBE</span>}
@@ -77,13 +73,11 @@ function LevelTwoControls({ threshold, classProbe, onChange }: { threshold: numb
       <span className="lab-threshold-line" style={{ left: `${((threshold - .03) / .91) * 100}%` }} />
       {screeningScoreRail.map((sample, index) => <i key={sample.id} className={sample.urgent ? 'urgent' : 'normal'} style={{ left: `${((sample.score - .03) / .91) * 100}%`, top: `${7 + (index % 4) * 8}px` }} title={`${sample.urgent ? '优先病例' : '普通病例'} ${sample.score.toFixed(2)}`} />)}
     </div>
-    <div className="lab-rail-legend"><span><i className="urgent" />优先病例</span><span><i className="normal" />普通病例</span>{classProbe && <b>{metrics.missedUrgent}/4 漏诊</b>}</div>
+    <div className="lab-rail-legend"><span><i className="urgent" />优先病例</span><span><i className="normal" />普通病例</span><b>移动阈值后按 RUN 测量</b></div>
   </div>
 }
 
 function LevelThreeControls({ feature, environment, envEnabled, onFeature, onEnvironment }: { feature: ShiftFeature; environment: ShiftEnvironment; envEnabled: boolean; onFeature: (feature: ShiftFeature) => void; onEnvironment: (environment: ShiftEnvironment) => void }) {
-  const day = evaluateShift(feature, 'day')
-  const night = evaluateShift(feature, 'night')
   return <>
     <div className="lab-control-block" aria-label="环境输入"><div className="lab-node-label"><small>DATA ENVIRONMENT</small><strong>{envEnabled ? environment.toUpperCase() : 'DAY · LOCKED'}</strong></div>
       <div className="lab-toggle-row">{(['day', 'night'] as const).map((item) => <button type="button" key={item} disabled={!envEnabled} className={environment === item && envEnabled ? 'active' : ''} onClick={() => onEnvironment(item)}>{item.toUpperCase()}</button>)}</div>
@@ -91,22 +85,26 @@ function LevelThreeControls({ feature, environment, envEnabled, onFeature, onEnv
     <div className="lab-control-block" aria-label="观察通道"><div className="lab-node-label"><small>FEATURE BUS</small><strong>固定模型，只换输入信号</strong></div>
       {!envEnabled && <span className="lab-control-lock">CONTROL LOCKED · INSTALL ENV SWITCH</span>}
       <div className="lab-switch-grid three">{(Object.keys(shiftFeatureLabels) as ShiftFeature[]).map((item) => <button type="button" key={item} disabled={!envEnabled} className={feature === item ? 'active' : ''} onClick={() => onFeature(item)}>{shiftFeatureLabels[item]}</button>)}</div>
-      {envEnabled && <div className="lab-mini-compare"><span>DAY <b>{pct(day.accuracy)}</b></span><span>NIGHT <b>{pct(night.accuracy)}</b></span></div>}
+      {envEnabled && <span className="lab-control-hint">切换信号不会预览结果。保持配置，分别 RUN 两个环境。</span>}
     </div>
   </>
 }
 
-function LiveScope({ level, featureOne, threshold, shiftFeature, environment, testProbe, classProbe }: { level: LabLevel; featureOne: LevelOneFeature; threshold: number; shiftFeature: ShiftFeature; environment: ShiftEnvironment; testProbe: boolean; classProbe: boolean }) {
-  if (level === 1) {
-    const result = evaluateLevelOne(featureOne)
-    return <div className="lab-live-scope" aria-label="实时仪表"><SignalMeter label="TRAIN" value={result.train} />{testProbe ? <SignalMeter label="UNKNOWN" value={result.field} /> : <div className="lab-meter blind"><span>UNKNOWN CHANNEL</span><strong>NO PROBE</strong></div>}</div>
+function MeasuredScope({ lastRun, testProbe, classProbe }: { lastRun: ReturnType<typeof createLabV2Session>['lastRun']; testProbe: boolean; classProbe: boolean }) {
+  if (!lastRun) {
+    return <div className="lab-live-scope" aria-label="测量仪表"><div className="lab-meter blind"><span>MEASUREMENT</span><strong>RUN REQUIRED</strong></div></div>
   }
-  if (level === 2) {
-    const result = evaluateScreening(threshold)
-    return <div className="lab-live-scope" aria-label="实时仪表"><SignalMeter label="ACCURACY" value={result.accuracy} />{classProbe ? <SignalMeter label="PRIORITY RECALL" value={result.urgentRecall} target={.75} /> : <div className="lab-meter blind"><span>CLASS CHANNEL</span><strong>NO PROBE</strong></div>}</div>
-  }
-  const result = evaluateShift(shiftFeature, environment)
-  return <div className="lab-live-scope" aria-label="实时仪表"><SignalMeter label={`${environment.toUpperCase()} ACC`} value={result.accuracy} />{classProbe ? <SignalMeter label="MIN RECALL" value={result.minRecall} target={.75} /> : null}</div>
+  const visibleValues = lastRun.values.filter((item) => {
+    if (item.label === 'TEST' && !testProbe) return false
+    if (item.label === 'PRIORITY RECALL' && !classProbe) return false
+    return true
+  })
+  return <div className="lab-live-scope" aria-label="测量仪表">{visibleValues.map((item) => {
+    const numeric = Number.parseFloat(item.value) / 100
+    return Number.isFinite(numeric) && item.value.endsWith('%')
+      ? <SignalMeter key={item.label} label={item.label} value={numeric} target={item.label.includes('RECALL') ? .75 : .8} />
+      : <div className="lab-meter" key={item.label}><div><span>{item.label}</span><strong>{item.value}</strong></div></div>
+  })}</div>
 }
 
 export function LabV2() {
@@ -156,8 +154,8 @@ export function LabV2() {
         <button type="button" className="lab-run-button" onClick={() => dispatch({ type: 'run' })}><span>▶</span><strong>{session.level === 1 ? 'SHIP / RUN FIELD GATE' : 'RUN TESTS'}</strong><small>执行当前工作台配置</small></button>
       </section>
 
-      <aside className="lab-output-panel" aria-label="实验输出"><div className="lab-panel-title"><small>LIVE OUTPUT</small><strong>系统行为</strong></div>
-        <LiveScope level={session.level} featureOne={session.levelOneFeature} threshold={session.threshold} shiftFeature={session.shiftFeature} environment={session.environment} testProbe={testProbeInstalled} classProbe={classProbeInstalled} />
+      <aside className="lab-output-panel" aria-label="实验输出"><div className="lab-panel-title"><small>MEASURED OUTPUT</small><strong>上一次 RUN 的系统行为</strong></div>
+        <MeasuredScope lastRun={session.lastRun} testProbe={testProbeInstalled} classProbe={classProbeInstalled} />
         <section className={`lab-run-report ${session.lastRun ? session.lastRun.passed ? 'pass' : 'fail' : 'idle'}`} aria-label="最近一次运行结果">{!session.lastRun ? <><small>WAITING</small><strong>还没有运行</strong><p>先动工作台，再按 RUN。</p></> : <><small>{session.lastRun.passed ? 'TESTS PASSED' : 'TESTS NOT PASSED'}</small><strong>{session.lastRun.headline}</strong><div className="lab-report-values">{session.lastRun.values.map((item) => <span key={item.label} className={item.pass === undefined ? '' : item.pass ? 'pass' : 'fail'}><small>{item.label}</small><b>{item.value}</b></span>)}</div><p>{session.lastRun.detail}</p></>}</section>
         {session.level === 3 && envSwitchInstalled && <div className="lab-controlled-record" aria-label="跨环境记录"><small>CONTROLLED RECORD</small><span className={session.shiftPasses.day ? 'pass' : ''}>DAY {session.shiftPasses.day ? `✓ ${shiftFeatureLabels[session.shiftPasses.day]}` : '—'}</span><span className={session.shiftPasses.night ? 'pass' : ''}>NIGHT {session.shiftPasses.night ? `✓ ${shiftFeatureLabels[session.shiftPasses.night]}` : '—'}</span></div>}
         {currentLevelComplete && <section className="lab-level-clear" aria-label={`${definition.code} 已通过`}><small>PRIMITIVE INTERNALIZED</small><strong>{definition.term}</strong><p>术语现在才出现：你已经先用操作把它做出来了。</p>{session.level < 3 ? <button type="button" onClick={() => dispatch({ type: 'go-level', level: nextLevel })}>NEXT LEVEL →</button> : <div className="lab-prototype-done"><b>VERTICAL SLICE COMPLETE</b><span>3 个原语已连续复用。下一步再决定是否迁移 CASE 004/005。</span></div>}</section>}

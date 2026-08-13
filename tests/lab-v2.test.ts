@@ -107,6 +107,19 @@ describe('V2 primitive progression', () => {
     expect(session.completedLevels).toContain(3)
   })
 
+  it('invalidates measured output whenever the player changes a tested configuration', () => {
+    let session = completeLevelOne()
+    session = labV2Reducer(session, { type: 'go-level', level: 2 })
+    session = labV2Reducer(session, { type: 'run' })
+    expect(session.lastRun?.values.some((item) => item.label === 'ACCURACY')).toBe(true)
+    session = labV2Reducer(session, { type: 'install-tool', tool: 'class-probe' })
+    expect(session.lastRun).toBeUndefined()
+    session = labV2Reducer(session, { type: 'set-threshold', threshold: .6 })
+    expect(session.lastRun).toBeUndefined()
+    session = labV2Reducer(session, { type: 'run' })
+    expect(session.lastRun?.values.some((item) => item.label === 'PRIORITY RECALL')).toBe(true)
+  })
+
   it('rejects malformed persisted state back to a clean lab', () => {
     const storage = { getItem: (key: string) => key === LAB_V2_SESSION_KEY ? JSON.stringify({ version: 1, level: 99, unlockedLevel: 3 }) : null }
     expect(readLabV2Session(storage).level).toBe(1)

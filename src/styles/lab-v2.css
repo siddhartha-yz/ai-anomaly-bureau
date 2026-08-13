@@ -143,8 +143,7 @@
 .lab-threshold-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--lab-amber); box-shadow: 0 0 8px rgba(240,195,78,.5); z-index: 2; }
 .lab-rail-legend { display: flex; align-items: center; gap: 12px; margin-top: 7px; color: #667991; font-size: .5rem; }
 .lab-rail-legend span { display: flex; align-items: center; gap: 4px; }.lab-rail-legend i { width: 6px; height: 6px; border-radius: 50%; }.lab-rail-legend b { margin-left: auto; color: #b7c3d1; }
-.lab-mini-compare { display: flex; gap: 8px; margin-top: 9px; }
-.lab-mini-compare span { flex: 1; padding: 6px 8px; border: 1px solid #263444; color: #6f829a; font-size: .52rem; }.lab-mini-compare b { float: right; color: #d3dce8; }
+.lab-control-hint { display: block; margin-top: 9px; padding: 7px 8px; border-left: 2px solid #354a64; color: #71849a; background: #090e14; font-size: .5rem; line-height: 1.45; }
 .lab-run-button {
   width: 100%; min-height: 64px; margin-top: 12px; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; padding: 9px 14px;
   border: 2px solid #9a7d26; background: var(--lab-amber); color: #131006; box-shadow: 5px 5px 0 #59470f; cursor: pointer; text-align: left;
