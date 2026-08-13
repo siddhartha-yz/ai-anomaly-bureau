@@ -89,13 +89,16 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     const config = AUTHORED_PUZZLE_CASES[STORY_CASE_005.id]
     expect(config.stages.map((stage) => stage.id)).toEqual(['reliability', 'calibrate', 'policy'])
     expect(config.stages[0].evidence?.rows).toEqual([
-      ['20%', '25', '8%'], ['40%', '25', '36%'], ['60%', '25', '68%'], ['80%', '25', '92%'],
+      ['20%', '25', '12%'], ['40%', '25', '32%'], ['60%', '25', '72%'], ['80%', '25', '88%'],
     ])
+    expect(config.stages[0].evidence?.title).toContain('DIAGNOSTIC SPLIT')
+    expect(config.stages[0].brief).toContain('最终 AUDIT 仍保持封存')
     expect(config.stages[1].evidence?.columns).toEqual(['RAW SCORE', 'PATIENTS', 'OBSERVED'])
     expect(config.stages[1].evidence?.rows).toEqual([
       ['20%', '10', '10%'], ['40%', '10', '30%'], ['60%', '10', '70%'], ['80%', '10', '90%'],
     ])
     expect(config.stages[1].evidence?.columns).not.toContain('FITTED OUTPUT')
+    expect(config.stages[1].prompt).toContain('然后才打开此前封存的独立 AUDIT')
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
     expect(config.stages[1].options.find((option) => option.id === 'calibrated')?.label).toBe('冻结 10% / 30% / 70% / 90%')
     expect(config.stages[1].options.find((option) => option.id === 'raw')?.label).toBe('冻结 20% / 40% / 60% / 80%')

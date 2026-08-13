@@ -515,6 +515,17 @@ const case004: AuthoredPuzzleConfig = {
 
 
 type CalibrationBucket = { score: number; count: number; positives: number }
+
+// This first split is diagnostic only: it establishes that the probability
+// scale is suspicious without exposing the held-out audit outcomes that will
+// later judge the frozen calibration map.
+const CASE_005_DIAGNOSTIC_BUCKETS: readonly CalibrationBucket[] = [
+  { score: .2, count: 25, positives: 3 },
+  { score: .4, count: 25, positives: 8 },
+  { score: .6, count: 25, positives: 18 },
+  { score: .8, count: 25, positives: 22 },
+]
+
 const CASE_005_CALIBRATION_BUCKETS: readonly CalibrationBucket[] = [
   { score: .2, count: 10, positives: 1 },
   { score: .4, count: 10, positives: 3 },
@@ -551,11 +562,11 @@ function calibratedRiskRows(): readonly (readonly string[])[] {
   return CASE_005_CALIBRATION_BUCKETS.map((bucket) => [pct(bucket.score), pct(CALIBRATION_MAP.calibrated[calibrationBucketKey(bucket.score)])])
 }
 
-export function evaluateCalibration(strategy: CalibrationStrategy) {
-  const total = CASE_005_AUDIT_BUCKETS.reduce((sum, bucket) => sum + bucket.count, 0)
+function evaluateCalibrationOn(buckets: readonly CalibrationBucket[], strategy: CalibrationStrategy) {
+  const total = buckets.reduce((sum, bucket) => sum + bucket.count, 0)
   let ece = 0
   let brier = 0
-  for (const bucket of CASE_005_AUDIT_BUCKETS) {
+  for (const bucket of buckets) {
     const probability = CALIBRATION_MAP[strategy][calibrationBucketKey(bucket.score)]
     const observedRate = bucket.positives / bucket.count
     ece += bucket.count / total * Math.abs(probability - observedRate)
@@ -564,8 +575,12 @@ export function evaluateCalibration(strategy: CalibrationStrategy) {
   return { ece, brier }
 }
 
-function calibrationMetrics(strategy: CalibrationStrategy): readonly PuzzleMetric[] {
-  const result = evaluateCalibration(strategy)
+export function evaluateCalibration(strategy: CalibrationStrategy) {
+  return evaluateCalibrationOn(CASE_005_AUDIT_BUCKETS, strategy)
+}
+
+function calibrationMetrics(strategy: CalibrationStrategy, buckets: readonly CalibrationBucket[] = CASE_005_AUDIT_BUCKETS): readonly PuzzleMetric[] {
+  const result = evaluateCalibrationOn(buckets, strategy)
   return [
     { label: '校准误差 ECE', value: pct(result.ece), pass: result.ece <= .05 },
     { label: 'Brier 误差', value: result.brier.toFixed(2), pass: result.brier <= .15 + Number.EPSILON },
@@ -601,18 +616,18 @@ const case005: AuthoredPuzzleConfig = {
       id: 'reliability',
       kicker: 'PRIMITIVE 05 / PROBABILITY MEANING',
       title: '“60% 风险”真的意味着十个人里六个吗？',
-      brief: '模型仍能把更危险的人排在更前面，但医生要用输出概率做处置。先看独立审计中的可靠性表：每一行都是 25 名此前未参与训练或校准的病人。',
+      brief: '模型仍能把更危险的人排在更前面，但医生要用输出概率做处置。先看一份独立的诊断批次：它只负责暴露概率刻度异常，最终 AUDIT 仍保持封存。',
       prompt: '这张表最直接暴露了什么？',
       actionLabel: '读取可靠性表',
       evidence: {
-        title: 'RELIABILITY_TABLE / 独立审计',
-        note: 'CONFIDENCE 是模型输出；OBSERVED 是这一档里真实恶化的频率。',
+        title: 'RELIABILITY_TABLE / DIAGNOSTIC SPLIT',
+        note: 'CONFIDENCE 是模型输出；OBSERVED 是这一诊断批次中的真实恶化频率。它不会被用于拟合校准映射，也不是最终 AUDIT。',
         columns: ['CONFIDENCE', 'PATIENTS', 'OBSERVED'],
-        rows: [['20%', '25', '8%'], ['40%', '25', '36%'], ['60%', '25', '68%'], ['80%', '25', '92%']],
+        rows: CASE_005_DIAGNOSTIC_BUCKETS.map((bucket) => [pct(bucket.score), String(bucket.count), pct(bucket.positives / bucket.count)]),
       },
       options: [
-        { id: 'miscalibrated', label: '排序仍有用，但这些数字不能直接当真实发生概率', detail: '比较每个 confidence bucket 与实际频率，而不是只看谁排在前面。', resultTitle: '概率语义失真', resultMetrics: calibrationMetrics('raw'), resultNote: '总体 ECE 为 9%，而且低风险端偏高估、高风险端偏低估。分类排序可以仍然有用，但“0.8 = 80% 会发生”并不成立。' },
-        { id: 'ranking-broken', label: '模型连风险排序也完全反了', detail: '如果排序反了，分数越高应该越不危险。', resultTitle: '与表格不符', resultNote: '真实恶化率仍随模型分数升高而升高：8% → 36% → 68% → 92%。坏的是概率刻度，不是排序方向。' },
+        { id: 'miscalibrated', label: '排序仍有用，但这些数字不能直接当真实发生概率', detail: '比较每个 confidence bucket 与实际频率，而不是只看谁排在前面。', resultTitle: '概率语义失真', resultMetrics: calibrationMetrics('raw', CASE_005_DIAGNOSTIC_BUCKETS), resultNote: '诊断批次 ECE 为 9%，而且低风险端偏高估、高风险端偏低估。它足以提出“需要校准”的假设，但最终 AUDIT 仍未打开。' },
+        { id: 'ranking-broken', label: '模型连风险排序也完全反了', detail: '如果排序反了，分数越高应该越不危险。', resultTitle: '与表格不符', resultNote: '诊断批次中的真实恶化率仍随模型分数升高而升高：12% → 32% → 72% → 88%。坏的是概率刻度，不是排序方向。' },
         { id: 'accuracy-only', label: '只要最终分类准确率够高，概率偏一点无所谓', detail: '分类正确就足以支持所有后续决策。', resultTitle: '混淆了两种任务', resultNote: '当下游规则明确写“风险 ≥65% 才干预”时，概率本身就是决策输入。分类对不等于概率可信。' },
       ],
       correctIds: ['miscalibrated'],
@@ -622,8 +637,8 @@ const case005: AuthoredPuzzleConfig = {
       id: 'calibrate',
       kicker: 'CONTROLLED CHANGE / SCALE ONLY',
       title: '保持排序不变，只修正概率刻度',
-      brief: 'CASE 004 的规则继续生效：下面这份 CALIBRATION split 只负责拟合映射；上一页那 100 名审计病人从未参与拟合。不要为了概率好看重新训练分类器。',
-      prompt: '选择一种概率输出方案，在同一批独立审计样本上比较。',
+      brief: 'CASE 004 的规则继续生效：上一页 DIAGNOSTIC 只负责发现问题，下面这份 CALIBRATION split 只负责拟合映射；最终 100 名 AUDIT 病人仍未公开。不要为了概率好看重新训练分类器。',
+      prompt: '只根据 CALIBRATION split 冻结一种概率输出方案，然后才打开此前封存的独立 AUDIT。',
       actionLabel: '运行校准审计',
       evidence: {
         title: 'CALIBRATION_SPLIT / 仅用于拟合',

@@ -500,8 +500,10 @@ test('authored CASE 002 through CASE 005 grow one reusable investigation primiti
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
   const reliability = page.getByLabel('“60% 风险”真的意味着十个人里六个吗？ 证据档案')
   await expect(reliability).toContainText('RELIABILITY_TABLE')
+  await expect(reliability).toContainText('DIAGNOSTIC SPLIT')
   await expect(reliability).toContainText('60%')
-  await expect(reliability).toContainText('68%')
+  await expect(reliability).toContainText('72%')
+  await expect(reliability).not.toContainText('68%')
 
   await page.getByRole('button', { name: /排序仍有用，但这些数字不能直接当真实发生概率/ }).click()
   await page.getByRole('button', { name: '读取可靠性表' }).click()
