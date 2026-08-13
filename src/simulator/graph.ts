@@ -69,6 +69,32 @@ export function removeWire(graph: SimulatorGraph, wireId: string): SimulatorGrap
   return { ...graph, wires: graph.wires.filter((wire) => wire.id !== wireId) }
 }
 
+
+export function executionGraph(graph: SimulatorGraph): SimulatorGraph {
+  const outputNodeIds = new Set(
+    graph.nodes
+      .filter((node) => node.kind === 'boolean-output' || node.kind === 'number-output')
+      .map((node) => node.id),
+  )
+  if (!outputNodeIds.size) return graph
+
+  const included = new Set(outputNodeIds)
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const wire of graph.wires) {
+      if (!included.has(wire.toNodeId) || included.has(wire.fromNodeId)) continue
+      included.add(wire.fromNodeId)
+      changed = true
+    }
+  }
+
+  return {
+    nodes: graph.nodes.filter((node) => included.has(node.id)),
+    wires: graph.wires.filter((wire) => included.has(wire.fromNodeId) && included.has(wire.toNodeId)),
+  }
+}
+
 export function graphDependencies(graph: SimulatorGraph) {
   const dependencies = new Map<string, Set<string>>()
   for (const node of graph.nodes) dependencies.set(node.id, new Set())

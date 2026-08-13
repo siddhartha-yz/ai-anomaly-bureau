@@ -33,6 +33,12 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).dragTo(page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }))
   await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 3 WIRES')
 
+  // Keep an unfinished scratch component on the board: it must not poison a
+  // separate completed output circuit. Construction sandboxes need room for
+  // work-in-progress fragments.
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
+
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
   await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个节点已求值')
@@ -42,12 +48,12 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.locator('.sim-wire-layer g').first().locator('.sim-wire-hit').click()
   await expect(page.getByLabel('模拟器状态')).toContainText('已选中连线')
   await page.getByRole('button', { name: 'DELETE WIRE' }).click()
-  await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 2 WIRES')
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 2 WIRES')
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('模拟器状态')).toContainText('GREATER THAN.a 尚未接线')
   await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
   await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
-  await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 3 WIRES')
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
 
@@ -59,7 +65,7 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
 
   await page.reload()
-  await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 3 WIRES')
+  await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('—')
 })
 

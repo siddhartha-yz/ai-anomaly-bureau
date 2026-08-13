@@ -118,6 +118,22 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(() => evaluateGraph(graph)).toThrow(/长度必须一致/)
   })
 
+  it('runs completed output circuits while ignoring disconnected unfinished work-in-progress nodes', () => {
+    const graph = thresholdGraph()
+    graph.nodes.push(createNode('greater-than', 'unfinished', 0, 0))
+    const result = evaluateGraph(graph)
+    expect(result.steps.map((step) => step.nodeId)).not.toContain('unfinished')
+    expect(result.values[signalKey('out', 'value')]).toBe(true)
+  })
+
+  it('derives the sample clock only from streams that feed an output circuit', () => {
+    const graph = matchRatioGraph()
+    graph.nodes.push({ ...createNode('boolean-stream-input', 'scratch', 0, 0), config: { values: [true] } })
+    const timeline = evaluateRuntimeTimeline(graph)
+    expect(timeline).toHaveLength(4)
+    expect(timeline.at(-1)?.result.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
   it('rejects incompatible typed connections before runtime', () => {
     const base: SimulatorGraph = {
       nodes: [createNode('greater-than', 'gt', 0, 0), createNode('boolean-output', 'out', 0, 0)],

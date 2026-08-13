@@ -1,8 +1,9 @@
 import { NODE_DEFINITIONS } from './catalog'
-import { findNode, topologicalOrder } from './graph'
+import { executionGraph, findNode, topologicalOrder } from './graph'
 import { signalKey, type RuntimeFrame, type RuntimeResult, type RuntimeSession, type RuntimeStep, type SignalValue, type SimulatorGraph } from './types'
 
 function evaluateGraphInternal(graph: SimulatorGraph, streamLimit?: number): RuntimeResult {
+  graph = executionGraph(graph)
   const values: Record<string, SignalValue> = {}
   const steps: RuntimeStep[] = []
   for (const nodeId of topologicalOrder(graph)) {
@@ -32,12 +33,14 @@ export function evaluateGraph(graph: SimulatorGraph): RuntimeResult {
 }
 
 export function streamClockLength(graph: SimulatorGraph) {
+  graph = executionGraph(graph)
   const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input')
   if (!streams.length) return 0
   return Math.max(...streams.map((node) => node.config?.values?.length ?? 0))
 }
 
 function validateStreamClock(graph: SimulatorGraph) {
+  graph = executionGraph(graph)
   const streams = graph.nodes.filter((node) => node.kind === 'boolean-stream-input')
   if (streams.length <= 1) return
   const lengths = streams.map((node) => node.config?.values?.length ?? 0)
@@ -45,11 +48,13 @@ function validateStreamClock(graph: SimulatorGraph) {
 }
 
 export function createRuntimeSession(graph: SimulatorGraph): RuntimeSession {
+  graph = executionGraph(graph)
   validateStreamClock(graph)
   return { tick: 0, totalTicks: streamClockLength(graph), nodeIndex: 0, values: {} }
 }
 
 function evaluateStreamMicroStep(graph: SimulatorGraph, session: RuntimeSession): RuntimeFrame {
+  graph = executionGraph(graph)
   if (!session.totalTicks) throw new Error('当前图没有 sample clock。')
   if (session.tick >= session.totalTicks) throw new Error('所有样本时钟已经执行完毕。')
 
