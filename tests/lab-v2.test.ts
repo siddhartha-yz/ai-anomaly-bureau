@@ -45,6 +45,8 @@ describe('V2 experiment engine', () => {
 describe('V2 primitive progression', () => {
   it('requires the player to expose the failure before TEST PROBE can be installed', () => {
     let session = createLabV2Session()
+    session = labV2Reducer(session, { type: 'set-level-one-feature', feature: 'structure' })
+    expect(session.levelOneFeature).toBe('appearance')
     session = labV2Reducer(session, { type: 'install-tool', tool: 'test-probe' })
     expect(session.installedTools).not.toContain('test-probe')
 
@@ -67,11 +69,13 @@ describe('V2 primitive progression', () => {
     expect(session.installedTools).toContain('test-probe')
     session = labV2Reducer(session, { type: 'go-level', level: 2 })
     session = labV2Reducer(session, { type: 'set-threshold', threshold: .6 })
+    expect(session.threshold).toBe(.8)
     session = labV2Reducer(session, { type: 'run' })
     expect(session.unlockedTools).toContain('class-probe')
     expect(session.completedLevels).not.toContain(2)
 
     session = labV2Reducer(session, { type: 'install-tool', tool: 'class-probe' })
+    session = labV2Reducer(session, { type: 'set-threshold', threshold: .6 })
     session = labV2Reducer(session, { type: 'run' })
     expect(session.completedLevels).toContain(2)
     expect(session.unlockedLevel).toBe(3)
@@ -80,6 +84,10 @@ describe('V2 primitive progression', () => {
   it('requires the same feature to pass both environments instead of mixing two unrelated runs', () => {
     let session = completeLevelTwo()
     session = labV2Reducer(session, { type: 'go-level', level: 3 })
+    session = labV2Reducer(session, { type: 'set-shift-feature', feature: 'texture' })
+    session = labV2Reducer(session, { type: 'set-environment', environment: 'night' })
+    expect(session.shiftFeature).toBe('brightness')
+    expect(session.environment).toBe('day')
     session = labV2Reducer(session, { type: 'run' })
     expect(session.unlockedTools).toContain('environment-switch')
     session = labV2Reducer(session, { type: 'install-tool', tool: 'environment-switch' })

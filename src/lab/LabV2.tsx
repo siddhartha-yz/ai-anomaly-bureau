@@ -59,10 +59,11 @@ function ProbeBay({ tools, onInstall }: { tools: readonly LabTool[]; onInstall: 
   )
 }
 
-function LevelOneControls({ feature, onChange }: { feature: LevelOneFeature; onChange: (feature: LevelOneFeature) => void }) {
+function LevelOneControls({ feature, enabled, onChange }: { feature: LevelOneFeature; enabled: boolean; onChange: (feature: LevelOneFeature) => void }) {
   return <div className="lab-control-block" aria-label="特征总线">
     <div className="lab-node-label"><small>FEATURE BUS</small><strong>选择送进分类器的信号</strong></div>
-    <div className="lab-switch-grid">{(Object.keys(levelOneFeatureLabels) as LevelOneFeature[]).map((item) => <button type="button" key={item} className={feature === item ? 'active' : ''} onClick={() => onChange(item)}><i />{levelOneFeatureLabels[item]}</button>)}</div>
+    {!enabled && <span className="lab-control-lock">CONTROL LOCKED · INSTALL TEST PROBE</span>}
+    <div className="lab-switch-grid">{(Object.keys(levelOneFeatureLabels) as LevelOneFeature[]).map((item) => <button type="button" key={item} disabled={!enabled} className={feature === item ? 'active' : ''} onClick={() => onChange(item)}><i />{levelOneFeatureLabels[item]}</button>)}</div>
   </div>
 }
 
@@ -70,7 +71,8 @@ function LevelTwoControls({ threshold, classProbe, onChange }: { threshold: numb
   const metrics = evaluateScreening(threshold)
   return <div className="lab-control-block threshold" aria-label="分类阈值控制器">
     <div className="lab-node-label"><small>DECISION THRESHOLD</small><strong>{threshold.toFixed(2)}</strong></div>
-    <input aria-label="风险阈值" type="range" min="0.35" max="0.85" step="0.01" value={threshold} onChange={(event) => onChange(Number(event.target.value))} />
+    {!classProbe && <span className="lab-control-lock">CONTROL LOCKED · INSTALL CLASS PROBE</span>}
+    <input aria-label="风险阈值" disabled={!classProbe} type="range" min="0.35" max="0.85" step="0.01" value={threshold} onChange={(event) => onChange(Number(event.target.value))} />
     <div className="lab-score-rail" aria-label="病例风险分数分布">
       <span className="lab-threshold-line" style={{ left: `${((threshold - .03) / .91) * 100}%` }} />
       {screeningScoreRail.map((sample, index) => <i key={sample.id} className={sample.urgent ? 'urgent' : 'normal'} style={{ left: `${((sample.score - .03) / .91) * 100}%`, top: `${7 + (index % 4) * 8}px` }} title={`${sample.urgent ? '优先病例' : '普通病例'} ${sample.score.toFixed(2)}`} />)}
@@ -87,7 +89,8 @@ function LevelThreeControls({ feature, environment, envEnabled, onFeature, onEnv
       <div className="lab-toggle-row">{(['day', 'night'] as const).map((item) => <button type="button" key={item} disabled={!envEnabled} className={environment === item && envEnabled ? 'active' : ''} onClick={() => onEnvironment(item)}>{item.toUpperCase()}</button>)}</div>
     </div>
     <div className="lab-control-block" aria-label="观察通道"><div className="lab-node-label"><small>FEATURE BUS</small><strong>固定模型，只换输入信号</strong></div>
-      <div className="lab-switch-grid three">{(Object.keys(shiftFeatureLabels) as ShiftFeature[]).map((item) => <button type="button" key={item} className={feature === item ? 'active' : ''} onClick={() => onFeature(item)}>{shiftFeatureLabels[item]}</button>)}</div>
+      {!envEnabled && <span className="lab-control-lock">CONTROL LOCKED · INSTALL ENV SWITCH</span>}
+      <div className="lab-switch-grid three">{(Object.keys(shiftFeatureLabels) as ShiftFeature[]).map((item) => <button type="button" key={item} disabled={!envEnabled} className={feature === item ? 'active' : ''} onClick={() => onFeature(item)}>{shiftFeatureLabels[item]}</button>)}</div>
       {envEnabled && <div className="lab-mini-compare"><span>DAY <b>{pct(day.accuracy)}</b></span><span>NIGHT <b>{pct(night.accuracy)}</b></span></div>}
     </div>
   </>
@@ -132,7 +135,7 @@ export function LabV2() {
 
     <div className="lab-v2-layout">
       <aside className="lab-tool-shelf" aria-label="实验工具架"><div className="lab-panel-title"><small>TOOL SHELF</small><strong>本关新原语</strong></div>
-        {!currentToolUnlocked ? <div className="lab-locked-tool"><b>?</b><span><strong>{definition.primitive}</strong><small>先运行当前系统，让故障自己暴露。</small></span></div> : <ToolChip tool={currentTool} installed={session.installedTools.includes(currentTool)} onInstall={installTool} />}
+        {!currentToolUnlocked ? <div className="lab-locked-tool"><b>?</b><span><strong>UNKNOWN MODULE</strong><small>先运行当前系统，让故障自己暴露。</small></span></div> : <ToolChip tool={currentTool} installed={session.installedTools.includes(currentTool)} onInstall={installTool} />}
         <div className="lab-inherited-tools"><small>INSTALLED / INHERITED</small>{installedLabels.length ? installedLabels.map((label) => <span key={label}>● {label}</span>) : <span>— no probes online —</span>}</div>
         <div className="lab-shelf-rule"><small>规则</small><p>不提交“答案”。改工作台，然后运行它。</p></div>
       </aside>
@@ -146,7 +149,7 @@ export function LabV2() {
         </div>
         <ProbeBay tools={session.installedTools} onInstall={installTool} />
         <div className="lab-control-deck">
-          {session.level === 1 && <LevelOneControls feature={session.levelOneFeature} onChange={(feature) => dispatch({ type: 'set-level-one-feature', feature })} />}
+          {session.level === 1 && <LevelOneControls feature={session.levelOneFeature} enabled={testProbeInstalled} onChange={(feature) => dispatch({ type: 'set-level-one-feature', feature })} />}
           {session.level === 2 && <LevelTwoControls threshold={session.threshold} classProbe={classProbeInstalled} onChange={(threshold) => dispatch({ type: 'set-threshold', threshold })} />}
           {session.level === 3 && <LevelThreeControls feature={session.shiftFeature} environment={session.environment} envEnabled={envSwitchInstalled} onFeature={(feature) => dispatch({ type: 'set-shift-feature', feature })} onEnvironment={(environment) => dispatch({ type: 'set-environment', environment })} />}
         </div>

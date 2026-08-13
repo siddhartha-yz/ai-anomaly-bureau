@@ -21,8 +21,8 @@ npm run test:e2e
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
 - Vitest：26 个测试文件、161 个测试全部通过；新增 7 条 V2 engine / primitive progression 测试。
-- Vite production build：通过；当前本地构建为 `assets/index-B5XOwgkb.js` + `assets/index-C7XmY1hq.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 35 条 Chromium E2E，35/35 均已实际执行并通过。由于 local-shell 单次命令 120 秒上限，完整命令在前 29 条均通过后被外部终止；随后显式补跑剩余 4 条 Legacy 路线（4/4）和 2 条 V2 路线（2/2）。V2 新覆盖默认根路由确实进入工作台、核心界面不出现 authored option grid，以及 TEST PROBE → CLASS PROBE → ENV SWITCH 三关连续继承、真实阈值操作、同一 feature 跨 DAY/NIGHT 验证与刷新恢复；原 33 条 Legacy 路线继续覆盖 CASE 001→005、Bureau、QA、Training 与 Duty。
+- Vite production build：通过；当前本地构建为 `assets/index-Dwmnxlwh.js` + `assets/index-ZQqfktgJ.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：当前共 35 条 Chromium E2E，完整串行套件 **35/35** 通过。V2 覆盖默认根路由进入工作台、核心界面不出现 authored option grid、每关必须先运行默认系统再解锁工具、工具安装前关键控制器保持锁定、未安装 TEST PROBE 时 UNKNOWN 读数不可见，以及 TEST PROBE → CLASS PROBE → ENV SWITCH 三关连续继承、真实阈值操作、同一 feature 跨 DAY/NIGHT 验证与刷新恢复；原 33 条 Legacy 路线继续覆盖 CASE 001→005、Bureau、QA、Training 与 Duty。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

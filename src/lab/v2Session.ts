@@ -194,10 +194,22 @@ export function labV2Reducer(session: LabV2Session, action: LabAction): LabV2Ses
     if (!session.unlockedTools.includes(action.tool)) return session
     return { ...session, installedTools: addUnique(session.installedTools, action.tool), lastRun: undefined }
   }
-  if (action.type === 'set-level-one-feature') return { ...session, levelOneFeature: action.feature, lastRun: undefined }
-  if (action.type === 'set-threshold') return { ...session, threshold: Math.min(.95, Math.max(.2, action.threshold)), lastRun: undefined }
-  if (action.type === 'set-shift-feature') return { ...session, shiftFeature: action.feature, lastRun: undefined }
-  if (action.type === 'set-environment') return { ...session, environment: action.environment, lastRun: undefined }
+  if (action.type === 'set-level-one-feature') {
+    if (!session.installedTools.includes('test-probe')) return session
+    return { ...session, levelOneFeature: action.feature, lastRun: undefined }
+  }
+  if (action.type === 'set-threshold') {
+    if (!session.installedTools.includes('class-probe')) return session
+    return { ...session, threshold: Math.min(.95, Math.max(.2, action.threshold)), lastRun: undefined }
+  }
+  if (action.type === 'set-shift-feature') {
+    if (!session.installedTools.includes('environment-switch')) return session
+    return { ...session, shiftFeature: action.feature, lastRun: undefined }
+  }
+  if (action.type === 'set-environment') {
+    if (!session.installedTools.includes('environment-switch')) return session
+    return { ...session, environment: action.environment, lastRun: undefined }
+  }
   if (action.type === 'run') {
     if (session.level === 1) return runLevelOne(session)
     if (session.level === 2) return runLevelTwo(session)
