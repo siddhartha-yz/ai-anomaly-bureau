@@ -637,12 +637,12 @@ const case005: AuthoredPuzzleConfig = {
       evidence: {
         title: 'FROZEN_CALIBRATION / POLICY CARD',
         note: '映射来自独立 CALIBRATION split，已冻结。政策阈值来自处置成本，不是模型调参旋钮。',
-        columns: ['RAW SCORE', 'CALIBRATED RISK', 'POLICY'],
+        columns: ['RAW SCORE', 'CALIBRATED RISK'],
         rows: [
-          ['20%', '10%', '<65%'],
-          ['40%', '30%', '<65%'],
-          ['60%', '70%', '≥65%'],
-          ['80%', '90%', '≥65%'],
+          ['20%', '10%'],
+          ['40%', '30%'],
+          ['60%', '70%'],
+          ['80%', '90%'],
         ],
       },
       options: [

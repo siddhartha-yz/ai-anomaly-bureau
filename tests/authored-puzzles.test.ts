@@ -97,10 +97,11 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     ])
     expect(config.stages[1].evidence?.columns).not.toContain('FITTED OUTPUT')
     expect(config.stages[1].correctIds).toEqual(['calibrated'])
-    expect(config.stages[2].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK', 'POLICY'])
+    expect(config.stages[2].evidence?.columns).toEqual(['RAW SCORE', 'CALIBRATED RISK'])
     expect(config.stages[2].evidence?.rows).toEqual([
-      ['20%', '10%', '<65%'], ['40%', '30%', '<65%'], ['60%', '70%', '≥65%'], ['80%', '90%', '≥65%'],
+      ['20%', '10%'], ['40%', '30%'], ['60%', '70%'], ['80%', '90%'],
     ])
+    expect(config.stages[2].evidence?.columns).not.toContain('POLICY')
     expect(config.stages[2].brief).not.toContain('60% 档实际有 68% 恶化')
     expect(config.stages[2].correctIds).toEqual(['calibrated-policy'])
   })
