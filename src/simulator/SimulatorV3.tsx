@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode } from './graph'
-import { evaluateGraph, visibleValuesAfterStep } from './runtime'
+import { evaluateGraph, evaluateRuntimeTimeline, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { signalKey, type PortAddress, type RuntimeResult, type SignalValue, type SimulatorGraph, type SimulatorNodeKind } from './types'
 
 const STORAGE_KEY = 'aia.simulator-v3.board.v1'
@@ -62,6 +62,7 @@ export function SimulatorV3() {
   const [pendingPort, setPendingPort] = useState<PortAddress | null>(null)
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
+  const [clockTickIndex, setClockTickIndex] = useState(-1)
   const [status, setStatus] = useState('空白板已就绪。拖入元件，自己接线。')
   const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number } | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
@@ -77,7 +78,7 @@ export function SimulatorV3() {
     while (graph.nodes.some((node) => node.id === `${prefix}_${index}`)) index += 1
     return `${prefix}_${index}`
   }
-  const clearRuntime = () => { setRuntime(null); setStepIndex(-1) }
+  const clearRuntime = () => { setRuntime(null); setStepIndex(-1); setClockTickIndex(-1) }
 
   const addNode = (kind: SimulatorNodeKind, x?: number, y?: number) => {
     const id = nextNodeId(kind)
@@ -138,18 +139,35 @@ export function SimulatorV3() {
 
   const run = () => {
     try {
-      const result = evaluateGraph(graph)
-      setRuntime(result); setStepIndex(result.steps.length - 1); setStatus(`运行完成：${result.steps.length} 个节点已求值。`)
+      const timeline = evaluateRuntimeTimeline(graph)
+      const frame = timeline.at(-1)!
+      setRuntime(frame.result)
+      setStepIndex(frame.result.steps.length - 1)
+      setClockTickIndex(frame.tick - 1)
+      setStatus(frame.totalTicks > 1
+        ? `运行完成：${frame.totalTicks} 个样本时钟已执行。`
+        : `运行完成：${frame.result.steps.length} 个节点已求值。`)
     } catch (error) { clearRuntime(); setStatus(error instanceof Error ? error.message : '运行失败。') }
   }
 
   const step = () => {
     try {
+      const clockLength = streamClockLength(graph)
+      if (clockLength > 0) {
+        const timeline = evaluateRuntimeTimeline(graph)
+        const nextTickIndex = Math.min(timeline.length - 1, clockTickIndex + 1)
+        const frame = timeline[nextTickIndex]
+        setRuntime(frame.result)
+        setStepIndex(frame.result.steps.length - 1)
+        setClockTickIndex(nextTickIndex)
+        setStatus(`SAMPLE ${frame.tick}/${frame.totalTicks} · 当前只放行前 ${frame.tick} 个样本。`)
+        return
+      }
       const result = runtime ?? evaluateGraph(graph)
       const next = Math.min(result.steps.length - 1, stepIndex + 1)
       setRuntime(result); setStepIndex(next)
       const node = graph.nodes.find((item) => item.id === result.steps[next]?.nodeId)
-      setStatus(node ? `STEP ${next + 1}/${result.steps.length} · ${NODE_DEFINITIONS[node.kind].title}` : '没有更多步骤。')
+      setStatus(node ? `NODE ${next + 1}/${result.steps.length} · ${NODE_DEFINITIONS[node.kind].title}` : '没有更多步骤。')
     } catch (error) { clearRuntime(); setStatus(error instanceof Error ? error.message : '单步执行失败。') }
   }
 
@@ -193,7 +211,7 @@ export function SimulatorV3() {
         <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；stream 原语可以自己拼出“匹配比例”。这里没有 Accuracy 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
-        <div className="sim-toolbar"><div><small>BOARD</small><strong>{graph.nodes.length} NODES · {graph.wires.length} WIRES</strong></div><div><button type="button" onClick={step}>STEP</button><button type="button" className="run" onClick={run}>▶ PLAY</button><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { setGraph(createEmptyGraph()); setPendingPort(null); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
+        <div className="sim-toolbar"><div><small>BOARD</small><strong>{graph.nodes.length} NODES · {graph.wires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}</strong></div><div><button type="button" onClick={step}>STEP</button><button type="button" className="run" onClick={run}>▶ PLAY</button><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { setGraph(createEmptyGraph()); setPendingPort(null); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
         <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerMove={moveNode} onPointerUp={() => { dragRef.current = null }} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{graph.wires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); return <g key={wire.id} className={value !== undefined ? 'hot' : ''}><path d={wirePath(graph, wire)} /><text x={(from?.x ?? 0) + NODE_W + 24} y={(from?.y ?? 0) + 44}>{formatValue(value)}</text></g> })}</svg>
           {graph.nodes.map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; return <div key={node.id} className={`sim-node ${active ? 'active' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
@@ -210,7 +228,8 @@ export function SimulatorV3() {
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
         <section><small>WIRE MODE</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : 'IDLE'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
-        <section><small>STEP TRACE</small>{runtime ? runtime.steps.map((item, index) => <div key={item.nodeId} className={`sim-trace-row ${index <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.nodeId}</span><strong>{Object.values(item.outputs).map(formatValue).join(', ')}</strong></div>) : <p>PLAY 或 STEP 后，这里显示实际求值顺序。</p>}</section>
+        {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{clockTickIndex < 0 ? `0 / ${streamClockLength(graph)}` : `${clockTickIndex + 1} / ${streamClockLength(graph)}`}</strong><p>STEP 每次只放行一个新样本；COUNT、LENGTH 与 DIVIDE 会随时钟累计变化。</p></section>}
+        <section><small>STEP TRACE</small>{runtime ? runtime.steps.map((item, index) => <div key={item.nodeId} className={`sim-trace-row ${index <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.nodeId}</span><strong>{Object.values(item.outputs).map(formatValue).join(', ')}</strong></div>) : <p>PLAY 或 STEP 后，这里显示当前时钟内的实际求值顺序。</p>}</section>
         <section><small>SANDBOX CONTRACT</small><p>React 只编辑图。真实求值由独立 TypeScript graph/runtime 完成；以后关卡只提供 I/O 与测试，不拥有模拟器规则。</p></section>
       </aside>
     </div>

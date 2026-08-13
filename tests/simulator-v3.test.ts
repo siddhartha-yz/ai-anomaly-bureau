@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
-import { evaluateGraph, visibleValuesAfterStep } from '../src/simulator/runtime'
+import { evaluateGraph, evaluateRuntimeTimeline, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
 function thresholdGraph(): SimulatorGraph {
@@ -71,6 +71,17 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(result.values[signalKey('correct', 'count')]).toBe(2)
     expect(result.values[signalKey('total', 'count')]).toBe(4)
     expect(result.values[signalKey('out', 'value')]).toBe(.5)
+  })
+
+  it('advances stream machines one sample clock at a time instead of revealing the whole stream at once', () => {
+    const timeline = evaluateRuntimeTimeline(matchRatioGraph())
+    expect(timeline).toHaveLength(4)
+    expect(timeline[0].result.values[signalKey('equal', 'result')]).toEqual([true])
+    expect(timeline[0].result.values[signalKey('correct', 'count')]).toBe(1)
+    expect(timeline[0].result.values[signalKey('total', 'count')]).toBe(1)
+    expect(timeline[0].result.values[signalKey('out', 'value')]).toBe(1)
+    expect(timeline[1].result.values[signalKey('out', 'value')]).toBe(.5)
+    expect(timeline[3].result.values[signalKey('out', 'value')]).toBe(.5)
   })
 
   it('rejects elementwise stream comparison when the two streams have different lengths', () => {

@@ -36,7 +36,7 @@ src/simulator/
   types.ts          typed signal / graph schema
   catalog.ts        primitive definitions and pure evaluation
   graph.ts          connection rules / topology
-  runtime.ts        deterministic graph execution / STEP trace
+  runtime.ts        deterministic graph execution / sample clock / STEP trace
   SimulatorV3.tsx   board editor and visualization
 ```
 
@@ -48,7 +48,7 @@ React 不计算信号结果。编辑器只生成 `SimulatorGraph`；`runtime.ts`
 - `boolean`
 - `boolean-stream`
 
-当前 stream 仍作为一整个 typed value 在图中传播，`STEP` 仍是逐节点求值，不是假装已经拥有逐样本时钟。真正的 sample-by-sample scheduler 是后续模拟器里程碑。
+当前 stream 仍是一个 typed value，但 runtime 已增加确定性的 sample clock：每个时钟只让 BOOLEAN STREAM 多放行一个样本，然后整张图基于这个前缀重新求值。因此 `COUNT TRUE / STREAM LENGTH / DIVIDE` 会随样本逐步累积，而不是一按 STEP 就看到整条 stream 的最终答案。没有 stream 的标量机器仍保留逐节点 STEP。
 
 ## 当前 primitive
 
@@ -79,8 +79,9 @@ stream：
 - 删除节点会一并删除相关连线；
 - 标量输入与 boolean stream 可直接修改；
 - `PLAY` 执行整张图；
-- `STEP` 逐节点推进；
-- 已求值 wire 显示真实当前值，包括 stream；
+- `STEP` 在标量机器中逐节点推进，在 stream 机器中逐样本时钟推进；
+- stream STEP 会逐次显示 1/N、2/N… 的前缀、累计计数与当前比例；
+- 已求值 wire 显示真实当前值，包括当前时钟已经放行的 stream 前缀；
 - Runtime 面板显示实际求值顺序；
 - `RESET SIGNAL` 只清执行状态，不清机器；
 - board 自动写入独立 localStorage key，刷新保留机器。
@@ -91,7 +92,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移、玩家组件封装。
 
-下一步优先继续补模拟器本身，而不是内容：真正的数据逐样本 STEP、可编辑/删除 wire、更一般的 stream/sample primitive。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步优先继续补模拟器本身，而不是内容：可编辑/删除 wire、更一般的 sample primitive，以及从“前缀重算”继续演进为真正有状态的 scheduler。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

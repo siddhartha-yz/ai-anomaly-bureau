@@ -62,4 +62,10 @@ export type RuntimeResult = {
   values: Record<string, SignalValue>
 }
 
+export type RuntimeFrame = {
+  tick: number
+  totalTicks: number
+  result: RuntimeResult
+}
+
 export const signalKey = (nodeId: string, portId: string) => `${nodeId}:${portId}`
