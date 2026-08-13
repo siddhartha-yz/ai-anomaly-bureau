@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
@@ -202,4 +203,30 @@ describe('Simulator V3 pure graph/runtime', () => {
     }
     expect(() => topologicalOrder(graph)).toThrow(/环路/)
   })
+  it('saves selected nodes as a reusable blueprint and preserves only internal wires', () => {
+    const graph = recallLikeGraph()
+    const blueprint = createBlueprint(graph, ['truePositive', 'caught', 'positiveTotal', 'ratio'], 'bp1', 'conditional ratio')
+    expect(blueprint.nodes).toHaveLength(4)
+    expect(blueprint.wires.map((wire) => `${wire.fromNodeId}->${wire.toNodeId}`)).toEqual([
+      'truePositive->caught',
+      'caught->ratio',
+      'positiveTotal->ratio',
+    ])
+    expect(Math.min(...blueprint.nodes.map((node) => node.x))).toBe(0)
+    expect(Math.min(...blueprint.nodes.map((node) => node.y))).toBe(0)
+  })
+
+  it('instantiates a blueprint with fresh node ids while keeping its internal topology', () => {
+    const base = thresholdGraph()
+    const blueprint = createBlueprint(base, ['gt', 'out'], 'bp2', 'gate')
+    const expanded = instantiateBlueprint(base, blueprint, { x: 300, y: 120 })
+    expect(expanded.nodes).toHaveLength(base.nodes.length + 2)
+    expect(expanded.wires).toHaveLength(base.wires.length + 1)
+    const copiedGt = expanded.nodes.find((node) => node.id.startsWith('gt_copy'))
+    const copiedOut = expanded.nodes.find((node) => node.id.startsWith('out_copy'))
+    expect(copiedGt).toBeTruthy()
+    expect(copiedOut).toBeTruthy()
+    expect(expanded.wires.some((wire) => wire.fromNodeId === copiedGt?.id && wire.toNodeId === copiedOut?.id)).toBe(true)
+  })
+
 })

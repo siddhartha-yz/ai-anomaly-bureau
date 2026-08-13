@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
+import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
 import { createRuntimeSession, evaluateGraph, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { signalKey, type PortAddress, type RuntimeResult, type RuntimeSession, type SignalValue, type SimulatorGraph, type SimulatorNodeKind } from './types'
 
 const STORAGE_KEY = 'aia.simulator-v3.board.v1'
+const BLUEPRINT_STORAGE_KEY = 'aia.simulator-v3.blueprints.v1'
 const NODE_W = 164
 const NODE_H = 104
 const BOARD_W = 1120
@@ -22,6 +24,10 @@ function parseBooleanStream(raw: string) {
   const tokens = raw.split(/[\s,;|]+/).map((token) => token.trim()).filter(Boolean)
   if (tokens.some((token) => token !== '0' && token !== '1')) return null
   return tokens.map((token) => token === '1')
+}
+
+function readBlueprints(): SimulatorBlueprint[] {
+  try { return parseBlueprints(window.localStorage.getItem(BLUEPRINT_STORAGE_KEY)) } catch { return [] }
 }
 
 function readGraph(): SimulatorGraph {
@@ -67,6 +73,9 @@ export function SimulatorV3() {
   const [playing, setPlaying] = useState(false)
   const [playDelay, setPlayDelay] = useState(180)
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null)
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const [blueprints, setBlueprints] = useState<SimulatorBlueprint[]>(() => readBlueprints())
+  const [blueprintName, setBlueprintName] = useState('')
   const [status, setStatus] = useState('空白板已就绪。拖入元件，自己接线。')
   const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number } | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
@@ -74,6 +83,9 @@ export function SimulatorV3() {
   useEffect(() => {
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(graph)) } catch { /* persistence is optional */ }
   }, [graph])
+  useEffect(() => {
+    try { window.localStorage.setItem(BLUEPRINT_STORAGE_KEY, JSON.stringify(blueprints)) } catch { /* persistence is optional */ }
+  }, [blueprints])
 
   const visibleValues = useMemo(() => runtime && stepIndex >= 0 ? visibleValuesAfterStep(runtime, stepIndex) : {}, [runtime, stepIndex])
   const nextNodeId = (kind: SimulatorNodeKind) => {
@@ -112,6 +124,44 @@ export function SimulatorV3() {
     setGraph((current) => ({ ...current, nodes: [...current.nodes, createNode(kind, id, Math.min(BOARD_W - NODE_W - 18, x ?? fallback.x + staggerX), Math.min(BOARD_H - NODE_H - 18, y ?? fallback.y + staggerY))] }))
     clearRuntime()
     setStatus(`${NODE_DEFINITIONS[kind].title} 已放入画布。`)
+  }
+
+  const toggleNodeSelection = (nodeId: string) => {
+    setSelectedNodeIds((current) => current.includes(nodeId) ? current.filter((id) => id !== nodeId) : [...current, nodeId])
+    setSelectedWireId(null)
+  }
+
+  const saveBlueprint = () => {
+    try {
+      const id = `bp_${Date.now()}`
+      const blueprint = createBlueprint(graph, selectedNodeIds, id, blueprintName)
+      setBlueprints((current) => [...current, blueprint])
+      setSelectedNodeIds([])
+      setBlueprintName('')
+      setStatus(`BLUEPRINT SAVED · ${blueprint.name} · ${blueprint.nodes.length} nodes`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '蓝图保存失败。')
+    }
+  }
+
+  const placeBlueprint = (blueprint: SimulatorBlueprint) => {
+    setGraph((current) => {
+      const width = Math.max(...blueprint.nodes.map((node) => node.x)) + NODE_W
+      const height = Math.max(...blueprint.nodes.map((node) => node.y)) + NODE_H
+      const candidates: { x: number; y: number }[] = []
+      for (let y = 24; y <= BOARD_H - height - 12; y += 132) {
+        for (let x = 24; x <= BOARD_W - width - 12; x += 190) candidates.push({ x, y })
+      }
+      const origin = candidates.find((candidate) => blueprint.nodes.every((blueprintNode) => {
+        const x = candidate.x + blueprintNode.x
+        const y = candidate.y + blueprintNode.y
+        return current.nodes.every((node) => x + NODE_W + 12 <= node.x || node.x + NODE_W + 12 <= x || y + NODE_H + 12 <= node.y || node.y + NODE_H + 12 <= y)
+      })) ?? { x: 24, y: 24 }
+      return instantiateBlueprint(current, blueprint, origin)
+    })
+    setSelectedNodeIds([])
+    clearRuntime()
+    setStatus(`BLUEPRINT PLACED · ${blueprint.name}`)
   }
 
   const handlePaletteDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -278,14 +328,15 @@ export function SimulatorV3() {
     <div className="sim-v3-layout">
       <aside className="sim-palette" aria-label="元件库"><div className="sim-panel-title"><small>PRIMITIVES</small><strong>元件库</strong></div>
         {SIMULATOR_PALETTE.map((kind) => { const definition = NODE_DEFINITIONS[kind]; return <button type="button" key={kind} draggable onDragStart={(event) => event.dataTransfer.setData('application/x-aia-node', kind)} onClick={() => addNode(kind)} className="sim-palette-item" aria-label={`添加 ${definition.title}`}><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{definition.outputs.map((port) => port.type).join(' · ') || definition.inputs.map((port) => port.type).join(' · ')}</small></span></button> })}
+        {blueprints.length > 0 && <div className="sim-blueprint-list" aria-label="我的蓝图"><small>MY BLUEPRINTS</small>{blueprints.map((blueprint) => <button type="button" key={blueprint.id} onClick={() => placeBlueprint(blueprint)}><b>BP</b><span><strong>{blueprint.name}</strong><small>{blueprint.nodes.length} nodes · {blueprint.wires.length} wires</small></span></button>)}</div>}
         <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；stream 原语可以自己拼出“匹配比例”。这里没有 Accuracy 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
         <div className="sim-toolbar"><div><small>BOARD</small><strong>{graph.nodes.length} NODES · {graph.wires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { setGraph(createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
         <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerMove={moveNode} onPointerUp={() => { dragRef.current = null }} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{graph.wires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, wire)} /><path d={wirePath(graph, wire)} /><text x={(from?.x ?? 0) + NODE_W + 24} y={(from?.y ?? 0) + 44}>{formatValue(value)}</text></g> })}</svg>
-          {graph.nodes.map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; return <div key={node.id} className={`sim-node ${active ? 'active' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
-            <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { setGraph((current) => removeNode(current, node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
+          {graph.nodes.map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
+            <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { setGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
             {(node.kind === 'number-input' || node.kind === 'constant') && <input aria-label={`${node.id} 数值`} type="number" step="0.01" value={node.config?.value ?? 0} onChange={(event) => updateNumber(node.id, Number(event.target.value))} />}
             {node.kind === 'boolean-stream-input' && <input aria-label={`${node.id} stream`} title="使用 1 / 0，以逗号或空格分隔" type="text" value={(node.config?.values ?? []).map((value) => value ? '1' : '0').join(',')} onChange={(event) => updateBooleanStream(node.id, event.target.value)} />}
             {node.kind === 'boolean-output' && <output aria-label={`${node.id} 输出值`}>{formatValue(outputValue)}</output>}
@@ -297,7 +348,8 @@ export function SimulatorV3() {
         </div>
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
-        {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { setGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
+        <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>BLUEPRINT TOOL</small><strong>{selectedNodeIds.length ? `${selectedNodeIds.length} NODES SELECTED` : 'SELECT NODES'}</strong><p>用节点标题栏的 ◇ 选择一组结构；保存后会保留内部连线，再次放入时边界端口保持开放。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY RECALL RIG" /><button type="button" disabled={!selectedNodeIds.length} onClick={saveBlueprint}>SAVE BLUEPRINT</button>{selectedNodeIds.length > 0 && <button type="button" onClick={() => setSelectedNodeIds([])}>CLEAR SELECTION</button>}</section>
+                {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { setGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
         <section><small>WIRE MODE</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : 'IDLE'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
         {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{runtimeSession ? `${runtimeSession.tick} / ${streamClockLength(graph)} · NODE ${runtimeSession.nodeIndex + 1}` : `0 / ${streamClockLength(graph)}`}</strong><p>STEP 每次只执行当前样本的一个节点；走完整张图后才推进到下一个样本。</p></section>}
         <section><small>STEP TRACE</small>{runtime ? runtime.steps.map((item, index) => <div key={item.nodeId} className={`sim-trace-row ${index <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.nodeId}</span><strong>{Object.values(item.outputs).map(formatValue).join(', ')}</strong></div>) : <p>PLAY 或 STEP 后，这里显示当前时钟内的实际求值顺序。</p>}</section>

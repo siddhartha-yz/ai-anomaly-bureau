@@ -99,15 +99,18 @@ stream：
 - 已求值 wire 显示真实当前值，包括当前时钟已经放行的 stream 前缀；
 - Runtime 面板显示实际求值顺序；
 - `RESET SIGNAL` 只清执行状态，不清机器；
-- board 自动写入独立 localStorage key，刷新保留机器。
+- board 自动写入独立 localStorage key，刷新保留机器；
+- 节点可多选并保存为 `Blueprint`；Blueprint 只封存选区内部节点与内部连线，跨选区的输入/输出边界保持开放；
+- Blueprint 可从 `MY BLUEPRINTS` 再次放入画布，实例拥有全新 node/wire id，不与原机器共享运行状态，并会优先寻找不遮挡已有节点的空位；
+- Blueprint 库使用独立 localStorage key 持久化，刷新后仍可复用。
 
 自动放置也会把同类节点错开，避免连续点击两个 stream source 后节点完全重叠；玩家仍可自由拖动布局。
 
 ## 暂时明确不做
 
-本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移、玩家组件封装。
+本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。Blueprint 目前只是可复用 schematic，不伪装成黑盒 custom component；动态 typed boundary、嵌套组件与组件内部编辑仍未实现。
 
-下一步优先继续补模拟器本身，而不是内容：更一般的 sample primitive，以及玩家自定义 component 的最低可行封装。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步优先继续补模拟器本身，而不是内容：先判断 Blueprint 的复用是否真的产生构造欲望，再决定是否升级为带动态 typed boundary 的黑盒 custom component；同时继续补更一般的 sample primitive。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

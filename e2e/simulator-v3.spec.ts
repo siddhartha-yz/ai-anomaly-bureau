@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 const BOARD_KEY = 'aia.simulator-v3.board.v1'
+const BLUEPRINT_KEY = 'aia.simulator-v3.blueprints.v1'
 
 test('default route is an empty construction simulator, not a scripted level', async ({ page }) => {
   await page.goto('/')
@@ -155,4 +156,39 @@ test('player can compose a generic match ratio from stream primitives', async ({
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('0.50')
   await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(7)
+})
+
+
+test('player can save a working fragment as a reusable blueprint and place another copy', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate(([boardKey, blueprintKey]) => { localStorage.removeItem(boardKey); localStorage.removeItem(blueprintKey) }, [BOARD_KEY, BLUEPRINT_KEY])
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
+  await page.getByRole('button', { name: 'constant_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 b number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
+
+  await page.getByRole('button', { name: '选择 greater_than_1' }).click()
+  await page.getByRole('button', { name: '选择 boolean_output_1' }).click()
+  await expect(page.getByLabel('蓝图工具')).toContainText('2 NODES SELECTED')
+  await page.getByLabel('蓝图名称').fill('MY GATE')
+  await page.getByRole('button', { name: 'SAVE BLUEPRINT' }).click()
+  await expect(page.getByLabel('我的蓝图')).toContainText('MY GATE')
+  await expect(page.getByLabel('模拟器状态')).toContainText('BLUEPRINT SAVED')
+
+  await page.getByLabel('我的蓝图').getByRole('button', { name: /MY GATE/ }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('6 NODES · 4 WIRES')
+  await expect(page.getByLabel('构造画布')).toContainText('greater_than_1_copy')
+  await expect(page.getByLabel('构造画布')).toContainText('boolean_output_1_copy')
+  await expect(page.getByLabel('模拟器状态')).toContainText('BLUEPRINT PLACED · MY GATE')
+
+  await page.reload()
+  await expect(page.getByLabel('我的蓝图')).toContainText('MY GATE')
 })
