@@ -20,7 +20,7 @@
 .sim-v3-header strong { font-size: .9rem; letter-spacing: .08em; }
 .sim-v3-header small { margin-top: 4px; color: #66758a; font-size: .52rem; letter-spacing: .1em; }
 .sim-v3-header-actions { display: flex; gap: 6px; }
-.sim-v3-header-actions button, .sim-toolbar button, .sim-inspector button {
+.sim-v3-header-actions button, .sim-toolbar button, .sim-inspector button, .sim-toolbar select {
   border: 1px solid #344154; background: #0c1118; color: #91a0b2; padding: 8px 10px; cursor: pointer; font-size: .56rem; letter-spacing: .06em;
 }
 .sim-v3-layout { max-width: 1580px; margin: 14px auto 0; display: grid; grid-template-columns: 220px minmax(720px, 1fr) 270px; gap: 10px; align-items: start; }
@@ -39,7 +39,9 @@
 .sim-palette-note small { color: #ad9443; font-size: .5rem; }.sim-palette-note p { margin: 6px 0 0; color: #bcb38d; font-size: .58rem; line-height: 1.55; }
 .sim-board-wrap { overflow: hidden; }
 .sim-toolbar { min-height: 54px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid #2a3544; }
-.sim-toolbar small, .sim-toolbar strong { display: block; }.sim-toolbar small { color: #61738a; font-size: .48rem; }.sim-toolbar strong { margin-top: 4px; font-size: .62rem; }.sim-toolbar > div:last-child { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }.sim-toolbar button.run { border-color: #a2862e; background: #edc94e; color: #141005; font-weight: 900; }
+.sim-toolbar small, .sim-toolbar strong { display: block; }.sim-toolbar small { color: #61738a; font-size: .48rem; }.sim-toolbar strong { margin-top: 4px; font-size: .62rem; }.sim-toolbar > div:last-child { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }.sim-toolbar button.run { border-color: #a2862e; background: #edc94e; color: #141005; font-weight: 900; }.sim-toolbar button.pause { border-color: #5b7fa8; background: #10233a; color: #9fd0ff; font-weight: 900; }
+.sim-speed-control { display: flex; align-items: center; gap: 5px; padding-left: 3px; color: #66798f; font-size: .48rem; letter-spacing: .06em; }
+.sim-speed-control select { width: auto; min-width: 58px; margin: 0; padding: 6px 7px; border-radius: 0; background: #0b121b; color: #a8bad0; font-size: .52rem; }
 .sim-board { position: relative; width: 100%; overflow: hidden; touch-action: none; background:
   radial-gradient(circle at 50% 45%, rgba(54,88,123,.08), transparent 42%),
   linear-gradient(rgba(78,102,128,.08) 1px, transparent 1px),

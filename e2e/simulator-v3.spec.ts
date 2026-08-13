@@ -39,9 +39,16 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
   await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
 
+  await page.getByLabel('播放速度').selectOption('800')
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('NODE 1/4')
+  await page.getByRole('button', { name: 'Ⅱ PAUSE' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('PAUSED')
+  await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('—')
+  await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
-  await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个节点已求值')
+  await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个节点已求值')
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(3)
 
   // A construction sandbox must support repair without deleting a whole node.
@@ -99,7 +106,7 @@ test('player can compose a recall-like conditional metric from generic stream pr
 
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('0.67')
-  await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个样本时钟已执行')
+  await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
   await expect(page.getByLabel('元件库').getByRole('button', { name: /RECALL/i })).toHaveCount(0)
 })
 
@@ -146,6 +153,6 @@ test('player can compose a generic match ratio from stream primitives', async ({
   await expect(page.getByLabel('构造画布')).toContainText('CLOCK 2/4')
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('0.50')
-  await expect(page.getByLabel('模拟器状态')).toContainText('运行完成：4 个样本时钟已执行')
+  await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(7)
 })
