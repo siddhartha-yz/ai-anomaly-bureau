@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、183 个测试全部通过；Simulator V3 当前 21 条纯 graph/runtime/复用测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、逐节点/逐样本执行、breakpoint、只执行真正连到 OUTPUT 的电路、Blueprint 独立复制，以及 player-built Component 的动态 typed boundary、内部连线封装、真实 runtime 执行、整体移动与删除。
-- Vite production build：通过；当前本地构建为 `assets/index-Tr-KvS4X.js` + `assets/index-4nliUnVZ.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：当前共 42 条 Chromium E2E。V3 新增 player-built Component 复用路线：把 `CONSTANT + GREATER THAN` 的两节点真实线路封成只暴露 `score → boolean` 的 typed 黑盒，再把它接入新机器；内部 primitive 仍由同一 runtime 执行，且刷新后定义与实例继续存在。既有 stream、STEP、breakpoint、PAUSE、wire repair、Blueprint 路线继续覆盖；V2 2 条和 Legacy 33 条路线继续回归。
+- Vitest：27 个测试文件、185 个测试全部通过；Simulator V3 当前 23 条纯 graph/runtime/复用测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、逐节点/逐样本执行、breakpoint、只执行真正连到 OUTPUT 的电路、Blueprint 独立复制，以及 player-built Component 的动态 typed boundary、内部连线封装、真实 runtime 执行、整体移动/删除、完整黑盒边界校验与二次封装。
+- Vite production build：通过；当前本地构建为 `assets/index-BzpGq4m6.js` + `assets/index-Cg8ZFnUj.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：42 条 Chromium E2E 完整串行执行 42/42 通过。V3 的 player-built Component 路线现在继续覆盖二次封装：先把 `CONSTANT + GREATER THAN` 封成 `score → boolean` 黑盒，再把该完整黑盒与新的 `BOOLEAN OUTPUT` 一起封成更高一级 `MY DEPLOY GATE`，清空画布后重新实例化仍可真实运行；内部 primitive 始终由同一 runtime 执行，刷新后两级 definition 与实例继续存在。既有 stream、STEP、breakpoint、PAUSE、wire repair、Blueprint 路线继续覆盖；V2 2 条和 Legacy 33 条路线继续回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

@@ -109,15 +109,16 @@ stream：
 - Blueprint 库使用独立 localStorage key 持久化，刷新后仍可复用；
 - 选中的 primitive 子图现在还能保存为 `Component`：系统从未被内部连线占用的输入端口、以及对外暴露的输出端口自动推导动态 typed boundary；
 - `MY COMPONENTS` 中再次放置时，内部 primitive 会展开到真实 graph/runtime 中执行，但编辑器只显示一个玩家命名的单一黑盒节点；外部连线直接接到它的动态边界端口，内部节点与内部 wire 不在画布上泄露；
-- Component 实例可整体拖动、整体删除，definition 与 board 分别持久化；同一个自制组件可以反复实例化，而每个实例拥有独立内部 node/wire id。
+- Component 实例可整体拖动、整体删除、整体选中，definition 与 board 分别持久化；同一个自制组件可以反复实例化，而每个实例拥有独立内部 node/wire id；
+- 已有自制 Component 现在还能和新的 primitive 一起再次封装成更高一级 Component。保存时会验证必须选中完整黑盒边界，再把内部 primitive 展平进新的 definition，因此玩家可以形成真正的 `build → encapsulate → reuse → encapsulate again` 层级构造链，而不会从 UI 偷穿已有黑盒内部。
 
 自动放置也会把同类节点错开，避免连续点击两个 stream source 后节点完全重叠；玩家仍可自由拖动布局。
 
 ## 暂时明确不做
 
-本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已具备一层动态 typed boundary 与真实实例化，但**嵌套组件、打开黑盒回到内部编辑、组件版本迁移**仍未实现；这些边界明确保持为后续模拟器问题，不借关卡脚本绕过去。
+本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装；**打开黑盒回到内部编辑、保留显式层级而不是保存时展平、组件版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
 
-下一步优先继续补模拟器本身，而不是内容：验证自制 Component 是否真的形成“先造小结构，再拿它搭大结构”的构造循环；同时继续补更一般的 sample primitive 和调试可视化。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步仍优先补模拟器本身，而不是内容：更值得验证的是复杂黑盒如何进入/退出内部编辑、层级调试怎样不泄露实现细节，以及更一般的 sample primitive / 探针可视化。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

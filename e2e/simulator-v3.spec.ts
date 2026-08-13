@@ -229,7 +229,7 @@ test('player can save a working fragment as a reusable blueprint and place anoth
 
   await page.getByRole('button', { name: '选择 greater_than_1' }).click()
   await page.getByRole('button', { name: '选择 boolean_output_1' }).click()
-  await expect(page.getByLabel('蓝图工具')).toContainText('2 NODES SELECTED')
+  await expect(page.getByLabel('蓝图工具')).toContainText('2 UNITS SELECTED')
   await page.getByLabel('蓝图名称').fill('MY GATE')
   await page.getByRole('button', { name: 'SAVE BLUEPRINT' }).click()
   await expect(page.getByLabel('我的蓝图')).toContainText('MY GATE')
@@ -290,7 +290,32 @@ test('player can encapsulate a primitive circuit as a typed component and reuse 
   await expect(page.getByLabel('boolean_output_2 输出值')).toHaveText('TRUE')
   await expect(component).toContainText('result: TRUE')
 
+  // A player-built black box can itself become a building block in a larger
+  // custom component. This is the construction hierarchy the simulator needs:
+  // build -> encapsulate -> reuse -> encapsulate again.
+  await component.getByRole('button', { name: /选择组件/ }).click()
+  await page.getByRole('button', { name: '选择 boolean_output_2' }).click()
+  await expect(page.getByLabel('蓝图工具')).toContainText('2 UNITS SELECTED')
+  await page.getByLabel('蓝图名称').fill('MY DEPLOY GATE')
+  await page.getByRole('button', { name: 'SAVE COMPONENT' }).click()
+  await expect(page.getByLabel('我的组件')).toContainText('MY DEPLOY GATE')
+  await expect(page.getByLabel('模拟器状态')).toContainText('COMPONENT SAVED · MY DEPLOY GATE · 1 IN / 1 OUT')
+
+  await page.getByRole('button', { name: 'CLEAR BOARD' }).click()
+  await page.getByLabel('我的组件').getByRole('button', { name: /MY DEPLOY GATE/ }).click()
+  const higher = page.locator('.sim-component-instance').filter({ hasText: 'MY DEPLOY GATE' }).first()
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByLabel('number_input_1 数值').fill('0.72')
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await higher.getByRole('button', { name: /输入 a number/ }).click()
+  await higher.getByRole('button', { name: /输出 value boolean/ }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
+
   await page.reload()
   await expect(page.getByLabel('我的组件')).toContainText('MY THRESHOLD')
-  await expect(page.locator('.sim-component-instance').filter({ hasText: 'MY THRESHOLD' }).first()).toBeVisible()
+  await expect(page.getByLabel('我的组件')).toContainText('MY DEPLOY GATE')
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'MY DEPLOY GATE' }).first()).toBeVisible()
 })

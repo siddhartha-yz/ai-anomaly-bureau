@@ -342,4 +342,43 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(graph.components).toHaveLength(0)
   })
 
+
+  it('can build a higher-level component from a complete player-built component plus new primitives', () => {
+    const source = thresholdGraph()
+    const threshold = createComponentDefinition(source, ['threshold', 'gt'], 'cmp_base', 'threshold gate')
+
+    let graph: SimulatorGraph = {
+      nodes: [createNode('boolean-output', 'finalOut', 0, 0)],
+      wires: [],
+      components: [],
+    }
+    graph = instantiateComponent(graph, threshold, { x: 120, y: 80 })
+    const instance = graph.components![0]
+    const output = instance.boundaryMap.out_1
+    graph = connect(graph, { id: 'outer-wire', fromNodeId: output.nodeId, fromPortId: output.portId, toNodeId: 'finalOut', toPortId: 'value' })
+
+    const higher = createComponentDefinition(graph, [...instance.nodeIds, 'finalOut'], 'cmp_higher', 'threshold output')
+    expect(higher.nodes).toHaveLength(3)
+    expect(higher.nodes.every((node) => !node.componentInstanceId)).toBe(true)
+    expect(higher.ports.map((port) => `${port.direction}:${port.type}`).sort()).toEqual(['input:number', 'output:boolean'])
+
+    let graph2: SimulatorGraph = {
+      nodes: [{ ...createNode('number-input', 'score3', 0, 0), config: { value: .72 } }, createNode('boolean-output', 'out3', 0, 0)],
+      wires: [],
+      components: [],
+    }
+    graph2 = instantiateComponent(graph2, higher, { x: 200, y: 100 })
+    const nested = graph2.components![0]
+    graph2 = connect(graph2, { id: 'hi-in', fromNodeId: 'score3', fromPortId: 'value', toNodeId: nested.boundaryMap.in_1.nodeId, toPortId: nested.boundaryMap.in_1.portId })
+    graph2 = connect(graph2, { id: 'hi-out', fromNodeId: nested.boundaryMap.out_1.nodeId, fromPortId: nested.boundaryMap.out_1.portId, toNodeId: 'out3', toPortId: 'value' })
+    expect(evaluateGraph(graph2).values[signalKey('out3', 'value')]).toBe(true)
+  })
+
+  it('refuses to pierce a black-box boundary by re-encapsulating only part of an instance', () => {
+    const definition = createComponentDefinition(thresholdGraph(), ['threshold', 'gt'], 'cmp_partial', 'threshold gate')
+    const graph = instantiateComponent(createEmptyGraph(), definition)
+    const instance = graph.components![0]
+    expect(() => createComponentDefinition(graph, [instance.nodeIds[0]], 'bad', 'partial')).toThrow(/完整黑盒/)
+  })
+
 })

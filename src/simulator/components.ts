@@ -25,7 +25,18 @@ export function createComponentDefinition(
   const selected = new Set(nodeIds)
   const nodes = graph.nodes.filter((node) => selected.has(node.id))
   if (!nodes.length) throw new Error('至少选择一个节点才能封装组件。')
-  if (nodes.some((node) => node.componentInstanceId)) throw new Error('当前版本暂不支持把已有黑盒组件再次嵌套封装。')
+
+  // Component instances are stored as flattened primitive nodes in the graph.
+  // Re-encapsulation is therefore safe as long as the player selected the whole
+  // visible black box. Selecting only part of an instance would pierce its
+  // abstraction boundary, so reject that malformed program explicitly.
+  const selectedComponentIds = new Set(nodes.map((node) => node.componentInstanceId).filter((value): value is string => Boolean(value)))
+  for (const instanceId of selectedComponentIds) {
+    const instance = (graph.components ?? []).find((item) => item.id === instanceId)
+    if (!instance || instance.nodeIds.some((nodeId) => !selected.has(nodeId))) {
+      throw new Error('封装已有组件时必须选择完整黑盒，不能只截取内部节点。')
+    }
+  }
 
   const minX = Math.min(...nodes.map((node) => node.x))
   const minY = Math.min(...nodes.map((node) => node.y))
@@ -72,7 +83,14 @@ export function createComponentDefinition(
   return {
     id,
     name: name.trim() || 'UNTITLED COMPONENT',
-    nodes: nodes.map((node) => ({ ...cloneNode(node), x: node.x - minX, y: node.y - minY })),
+    // A newly saved component owns a fresh abstraction boundary. Strip the old
+    // instance ownership so this definition can be instantiated independently
+    // and then be used again inside another player-built component.
+    nodes: nodes.map((node) => {
+      const cloned = cloneNode(node)
+      delete cloned.componentInstanceId
+      return { ...cloned, x: node.x - minX, y: node.y - minY }
+    }),
     wires: internalWires.map(cloneWire),
     ports,
   }
