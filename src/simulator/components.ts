@@ -183,6 +183,20 @@ export function removeComponentInstance(graph: SimulatorGraph, instanceId: strin
   }
 }
 
+export function unpackComponentInstance(graph: SimulatorGraph, instanceId: string): SimulatorGraph {
+  const instance = (graph.components ?? []).find((item) => item.id === instanceId)
+  if (!instance) return graph
+  const nodeIds = new Set(instance.nodeIds)
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => nodeIds.has(node.id) ? { ...node, componentInstanceId: undefined } : node),
+    // Internal and external wires already target the flattened primitive nodes,
+    // so opening a black box only removes its visual ownership boundary. The
+    // circuit remains electrically identical and becomes directly editable.
+    components: (graph.components ?? []).filter((item) => item.id !== instanceId),
+  }
+}
+
 export function moveComponentInstance(graph: SimulatorGraph, instanceId: string, x: number, y: number): SimulatorGraph {
   const instance = (graph.components ?? []).find((item) => item.id === instanceId)
   if (!instance) return graph

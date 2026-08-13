@@ -7,12 +7,14 @@
 .sim-component-list button small { margin-top: 3px; color: #6f958c; font-size: .43rem; }
 .sim-component-instance { position: absolute; border: 2px solid #438474; background: linear-gradient(180deg, #0d1c19, #0a1413); box-shadow: 5px 5px 0 #020504, inset 0 0 0 1px rgba(100,190,166,.12); user-select: none; cursor: move; }
 .sim-component-instance.selected { border-color: #f0c34e; box-shadow: 5px 5px 0 #020504, 0 0 0 2px rgba(240,195,78,.18); }
-.sim-component-head { height: 37px; display: grid; grid-template-columns: 30px 1fr 22px 22px; align-items: center; gap: 5px; padding: 4px 5px; border-bottom: 1px solid #31594f; background: #11231f; }
+.sim-component-head { height: 37px; display: grid; grid-template-columns: 30px 1fr 22px 22px 22px; align-items: center; gap: 4px; padding: 4px 5px; border-bottom: 1px solid #31594f; background: #11231f; }
 .sim-component-head > b { height: 26px; display: grid; place-items: center; border: 1px solid #4e9a87; color: #88d8c4; font-size: .56rem; }
 .sim-component-head span, .sim-component-head strong, .sim-component-head small { display: block; min-width: 0; }
 .sim-component-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d8f0ea; font-size: .54rem; }
 .sim-component-head small { margin-top: 2px; color: #658f85; font-size: .42rem; }
 .sim-component-head button { border: 0; background: transparent; color: #75968f; cursor: pointer; font-size: .9rem; }
+.sim-component-head .sim-component-open { color: #84d2bf; font-size: .72rem; }
+.sim-component-head .sim-component-open:hover { color: #fff0a2; }
 .sim-component-core { position: absolute; inset: 37px 28px 8px; display: grid; align-content: center; justify-items: center; gap: 3px; color: #77a99e; }
 .sim-component-core > small { font-size: .4rem; letter-spacing: .08em; }
 .sim-component-core > strong { color: #9bd7c8; font-size: .55rem; letter-spacing: .08em; }

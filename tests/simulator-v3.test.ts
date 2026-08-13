@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
-import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance } from '../src/simulator/components'
+import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
@@ -322,6 +322,34 @@ describe('Simulator V3 pure graph/runtime', () => {
     graph = connect(graph, { id: 'ca', fromNodeId: 'score2', fromPortId: 'value', toNodeId: inputA.nodeId, toPortId: inputA.portId })
     graph = connect(graph, { id: 'co', fromNodeId: result.nodeId, fromPortId: result.portId, toNodeId: 'out2', toPortId: 'value' })
     expect(evaluateGraph(graph).values[signalKey('out2', 'value')]).toBe(true)
+  })
+
+  it('opens a black box back into editable primitives without changing circuit behavior', () => {
+    const source = thresholdGraph()
+    const definition = createComponentDefinition(source, ['threshold', 'gt'], 'cmp_open', 'threshold gate')
+    let graph: SimulatorGraph = {
+      nodes: [
+        { ...createNode('number-input', 'score_open', 0, 0), config: { value: .72 } },
+        createNode('boolean-output', 'out_open', 0, 0),
+      ],
+      wires: [],
+      components: [],
+    }
+    graph = instantiateComponent(graph, definition, { x: 200, y: 100 })
+    const instance = graph.components![0]
+    graph = connect(graph, { id: 'open-in', fromNodeId: 'score_open', fromPortId: 'value', toNodeId: instance.boundaryMap.in_1.nodeId, toPortId: instance.boundaryMap.in_1.portId })
+    graph = connect(graph, { id: 'open-out', fromNodeId: instance.boundaryMap.out_1.nodeId, fromPortId: instance.boundaryMap.out_1.portId, toNodeId: 'out_open', toPortId: 'value' })
+    expect(evaluateGraph(graph).values[signalKey('out_open', 'value')]).toBe(true)
+
+    const opened = unpackComponentInstance(graph, instance.id)
+    expect(opened.components).toHaveLength(0)
+    expect(opened.nodes.filter((node) => instance.nodeIds.includes(node.id)).every((node) => !node.componentInstanceId)).toBe(true)
+    expect(opened.wires).toHaveLength(graph.wires.length)
+    expect(evaluateGraph(opened).values[signalKey('out_open', 'value')]).toBe(true)
+
+    const internalConstant = opened.nodes.find((node) => instance.nodeIds.includes(node.id) && node.kind === 'constant')!
+    const edited = { ...opened, nodes: opened.nodes.map((node) => node.id === internalConstant.id ? { ...node, config: { value: .8 } } : node) }
+    expect(evaluateGraph(edited).values[signalKey('out_open', 'value')]).toBe(false)
   })
 
   it('moves and deletes a component instance as one construction unit', () => {

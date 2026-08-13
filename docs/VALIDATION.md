@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、185 个测试全部通过；Simulator V3 当前 23 条纯 graph/runtime/复用测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、逐节点/逐样本执行、breakpoint、只执行真正连到 OUTPUT 的电路、Blueprint 独立复制，以及 player-built Component 的动态 typed boundary、内部连线封装、真实 runtime 执行、整体移动/删除、完整黑盒边界校验与二次封装。
-- Vite production build：通过；当前本地构建为 `assets/index-BzpGq4m6.js` + `assets/index-Cg8ZFnUj.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：42 条 Chromium E2E 完整串行执行 42/42 通过。V3 的 player-built Component 路线现在继续覆盖二次封装：先把 `CONSTANT + GREATER THAN` 封成 `score → boolean` 黑盒，再把该完整黑盒与新的 `BOOLEAN OUTPUT` 一起封成更高一级 `MY DEPLOY GATE`，清空画布后重新实例化仍可真实运行；内部 primitive 始终由同一 runtime 执行，刷新后两级 definition 与实例继续存在。既有 stream、STEP、breakpoint、PAUSE、wire repair、Blueprint 路线继续覆盖；V2 2 条和 Legacy 33 条路线继续回归。
+- Vitest：27 个测试文件、186 个测试全部通过；Simulator V3 当前 24 条纯 graph/runtime/复用测试，覆盖 typed connection、标量求值、Accuracy-like / Recall-like stream 组合、逐节点/逐样本执行、breakpoint、只执行真正连到 OUTPUT 的电路、Blueprint 独立复制，以及 player-built Component 的动态 typed boundary、内部连线封装、真实 runtime 执行、整体移动/删除、完整黑盒边界校验、二次封装与实例级 OPEN。OPEN 会移除黑盒视觉所有权而保留原始 primitive/wire 与外部线路，打开前后行为一致，内部参数修改随后真实影响输出。
+- Vite production build：通过；当前本地构建为 `assets/index-B8v8IxFD.js` + `assets/index-DohotFQE.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：43 条 Chromium E2E 完整串行执行 43/43 通过。新增路线真实构造 `OPENABLE THRESHOLD`，从元件库复用并接好外部 I/O 后运行 TRUE，再直接 OPEN 黑盒恢复内部 `CONSTANT + GREATER THAN`，确认外部 wiring 保持、内部 wire 重现、把阈值从 0.60 改成 0.80 后同一机器变为 FALSE，并验证刷新后展开状态与编辑值持久化。既有二次封装、stream、STEP、breakpoint、PAUSE、wire repair、Blueprint 路线继续覆盖；V2 2 条和 Legacy 33 条路线继续回归。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标
