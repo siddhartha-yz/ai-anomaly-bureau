@@ -170,11 +170,11 @@ describe('authored CASE 002 / 003 puzzle progression', () => {
     expect(readPuzzleSession(storage as unknown as Storage, case002, 20260809)).toBeUndefined()
   })
 
-  it('records evidence revisions in authored-case ratings without creating a grind loop', () => {
+  it('keeps one evidence revision compatible with an S while repeated misses still lower the grade', () => {
     expect(puzzleCaseScore(0)).toEqual({ grade: 'S', score: 100 })
-    expect(puzzleCaseScore(1)).toEqual({ grade: 'A', score: 92 })
-    expect(puzzleCaseScore(2)).toEqual({ grade: 'B', score: 84 })
-    expect(puzzleCaseScore(4)).toEqual({ grade: 'C', score: 68 })
+    expect(puzzleCaseScore(1)).toEqual({ grade: 'S', score: 96 })
+    expect(puzzleCaseScore(2)).toEqual({ grade: 'A', score: 88 })
+    expect(puzzleCaseScore(4)).toEqual({ grade: 'B', score: 72 })
     expect(puzzleCaseScore(99)).toEqual({ grade: 'C', score: 55 })
   })
 

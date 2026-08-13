@@ -87,7 +87,7 @@ describe('formal case runtime registry', () => {
     let progress = recordFormalCaseResolution(createBureauProgress(), STORY_CASE_001.id, 'A', 90)
     progress = recordFormalCaseResolution(progress, STORY_CASE_002.id, 'A', 90)
     const reconciled = formalCaseRuntime(STORY_CASE_003.id).reconcileProgress(storage as unknown as Storage, 20260809, progress)
-    expect(formalCaseProgress(reconciled, STORY_CASE_003.id)).toMatchObject({ resolved: true, bestGrade: 'A', bestScore: 92 })
+    expect(formalCaseProgress(reconciled, STORY_CASE_003.id)).toMatchObject({ resolved: true, bestGrade: 'S', bestScore: 96 })
   })
 
   it('reconciles a resolved CASE 001 checkpoint into generic Bureau progress', () => {

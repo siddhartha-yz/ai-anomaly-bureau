@@ -414,8 +414,7 @@ test('authored CASE 002 through CASE 005 grow one reusable investigation primiti
   await page.getByRole('button', { name: '锁定结论' }).click()
   await expect(page.getByLabel('本次调查结果')).toContainText('推理成立')
   await page.getByRole('button', { name: '封存证据并结案' }).click()
-  await expect(page.getByLabel('CASE 002 已结案')).toContainText('A')
-  await expect(page.getByLabel('CASE 002 已结案')).toContainText('92/100')
+  await expect(page.getByLabel('CASE 002 已结案').locator('.puzzle-case-stamp')).toHaveText('S96/100')
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 
   await expect(hub).toBeVisible()
@@ -489,8 +488,7 @@ test('authored CASE 002 through CASE 005 grow one reusable investigation primiti
   await page.getByRole('button', { name: '封存评估规则' }).click()
   await expect(page.getByLabel('本次调查结果')).toContainText('证据链闭合')
   await page.getByRole('button', { name: '封存证据并结案' }).click()
-  await expect(page.getByLabel('CASE 004 已结案')).toContainText('A')
-  await expect(page.getByLabel('CASE 004 已结案')).toContainText('92/100')
+  await expect(page.getByLabel('CASE 004 已结案').locator('.puzzle-case-stamp')).toHaveText('S96/100')
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), puzzleSessionKey(STORY_CASE_004.id, seed))).not.toBeNull()
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 
@@ -539,8 +537,7 @@ test('authored CASE 002 through CASE 005 grow one reusable investigation primiti
   await expect(page.getByLabel('本次调查结果')).toContainText('高风险召回')
   await expect(page.getByLabel('本次调查结果')).toContainText('78%')
   await page.getByRole('button', { name: '封存证据并结案' }).click()
-  await expect(page.getByLabel('CASE 005 已结案')).toContainText('B')
-  await expect(page.getByLabel('CASE 005 已结案')).toContainText('84/100')
+  await expect(page.getByLabel('CASE 005 已结案').locator('.puzzle-case-stamp')).toHaveText('A88/100')
   await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), puzzleSessionKey(STORY_CASE_005.id, seed))).not.toBeNull()
   await page.getByRole('button', { name: '归档并返回调查局' }).click()
 

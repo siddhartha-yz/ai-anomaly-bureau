@@ -5,7 +5,12 @@ import type { AuthoredPuzzleConfig } from './authoredCasePuzzles'
 import { clearPuzzleSession, puzzleSessionHasProgress, readPuzzleSession, writePuzzleSession, type PuzzleSession } from './puzzleSession'
 
 export function puzzleCaseScore(mistakes: number) {
-  const score = Math.max(55, 100 - mistakes * 8)
+  // Authored cases are investigation puzzles, not answer-key quizzes. One
+  // evidence-driven revision should still earn an S: falsifying a plausible
+  // hypothesis is part of the intended loop. Repeated misses still cost enough
+  // to make blind option cycling a poor route to a high grade.
+  const revisionPenalty = mistakes === 0 ? 0 : 4 + Math.max(0, mistakes - 1) * 8
+  const score = Math.max(55, 100 - revisionPenalty)
   const grade: InvestigationGrade = score >= 95 ? 'S' : score >= 85 ? 'A' : score >= 72 ? 'B' : 'C'
   return { score, grade }
 }
@@ -246,7 +251,7 @@ export function StoryPuzzleRuntime({
         <aside className="puzzle-side-panel">
           <section><small>CASE LOCATION</small><strong>{config.definition.dispatchLocation}</strong><span>{config.definition.dispatchTime}</span></section>
           <section><small>INVESTIGATION RULE</small><strong>一关只新增一个原语</strong><p>新案件会继续复用旧案件已经建立的观察、未知审计与控制变量方法。</p></section>
-          <section><small>CASE RECORD</small><strong>{session.checks} 次检查</strong><p>{session.mistakes ? `${session.mistakes} 次判断被证据推翻；结案评级会记录修正。` : '目前没有被证据推翻的判断。'}</p></section>
+          <section><small>CASE RECORD</small><strong>{session.checks} 次检查</strong><p>{session.mistakes ? `${session.mistakes} 次判断被证据推翻；首次修正仍可保留 S，连续盲试才会明显降级。` : '目前没有被证据推翻的判断。'}</p></section>
           {restored && puzzleSessionHasProgress(restored) && <section className="puzzle-restored"><small>LOCAL CHECKPOINT</small><strong>已恢复本地进度</strong><p>刷新不会把已经完成的谜题清零。</p></section>}
         </aside>
       </div>
