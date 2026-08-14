@@ -115,15 +115,15 @@ stream：
 - `MY COMPONENTS` 中再次放置时，内部 primitive 会展开到真实 graph/runtime 中执行，但编辑器只显示一个玩家命名的单一黑盒节点；外部连线直接接到它的动态边界端口，内部节点与内部 wire 不在画布上泄露；组件库现在还能单独编辑黑盒名称与每个 typed port 的对外标签，例如把内部 `a/result` 改成 `score/flag`，已有实例与连线不受影响；
 - Component 实例可整体拖动、整体删除、整体选中，definition 与 board 分别持久化；同一个自制组件可以反复实例化，而每个实例拥有独立内部 node/wire id；
 - 已有自制 Component 现在还能和新的 primitive 一起再次封装成更高一级 Component。保存时会验证必须选中完整黑盒边界，再把内部 primitive 展平进新的 definition，因此玩家可以形成真正的 `build → encapsulate → reuse → encapsulate again` 层级构造链，而不会从 UI 偷穿已有黑盒内部。
-- 黑盒实例现在拥有明确的层级调试作用域：`OPEN` 进入该实例内部，primitive / internal wire 恢复为可编辑对象，外部输入输出仍保持接通；顶部 `INSIDE COMPONENT` 明确提示当前层级，完成后 `CLOSE BLACK BOX` 会把原始内部节点重新收回**同一个实例**，保留刚才的参数/线路修改与外部接线。若原内部节点被删掉，关闭会明确失败并提示先 Undo，而不是生成半坏黑盒。组件 definition 仍不会被实例级编辑静默改写。
+- 黑盒实例现在拥有明确的层级调试作用域：`OPEN` 进入该实例内部，primitive / internal wire 恢复为可编辑对象，外部输入输出仍保持接通；顶部 `INSIDE COMPONENT` 明确提示当前层级，完成后 `CLOSE BLACK BOX` 会把原始内部节点重新收回**同一个实例**，保留刚才的参数/线路修改与外部接线。若原内部节点被删掉，关闭会明确失败并提示先 Undo，而不是生成半坏黑盒。组件 definition 仍不会被实例级编辑静默改写；如果玩家希望把当前实例的修改变成新的可复用设计，可以在作用域内显式 `SAVE AS NEW COMPONENT`。新 definition 继承原组件的 typed boundary 与自定义端口标签，但拥有独立 id 和内部实现，因此原组件与其他实例不会被追溯修改。
 
 自动放置也会把同类节点错开，避免连续点击两个 stream source 后节点完全重叠；玩家仍可自由拖动布局。
 
 ## 暂时明确不做
 
-本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装，也已经有实例级 `OPEN → 调试 → CLOSE` 进入/退出闭环；**把实例修改显式回写为新版 definition、保留 definition 内部显式层级而不是保存时展平、组件版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
+本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装、实例级 `OPEN → 调试 → CLOSE`，并且能把修改后的实例显式 **fork 成新的 definition**；**把实例修改原地升级为新版 definition、保留 definition 内部显式层级而不是保存时展平、组件版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
 
-下一步仍优先补模拟器本身，而不是内容：大画布、可命名黑盒接口和层级进入/退出已经解决基本构造与调试闭环。接下来更值得验证的是“实例修改 → 明确更新/分叉 definition”的版本语义，以及更一般的 sample primitive。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步仍优先补模拟器本身，而不是内容。现在“实例修改 → 分叉新 definition”的安全语义已经成立；如果继续推进组件系统，应先设计清楚“UPDATE DEFINITION 时哪些既有实例跟随、哪些保持旧版本”的版本语义，再实现原地升级。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

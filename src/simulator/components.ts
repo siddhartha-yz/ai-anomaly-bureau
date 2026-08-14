@@ -18,6 +18,29 @@ export function editComponentInterface(
   }
 }
 
+export function forkComponentDefinition(
+  graph: SimulatorGraph,
+  instance: SimulatorComponentInstance,
+  source: SimulatorComponentDefinition,
+  id: string,
+  name: string,
+): SimulatorComponentDefinition {
+  const fork = createComponentDefinition(graph, instance.nodeIds, id, name.trim() || `${source.name} FORK`)
+  const sourceBoundaryByAddress = new Map(
+    source.ports.map((port) => {
+      const address = instance.boundaryMap[port.id]
+      return [address ? `${port.direction}:${address.nodeId}:${address.portId}` : '', port] as const
+    }).filter(([key]) => Boolean(key)),
+  )
+  return {
+    ...fork,
+    ports: fork.ports.map((port) => {
+      const sourcePort = sourceBoundaryByAddress.get(`${port.direction}:${port.nodeId}:${port.portId}`)
+      return sourcePort ? { ...port, label: sourcePort.label } : port
+    }),
+  }
+}
+
 function cloneNode(node: SimulatorNode): SimulatorNode {
   return {
     ...node,

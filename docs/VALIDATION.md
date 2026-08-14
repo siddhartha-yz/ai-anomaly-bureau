@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、197 个测试全部通过；Simulator V3 新增层级 Component scope 回归，确认实例 `OPEN → 修改内部 primitive → CLOSE` 会恢复同一个黑盒实例、保留外部接线与实例级实现修改，并在内部节点被删除时拒绝生成损坏黑盒。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component interface、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-6_TB1Gue.js` + `assets/index-CP4JWjK2.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 的层级调试路线真实执行黑盒 `OPEN → 修改内部 threshold 0.60→0.80 → 运行验证行为改变 → CLOSE BLACK BOX → 再运行 → 刷新`，确认同一实例能够进入/退出、外部 wire 数量恢复且实例级修改持久化。既有自定义接口、V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、198 个测试全部通过；Simulator V3 新增 Component fork 回归：从已打开实例修改内部 primitive 后，可显式生成独立新 definition，并保留原组件的 typed boundary / 自定义端口标签；源 definition 不会被修改。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component scope、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-CKJWf6TP.js` + `assets/index-BtI7Yayo.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 层级调试路线现在真实执行 `OPEN → threshold 0.60→0.80 → SAVE AS NEW COMPONENT → CLOSE → 刷新`，确认修改后的实例可分叉成持久新组件，同时原黑盒实例、外部接线和原组件库条目保持存在。既有 V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

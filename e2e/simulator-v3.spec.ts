@@ -515,6 +515,15 @@ test('player can open a black box, edit its primitives, and keep external wiring
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')
 
+  // An instance edit is allowed to become a new reusable design without
+  // silently rewriting the original library component or sibling instances.
+  const scope = page.getByLabel('组件编辑作用域')
+  await scope.getByLabel('组件分叉名称').fill('STRICT THRESHOLD')
+  await scope.getByRole('button', { name: 'SAVE AS NEW COMPONENT' }).click()
+  await expect(page.getByLabel('我的组件')).toContainText('OPENABLE THRESHOLD')
+  await expect(page.getByLabel('我的组件')).toContainText('STRICT THRESHOLD')
+  await expect(page.getByLabel('模拟器状态')).toContainText('COMPONENT FORK SAVED · STRICT THRESHOLD')
+
   // Hierarchical editing needs an explicit way back out. Closing the scope
   // must restore the same black-box instance without losing external wires or
   // the instance-level implementation change made inside it.
@@ -529,6 +538,7 @@ test('player can open a black box, edit its primitives, and keep external wiring
 
   await page.reload()
   await expect(page.locator('.sim-component-instance').filter({ hasText: 'OPENABLE THRESHOLD' })).toHaveCount(1)
+  await expect(page.getByLabel('我的组件')).toContainText('STRICT THRESHOLD')
   await expect(page.getByLabel('构造画布')).not.toContainText('constant_1_unit')
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')

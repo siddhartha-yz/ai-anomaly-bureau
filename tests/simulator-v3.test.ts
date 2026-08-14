@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
-import { createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from '../src/simulator/components'
+import { createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from '../src/simulator/components'
 import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
@@ -511,6 +511,38 @@ describe('Simulator V3 pure graph/runtime', () => {
     expect(closed.nodes.filter((node) => instance.nodeIds.includes(node.id)).every((node) => node.componentInstanceId === instance.id)).toBe(true)
     expect(closed.wires).toHaveLength(graph.wires.length)
     expect(evaluateGraph(closed).values[signalKey('out_open', 'value')]).toBe(false)
+  })
+
+  it('forks an edited instance into a new reusable definition without mutating the source component', () => {
+    const source = editComponentInterface(
+      createComponentDefinition(thresholdGraph(), ['threshold', 'gt'], 'cmp_source', 'threshold gate'),
+      { name: 'RISK GATE', portLabels: { in_1: 'score', out_1: 'flag' } },
+    )
+    let graph = instantiateComponent(createEmptyGraph(), source)
+    const instance = graph.components![0]
+    graph = unpackComponentInstance(graph, instance.id)
+    const internalConstant = graph.nodes.find((node) => instance.nodeIds.includes(node.id) && node.kind === 'constant')!
+    graph = {
+      ...graph,
+      nodes: graph.nodes.map((node) => node.id === internalConstant.id ? { ...node, config: { value: .8 } } : node),
+    }
+
+    const fork = forkComponentDefinition(graph, instance, source, 'cmp_fork', 'STRICT RISK GATE')
+    expect(source.nodes.find((node) => node.kind === 'constant')?.config?.value).toBe(.6)
+    expect(fork.nodes.find((node) => node.kind === 'constant')?.config?.value).toBe(.8)
+    expect(fork.name).toBe('STRICT RISK GATE')
+    expect(fork.ports.map((port) => port.label)).toEqual(['score', 'flag'])
+
+    let testGraph: SimulatorGraph = {
+      nodes: [{ ...createNode('number-input', 'score_fork', 0, 0), config: { value: .72 } }, createNode('boolean-output', 'out_fork', 0, 0)],
+      wires: [],
+      components: [],
+    }
+    testGraph = instantiateComponent(testGraph, fork)
+    const forkInstance = testGraph.components![0]
+    testGraph = connect(testGraph, { id: 'fork-in', fromNodeId: 'score_fork', fromPortId: 'value', toNodeId: forkInstance.boundaryMap.in_1.nodeId, toPortId: forkInstance.boundaryMap.in_1.portId })
+    testGraph = connect(testGraph, { id: 'fork-out', fromNodeId: forkInstance.boundaryMap.out_1.nodeId, fromPortId: forkInstance.boundaryMap.out_1.portId, toNodeId: 'out_fork', toPortId: 'value' })
+    expect(evaluateGraph(testGraph).values[signalKey('out_fork', 'value')]).toBe(false)
   })
 
   it('refuses to close an opened component after one of its original internal nodes was deleted', () => {

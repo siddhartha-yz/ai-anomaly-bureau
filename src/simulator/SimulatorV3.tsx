@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
-import { componentBoundaryAddress, createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from './components'
+import { componentBoundaryAddress, createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from './components'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
@@ -130,7 +130,8 @@ export function SimulatorV3() {
   const [blueprints, setBlueprints] = useState<SimulatorBlueprint[]>(() => readBlueprints())
   const [components, setComponents] = useState<SimulatorComponentDefinition[]>(() => readComponents())
   const [editingComponentId, setEditingComponentId] = useState<string | null>(null)
-  const [openComponentScope, setOpenComponentScope] = useState<{ instance: SimulatorComponentInstance; name: string } | null>(null)
+  const [openComponentScope, setOpenComponentScope] = useState<{ instance: SimulatorComponentInstance; name: string; definitionId: string } | null>(null)
+  const [componentForkName, setComponentForkName] = useState('')
   const [blueprintName, setBlueprintName] = useState('')
   const [status, setStatus] = useState('空白板已就绪。拖入元件，自己接线。')
   const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number; snapshot: SimulatorGraph } | null>(null)
@@ -329,12 +330,36 @@ export function SimulatorV3() {
       boundaryMap: Object.fromEntries(Object.entries(instance.boundaryMap).map(([portId, address]) => [portId, { ...address }])),
     }
     editGraph((current) => unpackComponentInstance(current, instance.id))
-    setOpenComponentScope({ instance: scopeInstance, name: definition.name })
+    setOpenComponentScope({ instance: scopeInstance, name: definition.name, definitionId: definition.id })
+    setComponentForkName(`${definition.name} FORK`)
     setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id))
     setSelectedNodeIds([])
     setSelectedWireId(null)
     clearRuntime()
     setStatus(`ENTER COMPONENT · ${definition.name} · 现在调试这个实例的内部 primitive；完成后 CLOSE BLACK BOX 返回上一层。`)
+  }
+
+  const forkOpenComponent = () => {
+    if (!openComponentScope) return
+    const source = components.find((item) => item.id === openComponentScope.definitionId)
+    if (!source) {
+      setStatus('无法分叉组件：原组件定义已经不存在。')
+      return
+    }
+    try {
+      const definition = forkComponentDefinition(
+        graph,
+        openComponentScope.instance,
+        source,
+        `component_${Date.now()}`,
+        componentForkName,
+      )
+      setComponents((current) => [...current, definition])
+      setComponentForkName(`${definition.name} FORK`)
+      setStatus(`COMPONENT FORK SAVED · ${definition.name} · 当前实例继续保持打开，可继续调试。`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '组件分叉失败。')
+    }
   }
 
   const closeComponent = () => {
@@ -343,6 +368,7 @@ export function SimulatorV3() {
       const restored = restoreComponentInstance(graph, openComponentScope.instance)
       setGraphHistory((history) => applyGraphEdit(history, restored))
       setOpenComponentScope(null)
+      setComponentForkName('')
       setSelectedNodeIds([])
       setSelectedWireId(null)
       clearRuntime()
@@ -869,7 +895,7 @@ export function SimulatorV3() {
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
         <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''} · VIEW {Math.round(viewport.zoom * 100)}%</strong></div><div><button type="button" aria-label="撤销画布编辑" disabled={!graphHistory.past.length} onClick={undo}>↶ UNDO</button><button type="button" aria-label="重做画布编辑" disabled={!graphHistory.future.length} onClick={redo}>↷ REDO</button><button type="button" aria-label="适配整张画布" onClick={fitBoardViewport}>FIT</button><button type="button" aria-label="重置画布视角" onClick={resetBoardViewport}>VIEW RESET</button><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { editGraph(() => createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setOpenComponentScope(null); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
-        {openComponentScope && <div className="sim-component-scope-bar" aria-label="组件编辑作用域"><span><small>INSIDE COMPONENT</small><strong>{openComponentScope.name}</strong><b>{openComponentScope.instance.id}</b></span><p>当前看到的是这个实例的内部 primitive；PLAY / STEP 仍经过外部接线。修改完成后原地收回黑盒。</p><button type="button" onClick={closeComponent}>CLOSE BLACK BOX</button></div>}
+        {openComponentScope && <div className="sim-component-scope-bar" aria-label="组件编辑作用域"><span><small>INSIDE COMPONENT</small><strong>{openComponentScope.name}</strong><b>{openComponentScope.instance.id}</b></span><p>当前看到的是这个实例的内部 primitive；PLAY / STEP 仍经过外部接线。修改可以只留在这个实例，也可以保存成一个新的组件定义。</p><label className="sim-component-fork-name">FORK NAME<input aria-label="组件分叉名称" value={componentForkName} onChange={(event) => setComponentForkName(event.target.value)} /></label><button type="button" onClick={forkOpenComponent}>SAVE AS NEW COMPONENT</button><button type="button" onClick={closeComponent}>CLOSE BLACK BOX</button></div>}
         <div className={`sim-board-viewport ${viewportPanRef.current ? 'panning' : ''}`} ref={viewportRef} aria-label="画布视口" onWheel={zoomBoardViewport} onPointerDown={startViewportPan} onPointerMove={moveViewportPan} onPointerUp={finishViewportPan} onPointerCancel={finishViewportPan}>
         <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerDown={startBoardSelection} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ width: BOARD_W, height: BOARD_H, transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); const probed = probeWireIds.includes(wire.id); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''} ${probed ? 'probed' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{probed ? 'P · ' : ''}{formatValue(value)}</text></g> })}{wireGesture && (() => { const from = graph.nodes.find((node) => node.id === wireGesture.from.nodeId); if (!from) return null; const definition = NODE_DEFINITIONS[from.kind]; const index = definition.outputs.findIndex((port) => port.id === wireGesture.from.portId); const proxy = componentProxyPoint(graph, components, wireGesture.from, 'output'); const x1 = proxy?.x ?? from.x + NODE_W; const y1 = proxy?.y ?? portY(from.y, index, definition.outputs.length); const bend = Math.max(42, Math.abs(wireGesture.x - x1) * .4); const path = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${wireGesture.x - bend} ${wireGesture.y}, ${wireGesture.x} ${wireGesture.y}`; const previewClass = wireGestureTarget ? wireGestureTarget.ok ? 'preview valid' : 'preview invalid' : 'preview'; return <g className={previewClass} aria-label="正在拉线"><path d={path} /></g> })()}</svg>
