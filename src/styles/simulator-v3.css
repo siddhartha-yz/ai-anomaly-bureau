@@ -139,3 +139,251 @@
 .sim-probe-row output { color: #79c6ff; font-weight: 900; font-size: .62rem; }
 .sim-probe-row > i { grid-column: 2 / -1; color: #f0c34e; font: normal 800 .43rem/1 ui-monospace, monospace; letter-spacing: .04em; }
 .sim-probe-row em { grid-column: 2 / -1; color: #708399; font: normal .43rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
+
+/* 2026-08 visual refresh: Chinese-first construction workbench */
+.sim-v3-shell {
+  --sim-bg: #0b0f16;
+  --sim-panel: rgba(18, 24, 34, .94);
+  --sim-panel-strong: #141b26;
+  --sim-line: #2b3849;
+  --sim-line-soft: #202b39;
+  --sim-text: #edf3f8;
+  --sim-muted: #8291a4;
+  --sim-accent: #67c7ff;
+  --sim-accent-soft: rgba(103, 199, 255, .12);
+  --sim-gold: #f1c75b;
+  --sim-green: #70d6ad;
+  padding: 0 18px 28px;
+  color: var(--sim-text);
+  background:
+    radial-gradient(circle at 50% -10%, rgba(61, 108, 158, .16), transparent 35%),
+    linear-gradient(rgba(89, 117, 149, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(89, 117, 149, .035) 1px, transparent 1px),
+    var(--sim-bg);
+  background-size: auto, 32px 32px, 32px 32px, auto;
+  font-family: Inter, "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+}
+.sim-v3-shell button, .sim-v3-shell input, .sim-v3-shell select { font-family: inherit; }
+.sim-v3-header {
+  max-width: 1720px;
+  min-height: 82px;
+  border-bottom: 1px solid rgba(112, 143, 176, .2);
+}
+.sim-v3-header > div:first-child { gap: 14px; }
+.sim-v3-header > div:first-child > b {
+  padding: 10px 12px;
+  border: 1px solid rgba(241, 199, 91, .7);
+  border-radius: 9px;
+  color: #ffe49a;
+  background: linear-gradient(180deg, rgba(65, 52, 19, .9), rgba(35, 29, 15, .9));
+  box-shadow: 0 8px 24px rgba(0,0,0,.22);
+  font-size: .72rem;
+  letter-spacing: .04em;
+}
+.sim-v3-header strong { font-size: 1rem; letter-spacing: .04em; }
+.sim-v3-header small { margin-top: 5px; color: #7f90a6; font-size: .62rem; letter-spacing: .06em; }
+.sim-v3-header-actions { align-items: center; }
+.sim-mode-badge {
+  padding: 6px 9px;
+  border: 1px solid rgba(112,214,173,.35);
+  border-radius: 999px;
+  color: #8ee0bd;
+  background: rgba(54,118,91,.12);
+  font-size: .58rem;
+}
+.sim-v3-header-actions button, .sim-toolbar button, .sim-inspector button, .sim-toolbar select {
+  border: 1px solid #34465b;
+  border-radius: 7px;
+  background: #111924;
+  color: #aebdce;
+  padding: 8px 10px;
+  font-size: .62rem;
+  letter-spacing: .02em;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .15s ease;
+}
+.sim-v3-header-actions button:hover, .sim-toolbar button:hover:not(:disabled), .sim-inspector button:hover:not(:disabled) {
+  border-color: #557493;
+  background: #182333;
+  color: #ecf4fb;
+}
+.sim-v3-header-actions button:active, .sim-toolbar button:active:not(:disabled), .sim-inspector button:active:not(:disabled) { transform: translateY(1px); }
+.sim-v3-layout {
+  max-width: 1720px;
+  margin-top: 16px;
+  grid-template-columns: 244px minmax(720px, 1fr) 304px;
+  gap: 12px;
+}
+.sim-palette, .sim-board-wrap, .sim-inspector {
+  border: 1px solid rgba(76, 98, 124, .56);
+  border-radius: 14px;
+  background: var(--sim-panel);
+  box-shadow: 0 14px 38px rgba(0,0,0,.22);
+}
+.sim-palette, .sim-inspector { min-height: 700px; padding: 14px; }
+.sim-panel-title { padding-bottom: 12px; border-color: var(--sim-line-soft); }
+.sim-panel-title small { color: #708299; font-size: .56rem; letter-spacing: .08em; }
+.sim-panel-title strong { margin-top: 6px; font-size: .82rem; letter-spacing: .02em; }
+.sim-palette-item {
+  min-height: 66px;
+  margin-top: 8px;
+  grid-template-columns: 42px 1fr;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid #2c3d50;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #121b27, #0f1721);
+  color: #d6e0ea;
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+.sim-palette-item:hover { transform: translateY(-1px); border-color: #4e7498; background: #152131; }
+.sim-palette-item > b {
+  width: 36px; height: 36px;
+  border: 1px solid #4778a5;
+  border-radius: 8px;
+  color: #a5d8ff;
+  background: #102235;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.sim-palette-item strong { font-size: .7rem; }
+.sim-palette-item small { margin-top: 5px; color: #74889e; font-size: .54rem; }
+.sim-palette-note {
+  margin-top: 16px;
+  padding: 11px 12px;
+  border: 1px solid rgba(171,139,48,.28);
+  border-left: 3px solid #b89438;
+  border-radius: 8px;
+  background: rgba(54,43,16,.28);
+}
+.sim-palette-note small { color: #d2b964; font-size: .56rem; }
+.sim-palette-note p { color: #b8b19a; font-size: .61rem; line-height: 1.65; }
+.sim-board-wrap { overflow: hidden; background: #0d131c; }
+.sim-toolbar {
+  min-height: 62px;
+  padding: 9px 12px;
+  border-color: var(--sim-line-soft);
+  background: rgba(18,25,36,.92);
+}
+.sim-toolbar small { color: #71849b; font-size: .54rem; }
+.sim-toolbar strong { margin-top: 5px; color: #dce7f1; font-size: .67rem; }
+.sim-toolbar button.run {
+  border-color: #c6a340;
+  background: linear-gradient(180deg, #f5d36d, #dcb64a);
+  color: #241c08;
+  box-shadow: 0 4px 12px rgba(224,184,73,.18);
+}
+.sim-toolbar button.pause { border-color: #4f779f; background: #132b43; color: #b9ddff; }
+.sim-speed-control { color: #8495a8; font-size: .55rem; }
+.sim-board-viewport {
+  height: 650px;
+  background: #090e15;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+.sim-board {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(61,113,164,.09), transparent 36%),
+    radial-gradient(circle, rgba(118,146,177,.14) 1px, transparent 1.35px),
+    #0a1018;
+  background-size: auto, 22px 22px, auto;
+}
+.sim-node {
+  border: 1px solid #40566e;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #111b27, #0d151f);
+  box-shadow: 0 8px 20px rgba(0,0,0,.32), 0 1px 0 rgba(255,255,255,.025) inset;
+  overflow: visible;
+}
+.sim-node.active { border-color: #67a9d8; box-shadow: 0 8px 20px rgba(0,0,0,.3), 0 0 20px rgba(83,164,222,.12); }
+.sim-node.selected { border-color: #efc65b; box-shadow: 0 8px 20px rgba(0,0,0,.3), 0 0 0 2px rgba(239,198,91,.16); }
+.sim-node.breakpoint { box-shadow: 0 8px 20px rgba(0,0,0,.3), inset 0 0 0 2px #e86d63; }
+.sim-node-head {
+  border-radius: 9px 9px 0 0;
+  border-color: #2d4054;
+  background: linear-gradient(180deg, #172435, #13202e);
+}
+.sim-node-head > b {
+  border: 1px solid #4a739b;
+  border-radius: 6px;
+  color: #9fd3ff;
+  font-size: .58rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.sim-node-head strong { font-size: .62rem; font-weight: 720; }
+.sim-node-head small { color: #73869a; font-size: .45rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.sim-node > input {
+  border: 1px solid #3b5067;
+  border-radius: 6px;
+  background: #09111a;
+  font-size: .62rem;
+}
+.sim-node > output { color: #80ddb5; font-size: .7rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.sim-port { color: #8395a8; font-size: .47rem; text-shadow: 0 1px 2px #071018; }
+.sim-port i { width: 11px; height: 11px; border-color: #71869c; background: #0a111a; }
+.sim-empty-board { color: #506174; }
+.sim-empty-board b { color: #71849a; font-size: .86rem; letter-spacing: .08em; }
+.sim-empty-board span { font-size: .62rem; }
+.sim-status {
+  min-height: 58px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #38536e;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(16,31,45,.95), rgba(12,23,34,.95));
+  color: #c9d9e8;
+  font-size: .62rem;
+  line-height: 1.6;
+}
+.sim-inspector section {
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px solid #29394b;
+  border-radius: 9px;
+  background: #0d141e;
+}
+.sim-inspector section > small { color: #71859c; font-size: .54rem; letter-spacing: .06em; }
+.sim-inspector section > strong { margin-top: 6px; color: #d9e4ee; font-size: .66rem; }
+.sim-inspector section > p { color: #8999aa; font-size: .58rem; line-height: 1.6; }
+.sim-wire-inspector { border-color: #6e5b25 !important; background: rgba(49,41,18,.45) !important; }
+.sim-blueprint-list, .sim-component-list { margin-top: 16px; padding-top: 12px; border-color: #293a4c; }
+.sim-blueprint-list > small, .sim-component-list > small { font-size: .54rem; }
+.sim-blueprint-list > button, .sim-component-library-row > button:first-child {
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
+}
+.sim-component-library-edit { border-radius: 7px; }
+.sim-component-instance {
+  border: 1px solid #4a9a87;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #10231f, #0d1917);
+  box-shadow: 0 9px 22px rgba(0,0,0,.34), inset 0 0 0 1px rgba(100,190,166,.08);
+}
+.sim-component-head { border-radius: 10px 10px 0 0; }
+.sim-component-head > b { border-radius: 6px; }
+.sim-component-core > small { font-size: .45rem; }
+.sim-component-core > strong { font-size: .62rem; }
+.sim-component-scope-bar {
+  background: linear-gradient(90deg, rgba(58,47,17,.94), rgba(25,25,20,.96));
+  box-shadow: inset 3px 0 0 #edc94e;
+}
+.sim-component-scope-bar button, .sim-component-fork-name input { border-radius: 6px; }
+.sim-trace-row, .sim-probe-row, .sim-test-case { border-radius: 7px; }
+.sim-wire-layer path { stroke: #425970; stroke-width: 2.5; }
+.sim-wire-layer g.hot path { stroke: #6dbfff; }
+.sim-wire-layer text { fill: #9ed2ff; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+@media (max-width: 1260px) {
+  .sim-v3-layout { grid-template-columns: 218px minmax(640px, 1fr); }
+  .sim-inspector { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 180px repeat(3,1fr); gap: 8px; }
+}
+
+@media (min-width: 1261px) {
+  .sim-palette, .sim-inspector {
+    height: 714px;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #334a61 transparent;
+  }
+  .sim-palette::-webkit-scrollbar, .sim-inspector::-webkit-scrollbar { width: 8px; }
+  .sim-palette::-webkit-scrollbar-thumb, .sim-inspector::-webkit-scrollbar-thumb { background: #334a61; border-radius: 999px; }
+}
