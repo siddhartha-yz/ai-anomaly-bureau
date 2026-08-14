@@ -505,7 +505,8 @@ test('player can open a black box, edit its primitives, and keep external wiring
   const wireCountBefore = await page.locator('.sim-wire-layer g').count()
   await component.getByRole('button', { name: /打开组件/ }).click()
   await expect(component).toHaveCount(0)
-  await expect(page.getByLabel('模拟器状态')).toContainText('BLACK BOX OPENED · OPENABLE THRESHOLD')
+  await expect(page.getByLabel('组件编辑作用域')).toContainText('OPENABLE THRESHOLD')
+  await expect(page.getByLabel('模拟器状态')).toContainText('ENTER COMPONENT · OPENABLE THRESHOLD')
   await expect(page.getByLabel('构造画布')).toContainText('constant_1_unit')
   await expect(page.getByLabel('构造画布')).toContainText('greater_than_1_unit')
   await expect(page.locator('.sim-wire-layer g')).toHaveCount(wireCountBefore + 1)
@@ -514,10 +515,23 @@ test('player can open a black box, edit its primitives, and keep external wiring
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')
 
+  // Hierarchical editing needs an explicit way back out. Closing the scope
+  // must restore the same black-box instance without losing external wires or
+  // the instance-level implementation change made inside it.
+  await page.getByLabel('组件编辑作用域').getByRole('button', { name: 'CLOSE BLACK BOX' }).click()
+  const closed = page.locator('.sim-component-instance').filter({ hasText: 'OPENABLE THRESHOLD' }).first()
+  await expect(closed).toBeVisible()
+  await expect(page.getByLabel('组件编辑作用域')).toHaveCount(0)
+  await expect(page.locator('.sim-wire-layer g')).toHaveCount(wireCountBefore)
+  await expect(page.getByLabel('模拟器状态')).toContainText('EXIT COMPONENT · OPENABLE THRESHOLD')
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')
+
   await page.reload()
-  await expect(page.locator('.sim-component-instance').filter({ hasText: 'OPENABLE THRESHOLD' })).toHaveCount(0)
-  await expect(page.getByLabel('构造画布')).toContainText('constant_1_unit')
-  await expect(page.getByLabel('constant_1_unit 数值')).toHaveValue('0.8')
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'OPENABLE THRESHOLD' })).toHaveCount(1)
+  await expect(page.getByLabel('构造画布')).not.toContainText('constant_1_unit')
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')
 })
 
 

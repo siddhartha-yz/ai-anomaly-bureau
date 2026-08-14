@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、196 个测试全部通过；Simulator V3 新增 Component interface 回归，确认玩家可以重命名黑盒与 typed port 标签，同时稳定保留 port id/type、内部 node/wire 与已有电气边界。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index--1R9lmzm.js` + `assets/index-D5t74P0Q.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 的 Component 路线真实执行 `MY THRESHOLD → RISK GATE` 重命名、`a/result → score/flag` 端口改名、重新放置、接线、运行、再封装与刷新持久化，确认接口语言可以由玩家定义而不改变电路行为。既有 V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、197 个测试全部通过；Simulator V3 新增层级 Component scope 回归，确认实例 `OPEN → 修改内部 primitive → CLOSE` 会恢复同一个黑盒实例、保留外部接线与实例级实现修改，并在内部节点被删除时拒绝生成损坏黑盒。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component interface、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-6_TB1Gue.js` + `assets/index-CP4JWjK2.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 的层级调试路线真实执行黑盒 `OPEN → 修改内部 threshold 0.60→0.80 → 运行验证行为改变 → CLOSE BLACK BOX → 再运行 → 刷新`，确认同一实例能够进入/退出、外部 wire 数量恢复且实例级修改持久化。既有自定义接口、V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

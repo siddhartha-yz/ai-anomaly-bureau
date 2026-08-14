@@ -214,6 +214,26 @@ export function unpackComponentInstance(graph: SimulatorGraph, instanceId: strin
   }
 }
 
+export function restoreComponentInstance(graph: SimulatorGraph, instance: SimulatorComponentInstance): SimulatorGraph {
+  if ((graph.components ?? []).some((item) => item.id === instance.id)) return graph
+  const nodeIds = new Set(instance.nodeIds)
+  const nodes = instance.nodeIds.map((nodeId) => graph.nodes.find((node) => node.id === nodeId))
+  if (nodes.some((node) => !node)) throw new Error('无法关闭黑盒：原组件内部节点已被删除。可先 Undo 恢复，再关闭。')
+  if (nodes.some((node) => node?.componentInstanceId && node.componentInstanceId !== instance.id)) {
+    throw new Error('无法关闭黑盒：原组件内部节点已经属于另一个黑盒。')
+  }
+  for (const address of Object.values(instance.boundaryMap)) {
+    if (!nodeIds.has(address.nodeId) || !graph.nodes.some((node) => node.id === address.nodeId)) {
+      throw new Error('无法关闭黑盒：组件边界端口对应的内部节点已不存在。')
+    }
+  }
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => nodeIds.has(node.id) ? { ...node, componentInstanceId: instance.id } : node),
+    components: [...(graph.components ?? []), { ...instance }],
+  }
+}
+
 export function moveComponentInstance(graph: SimulatorGraph, instanceId: string, x: number, y: number): SimulatorGraph {
   const instance = (graph.components ?? []).find((item) => item.id === instanceId)
   if (!instance) return graph

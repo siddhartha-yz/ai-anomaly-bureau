@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
-import { createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
+import { createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from '../src/simulator/components'
 import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
@@ -505,6 +505,21 @@ describe('Simulator V3 pure graph/runtime', () => {
     const internalConstant = opened.nodes.find((node) => instance.nodeIds.includes(node.id) && node.kind === 'constant')!
     const edited = { ...opened, nodes: opened.nodes.map((node) => node.id === internalConstant.id ? { ...node, config: { value: .8 } } : node) }
     expect(evaluateGraph(edited).values[signalKey('out_open', 'value')]).toBe(false)
+
+    const closed = restoreComponentInstance(edited, instance)
+    expect(closed.components).toEqual([instance])
+    expect(closed.nodes.filter((node) => instance.nodeIds.includes(node.id)).every((node) => node.componentInstanceId === instance.id)).toBe(true)
+    expect(closed.wires).toHaveLength(graph.wires.length)
+    expect(evaluateGraph(closed).values[signalKey('out_open', 'value')]).toBe(false)
+  })
+
+  it('refuses to close an opened component after one of its original internal nodes was deleted', () => {
+    const definition = createComponentDefinition(thresholdGraph(), ['threshold', 'gt'], 'cmp_broken_scope', 'threshold gate')
+    const graph = instantiateComponent(createEmptyGraph(), definition)
+    const instance = graph.components![0]
+    const opened = unpackComponentInstance(graph, instance.id)
+    const broken = { ...opened, nodes: opened.nodes.filter((node) => node.id !== instance.nodeIds[0]) }
+    expect(() => restoreComponentInstance(broken, instance)).toThrow(/内部节点已被删除/)
   })
 
   it('moves and deletes a component instance as one construction unit', () => {
