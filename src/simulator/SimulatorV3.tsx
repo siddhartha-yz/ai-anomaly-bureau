@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
 import { componentBoundaryAddress, createComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, unpackComponentInstance } from './components'
@@ -8,6 +8,7 @@ import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSe
 import { collectSignalProbeReadings, matchingSignalProbeBreak, type SignalProbeBreakCondition } from './probes'
 import { moveSelectedUnits, normalizeBoardRect, selectVisibleUnitsInRect, type BoardRect } from './selection'
 import { signalKey, type PortAddress, type RuntimeResult, type RuntimeSession, type SignalValue, type SimulatorComponentDefinition, type SimulatorGraph, type SimulatorNodeKind } from './types'
+import { fitViewport, panViewport, zoomViewportAtPoint, type SimulatorViewport } from './viewport'
 
 const STORAGE_KEY = 'aia.simulator-v3.board.v1'
 const BLUEPRINT_STORAGE_KEY = 'aia.simulator-v3.blueprints.v1'
@@ -16,8 +17,8 @@ const NODE_W = 164
 const NODE_H = 104
 const COMPONENT_W = 190
 const COMPONENT_H = 118
-const BOARD_W = 1120
-const BOARD_H = 620
+const BOARD_W = 2200
+const BOARD_H = 1400
 
 function formatValue(value: SignalValue | undefined) {
   if (value === undefined) return '—'
@@ -135,6 +136,10 @@ export function SimulatorV3() {
   const groupDragRef = useRef<{ nodeIds: string[]; componentInstanceIds: string[]; startX: number; startY: number; snapshot: SimulatorGraph } | null>(null)
   const [selectionBox, setSelectionBox] = useState<BoardRect | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const [viewport, setViewport] = useState<SimulatorViewport>({ zoom: .75, panX: 18, panY: 18 })
+  const viewportPanRef = useRef<{ pointerId: number; x: number; y: number } | null>(null)
+  const spacePanRef = useRef(false)
   const suppressPortClickRef = useRef(false)
 
   useEffect(() => {
@@ -336,7 +341,7 @@ export function SimulatorV3() {
   }
 
   const beginWireGesture = (event: ReactPointerEvent<HTMLButtonElement>, from: PortAddress) => {
-    if (event.button !== 0) return
+    if (event.button !== 0 || spacePanRef.current) return
     event.preventDefault()
     event.stopPropagation()
     const board = boardRef.current
@@ -559,8 +564,80 @@ export function SimulatorV3() {
     clearRuntime()
   }
 
+  useEffect(() => {
+    const keyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (event.code === 'Space' && !target?.closest('input, textarea, select')) {
+        spacePanRef.current = true
+        event.preventDefault()
+      }
+    }
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') spacePanRef.current = false
+    }
+    window.addEventListener('keydown', keyDown)
+    window.addEventListener('keyup', keyUp)
+    window.addEventListener('blur', keyUp as EventListener)
+    return () => {
+      window.removeEventListener('keydown', keyDown)
+      window.removeEventListener('keyup', keyUp)
+      window.removeEventListener('blur', keyUp as EventListener)
+    }
+  }, [])
+
+  const fitBoardViewport = useCallback(() => {
+    const viewportElement = viewportRef.current
+    if (!viewportElement) return
+    const rect = viewportElement.getBoundingClientRect()
+    setViewport(fitViewport(rect.width, rect.height, BOARD_W, BOARD_H))
+    setStatus('VIEW FIT · 整张构造画布已缩放到当前视野。')
+  }, [])
+
+  const resetBoardViewport = useCallback(() => {
+    setViewport({ zoom: .75, panX: 18, panY: 18 })
+    setStatus('VIEW RESET · 返回默认工作区视角。')
+  }, [])
+
+  const zoomBoardViewport = (event: ReactWheelEvent<HTMLDivElement>) => {
+    if (Math.abs(event.deltaY) < 1) return
+    event.preventDefault()
+    const rect = event.currentTarget.getBoundingClientRect()
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
+    const factor = Math.exp(-event.deltaY * .0012)
+    setViewport((current) => zoomViewportAtPoint(current, current.zoom * factor, pointerX, pointerY))
+  }
+
+  const startViewportPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const wantsPan = event.button === 1 || (event.button === 0 && spacePanRef.current)
+    if (!wantsPan) return
+    event.preventDefault()
+    event.stopPropagation()
+    viewportPanRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setStatus('PANNING · 松开鼠标结束；滚轮围绕指针缩放。')
+  }
+
+  const moveViewportPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pan = viewportPanRef.current
+    if (!pan || pan.pointerId !== event.pointerId) return
+    event.preventDefault()
+    const dx = event.clientX - pan.x
+    const dy = event.clientY - pan.y
+    viewportPanRef.current = { ...pan, x: event.clientX, y: event.clientY }
+    setViewport((current) => panViewport(current, dx, dy))
+  }
+
+  const finishViewportPan = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pan = viewportPanRef.current
+    if (!pan || pan.pointerId !== event.pointerId) return
+    viewportPanRef.current = null
+    setStatus(`VIEW · ${Math.round(viewport.zoom * 100)}% · Space+拖动或中键可继续平移。`)
+  }
+
   const startMove = (event: ReactPointerEvent<HTMLDivElement>, nodeId: string) => {
     if ((event.target as HTMLElement).closest('button, input')) return
+    if (event.button !== 0 || spacePanRef.current) return
     event.stopPropagation()
     const node = graph.nodes.find((item) => item.id === nodeId)
     const board = boardRef.current
@@ -589,6 +666,7 @@ export function SimulatorV3() {
 
   const startComponentMove = (event: ReactPointerEvent<HTMLDivElement>, instanceId: string) => {
     if ((event.target as HTMLElement).closest('button')) return
+    if (event.button !== 0 || spacePanRef.current) return
     event.stopPropagation()
     const instance = (graph.components ?? []).find((item) => item.id === instanceId)
     const board = boardRef.current
@@ -690,6 +768,7 @@ export function SimulatorV3() {
   }
 
   const startBoardSelection = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || spacePanRef.current) return
     if (event.target !== event.currentTarget) return
     const board = boardRef.current
     if (!board) return
@@ -742,8 +821,9 @@ export function SimulatorV3() {
         <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；NUMBER STREAM 可以逐样本过阈值，再接布尔 stream 原语自己拼指标。蓝图复制结构；组件把自己造的结构封成一个 typed 黑盒。这里没有 Accuracy / Recall 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
-        <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" aria-label="撤销画布编辑" disabled={!graphHistory.past.length} onClick={undo}>↶ UNDO</button><button type="button" aria-label="重做画布编辑" disabled={!graphHistory.future.length} onClick={redo}>↷ REDO</button><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { editGraph(() => createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
-        <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerDown={startBoardSelection} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
+        <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''} · VIEW {Math.round(viewport.zoom * 100)}%</strong></div><div><button type="button" aria-label="撤销画布编辑" disabled={!graphHistory.past.length} onClick={undo}>↶ UNDO</button><button type="button" aria-label="重做画布编辑" disabled={!graphHistory.future.length} onClick={redo}>↷ REDO</button><button type="button" aria-label="适配整张画布" onClick={fitBoardViewport}>FIT</button><button type="button" aria-label="重置画布视角" onClick={resetBoardViewport}>VIEW RESET</button><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { editGraph(() => createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
+        <div className={`sim-board-viewport ${viewportPanRef.current ? 'panning' : ''}`} ref={viewportRef} aria-label="画布视口" onWheel={zoomBoardViewport} onPointerDown={startViewportPan} onPointerMove={moveViewportPan} onPointerUp={finishViewportPan} onPointerCancel={finishViewportPan}>
+        <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerDown={startBoardSelection} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ width: BOARD_W, height: BOARD_H, transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); const probed = probeWireIds.includes(wire.id); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''} ${probed ? 'probed' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{probed ? 'P · ' : ''}{formatValue(value)}</text></g> })}{wireGesture && (() => { const from = graph.nodes.find((node) => node.id === wireGesture.from.nodeId); if (!from) return null; const definition = NODE_DEFINITIONS[from.kind]; const index = definition.outputs.findIndex((port) => port.id === wireGesture.from.portId); const proxy = componentProxyPoint(graph, components, wireGesture.from, 'output'); const x1 = proxy?.x ?? from.x + NODE_W; const y1 = proxy?.y ?? portY(from.y, index, definition.outputs.length); const bend = Math.max(42, Math.abs(wireGesture.x - x1) * .4); const path = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${wireGesture.x - bend} ${wireGesture.y}, ${wireGesture.x} ${wireGesture.y}`; const previewClass = wireGestureTarget ? wireGestureTarget.ok ? 'preview valid' : 'preview invalid' : 'preview'; return <g className={previewClass} aria-label="正在拉线"><path d={path} /></g> })()}</svg>
           {selectionBox && (() => { const box = normalizeBoardRect(selectionBox); return <div className="sim-selection-box" aria-hidden="true" style={{ left: `${box.left / BOARD_W * 100}%`, top: `${box.top / BOARD_H * 100}%`, width: `${(box.right - box.left) / BOARD_W * 100}%`, height: `${(box.bottom - box.top) / BOARD_H * 100}%` }} /> })()}
           {graph.nodes.filter((node) => !node.componentInstanceId).map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; const breakpoint = breakpointNodeIds.includes(node.id); return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''} ${breakpoint ? 'breakpoint' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
@@ -771,8 +851,10 @@ export function SimulatorV3() {
           })}
           {visibleUnitCount === 0 && <div className="sim-empty-board"><b>EMPTY CONSTRUCTION BOARD</b><span>把左侧元件拖进来。这里没有预设管线。</span></div>}
         </div>
+        </div>
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
+        <section aria-label="画布视角说明"><small>VIEWPORT</small><strong>{Math.round(viewport.zoom * 100)}% ZOOM</strong><p>滚轮围绕指针缩放；按住 Space + 左键拖动，或直接中键拖动，可以平移大画布。FIT 会显示整张构造世界，不改机器本身。</p></section>
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>空白处拖框可批量选择；拖动任一已选单元会整体移动，Delete 可整组删除。Blueprint 复制 primitive 结构；Component 可以继续封装成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={!selectedNodeIds.length && !selectedComponentInstanceIds.length} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
                 {selectedWireId && (() => {
                   const wire = graph.wires.find((item) => item.id === selectedWireId)

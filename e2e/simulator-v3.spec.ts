@@ -16,6 +16,42 @@ test('default route is an empty construction simulator, not a scripted level', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2)).toBe(true)
 })
 
+test('construction board camera pans and zooms without mutating the machine graph', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
+  await page.reload()
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+
+  const viewport = page.getByLabel('画布视口')
+  const board = page.getByLabel('构造画布').locator('.sim-board')
+  const graphBefore = await page.evaluate((key) => window.localStorage.getItem(key), BOARD_KEY)
+  await expect(page.getByLabel('构造画布')).toContainText('VIEW 75%')
+
+  await viewport.hover({ position: { x: 420, y: 250 } })
+  await page.mouse.wheel(0, -420)
+  await expect(page.getByLabel('构造画布')).not.toContainText('VIEW 75%')
+  const zoomedTransform = await board.evaluate((element) => (element as HTMLElement).style.transform)
+  expect(zoomedTransform).toContain('scale(')
+
+  const viewportBox = await viewport.boundingBox()
+  expect(viewportBox).not.toBeNull()
+  await page.mouse.move(viewportBox!.x + 420, viewportBox!.y + 250)
+  await page.mouse.down({ button: 'middle' })
+  await page.mouse.move(viewportBox!.x + 520, viewportBox!.y + 310, { steps: 5 })
+  await page.mouse.up({ button: 'middle' })
+  await expect(page.getByLabel('模拟器状态')).toContainText('Space+拖动或中键')
+  const pannedTransform = await board.evaluate((element) => (element as HTMLElement).style.transform)
+  expect(pannedTransform).not.toBe(zoomedTransform)
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), BOARD_KEY)).toBe(graphBefore)
+
+  await page.getByRole('button', { name: '适配整张画布' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('VIEW FIT')
+  await expect(page.getByLabel('构造画布')).not.toContainText('VIEW 75%')
+  await page.getByRole('button', { name: '重置画布视角' }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('VIEW 75%')
+  expect(await page.evaluate((key) => window.localStorage.getItem(key), BOARD_KEY)).toBe(graphBefore)
+})
+
 test('construction edits can be undone and redone without rebuilding the machine', async ({ page }) => {
   await page.goto('/?sim=1')
   await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
@@ -486,7 +522,7 @@ test('marquee selection turns a circuit fragment into one movable editing unit',
   const board = page.locator('.sim-board')
   const box = await board.boundingBox()
   expect(box).not.toBeNull()
-  const point = (x: number, y: number) => ({ x: box!.x + x / 1120 * box!.width, y: box!.y + y / 620 * box!.height })
+  const point = (x: number, y: number) => ({ x: box!.x + x / 2200 * box!.width, y: box!.y + y / 1400 * box!.height })
   const start = point(45, 85)
   const end = point(640, 430)
   await page.mouse.move(start.x, start.y)

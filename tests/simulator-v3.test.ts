@@ -7,6 +7,7 @@ import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCu
 import { collectSignalProbeReadings, latestSignalValue, matchingSignalProbeBreak, signalProbeConditionMatches } from '../src/simulator/probes'
 import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
+import { MAX_SIM_ZOOM, MIN_SIM_ZOOM, fitViewport, panViewport, zoomViewportAtPoint } from '../src/simulator/viewport'
 
 function thresholdGraph(): SimulatorGraph {
   let graph = createEmptyGraph()
@@ -113,6 +114,30 @@ function mixedSelectionGraph() {
   return graph
 }
 
+
+describe('Simulator V3 viewport camera', () => {
+  it('zooms around the pointer without moving the world point under the cursor', () => {
+    const start = { zoom: .75, panX: 18, panY: 18 }
+    const pointer = { x: 400, y: 260 }
+    const worldBefore = {
+      x: (pointer.x - start.panX) / start.zoom,
+      y: (pointer.y - start.panY) / start.zoom,
+    }
+    const next = zoomViewportAtPoint(start, 1.25, pointer.x, pointer.y)
+    expect((pointer.x - next.panX) / next.zoom).toBeCloseTo(worldBefore.x)
+    expect((pointer.y - next.panY) / next.zoom).toBeCloseTo(worldBefore.y)
+  })
+
+  it('clamps zoom, pans independently of graph data, and can fit the whole construction world', () => {
+    expect(zoomViewportAtPoint({ zoom: 1, panX: 0, panY: 0 }, 99, 0, 0).zoom).toBe(MAX_SIM_ZOOM)
+    expect(zoomViewportAtPoint({ zoom: 1, panX: 0, panY: 0 }, .01, 0, 0).zoom).toBe(MIN_SIM_ZOOM)
+    expect(panViewport({ zoom: .75, panX: 10, panY: 20 }, 30, -5)).toEqual({ zoom: .75, panX: 40, panY: 15 })
+    const fitted = fitViewport(1000, 620, 2200, 1400)
+    expect(fitted.zoom).toBeCloseTo(556 / 1400)
+    expect(fitted.panX).toBeCloseTo((1000 - 2200 * fitted.zoom) / 2)
+    expect(fitted.panY).toBeCloseTo(32)
+  })
+})
 
 describe('Simulator V3 signal probes', () => {
   it('tracks the latest sample on a watched stream wire without losing its accumulated history', () => {

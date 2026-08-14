@@ -46,6 +46,7 @@ src/simulator/
   catalog.ts        primitive definitions and pure evaluation
   graph.ts          connection rules / topology
   runtime.ts        deterministic graph execution / sample clock / STEP trace
+  viewport.ts       pan / zoom camera math, independent from graph state
   SimulatorV3.tsx   board editor and visualization
 ```
 
@@ -88,6 +89,7 @@ stream：
 ## 编辑器已经支持
 
 - 从元件库点击或拖入节点；
+- 构造世界从原来的单屏固定板扩成 `2200×1400` 大画布；滚轮围绕指针缩放，`Space + 左键` 或中键平移，`FIT / VIEW RESET` 管理视角。camera state 与 `SimulatorGraph` 分离，浏览机器不会污染 Undo/Redo 或持久化电路；
 - 节点可在空白板移动；
 - 从 output port 按住并拖出实时可见 cable，松到 input port 完成自由连线；点击端口仍保留为键盘/无拖拽环境的备用路径；
 - typed port 阻止不兼容连接；
@@ -121,7 +123,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装，并支持把某个实例打开回 primitive 继续编辑；**编辑后原地重新封装、保留显式层级而不是保存时展平、组件 definition 版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
 
-下一步仍优先补模拟器本身，而不是内容：更值得验证的是打开后的结构怎样自然重新封装、层级调试如何建立进入/退出语义，以及更一般的 sample primitive。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步仍优先补模拟器本身，而不是内容：大画布已经解决“复杂机器没有空间”的编辑器瓶颈，接下来更值得验证的是打开后的结构怎样自然重新封装、层级调试如何建立进入/退出语义，以及更一般的 sample primitive。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

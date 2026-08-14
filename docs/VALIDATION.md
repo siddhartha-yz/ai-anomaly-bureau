@@ -1,6 +1,6 @@
 # Simulator V3 / V2 / Legacy 回归验证记录
 
-验证日期：2026-08-13
+验证日期：2026-08-14
 
 > 当前默认入口已切换到 Simulator V3 / Construction Sandbox；V2 与 Legacy V1 仍保留完整回归保护。本文件后半部分继续保存 V1 的历史验证细节。
 
@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、193 个测试全部通过；Simulator V3 新增 wiring-cycle guard 回归：typed port 连线不仅检查方向、类型与占用，还会在编辑阶段拒绝任何会形成有向环路的反馈线，避免玩家直到 PLAY 才发现整张机器不可执行。既有 graph/runtime、Blueprint、Component、Undo/Redo、框选、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-qj_20LOb.js` + `assets/index-8oetfvwm.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：46 条 Chromium E2E 完整串行执行 46/46 通过（3.6 分钟）；新增一条真实反馈环路拉线回归，要求目标端口在拖线时立即显示 incompatible / invalid，松手后不增加 wire，并明确报告环路原因。既有 score-stream、Recall-like 指标、Blueprint、黑盒 Component、Undo/Redo、框选、Signal Probe、条件断点以及 V2 / Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、195 个测试全部通过；Simulator V3 新增 viewport camera 纯函数回归，覆盖围绕指针缩放、缩放上下限、平移与整图 FIT。camera state 与 `SimulatorGraph` 分离，因此浏览大画布不会污染电路存档或 Undo/Redo。既有 graph/runtime、wiring-cycle guard、Blueprint、Component、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-DjlVHXws.js` + `assets/index-BO_jIj6v.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.8 分钟）；Simulator V3 新 camera 路线真实执行滚轮缩放、中键平移、FIT / RESET，并断言整个过程中 board localStorage 字节不变。既有 V3 构造/调试、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标
