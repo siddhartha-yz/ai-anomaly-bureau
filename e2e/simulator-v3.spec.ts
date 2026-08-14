@@ -544,6 +544,60 @@ test('player can open a black box, edit its primitives, and keep external wiring
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('FALSE')
 })
 
+test('component library updates are versioned and do not silently rewrite sibling instances', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate(([boardKey, componentKey]) => { localStorage.removeItem(boardKey); localStorage.removeItem(componentKey) }, [BOARD_KEY, COMPONENT_KEY])
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByLabel('constant_1 数值').fill('0.60')
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
+  await page.getByRole('button', { name: 'constant_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 b number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
+  await page.getByRole('button', { name: '选择 constant_1' }).click()
+  await page.getByRole('button', { name: '选择 greater_than_1' }).click()
+  await page.getByLabel('蓝图名称').fill('VERSIONED GATE')
+  await page.getByRole('button', { name: 'SAVE COMPONENT' }).click()
+  await page.getByRole('button', { name: 'CLEAR BOARD' }).click()
+
+  const library = page.getByLabel('我的组件')
+  await expect(library).toContainText('v1')
+  await library.getByRole('button', { name: '放置组件 VERSIONED GATE' }).click()
+  await library.getByRole('button', { name: '放置组件 VERSIONED GATE' }).click()
+  const instances = page.locator('.sim-component-instance').filter({ hasText: 'VERSIONED GATE' })
+  await expect(instances).toHaveCount(2)
+  await expect(instances.nth(0)).toContainText('v1')
+  await expect(instances.nth(1)).toContainText('v1')
+
+  await instances.nth(0).getByRole('button', { name: /打开组件/ }).click()
+  await page.getByLabel(/constant_1_unit.*数值/).fill('0.80')
+  const scope = page.getByLabel('组件编辑作用域')
+  await scope.getByRole('button', { name: 'UPDATE LIBRARY DEFINITION' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('LIBRARY UPDATED · VERSIONED GATE v2')
+  await expect(library).toContainText('v2')
+  await scope.getByRole('button', { name: 'CLOSE BLACK BOX' }).click()
+
+  const closedInstances = page.locator('.sim-component-instance').filter({ hasText: 'VERSIONED GATE' })
+  await expect(closedInstances).toHaveCount(2)
+  // Closing re-appends the edited instance after the untouched sibling.
+  await expect(closedInstances.nth(0)).toContainText('v1 · LIB v2')
+  await expect(closedInstances.nth(1)).toContainText('v2')
+
+  await library.getByRole('button', { name: '放置组件 VERSIONED GATE' }).click()
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'VERSIONED GATE' })).toHaveCount(3)
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'VERSIONED GATE' }).nth(2)).toContainText('v2')
+
+  await page.reload()
+  await expect(page.getByLabel('我的组件')).toContainText('v2')
+  await expect(page.locator('.sim-component-instance').filter({ hasText: 'v1 · LIB v2' })).toHaveCount(1)
+})
+
 
 test('marquee selection turns a circuit fragment into one movable editing unit', async ({ page }) => {
   await page.goto('/?sim=1')

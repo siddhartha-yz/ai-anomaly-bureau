@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、198 个测试全部通过；Simulator V3 新增 Component fork 回归：从已打开实例修改内部 primitive 后，可显式生成独立新 definition，并保留原组件的 typed boundary / 自定义端口标签；源 definition 不会被修改。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component scope、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-CKJWf6TP.js` + `assets/index-BtI7Yayo.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 层级调试路线现在真实执行 `OPEN → threshold 0.60→0.80 → SAVE AS NEW COMPONENT → CLOSE → 刷新`，确认修改后的实例可分叉成持久新组件，同时原黑盒实例、外部接线和原组件库条目保持存在。既有 V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、200 个测试全部通过；Simulator V3 新增 Component definition versioning 回归：已打开实例可显式更新组件库 definition 并递增 revision，但旧实例继续固定原内部实现；新放置实例使用最新版。更新必须保持原 typed boundary，接口变化会被拒绝并要求另存新组件。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component scope/fork、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-DHDZx--r.js` + `assets/index-BtI7Yayo.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：48 条 Chromium E2E 完整串行执行 48/48 通过（3.6 分钟）；新增 Component definition update 路线真实放置两个 v1 实例，编辑其中一个并更新库到 v2，确认未编辑 sibling 仍固定 v1、新实例使用 v2，且刷新后版本关系保持。既有 V3 构造/调试、Component fork、viewport camera、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

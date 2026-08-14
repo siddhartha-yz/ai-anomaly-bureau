@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
-import { createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance } from '../src/simulator/components'
+import { createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance, updateComponentDefinitionFromInstance } from '../src/simulator/components'
 import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
@@ -456,6 +456,45 @@ describe('Simulator V3 pure graph/runtime', () => {
     ])
     expect(edited.nodes).toEqual(component.nodes)
     expect(edited.wires).toEqual(component.wires)
+  })
+
+  it('updates a component library definition without silently migrating older placed instances', () => {
+    const source = thresholdGraph()
+    const definition = createComponentDefinition(source, ['threshold', 'gt'], 'cmp_update', 'threshold gate')
+    let graph = instantiateComponent(createEmptyGraph(), definition, { x: 200, y: 100 })
+    graph = instantiateComponent(graph, definition, { x: 500, y: 100 })
+    const first = graph.components![0]
+    const second = graph.components![1]
+    const opened = unpackComponentInstance(graph, first.id)
+    const thresholdNodeId = first.nodeIds.find((nodeId) => opened.nodes.find((node) => node.id === nodeId)?.kind === 'constant')!
+    const edited = {
+      ...opened,
+      nodes: opened.nodes.map((node) => node.id === thresholdNodeId ? { ...node, config: { ...node.config, value: .8 } } : node),
+    }
+    const updated = updateComponentDefinitionFromInstance(edited, first, definition)
+    expect(updated.id).toBe(definition.id)
+    expect(updated.revision).toBe(2)
+    expect(updated.ports.map((port) => [port.id, port.label, port.type])).toEqual(definition.ports.map((port) => [port.id, port.label, port.type]))
+    expect(updated.nodes.find((node) => node.kind === 'constant')?.config?.value).toBe(.8)
+    expect(second.definitionRevision).toBe(1)
+    expect(edited.nodes.find((node) => node.id === second.nodeIds.find((id) => edited.nodes.find((node) => node.id === id)?.kind === 'constant'))?.config?.value).toBe(.6)
+    const withNew = instantiateComponent(edited, updated, { x: 800, y: 100 })
+    expect(withNew.components?.at(-1)?.definitionRevision).toBe(2)
+  })
+
+  it('refuses an in-place definition update when the public typed boundary changes', () => {
+    const source = thresholdGraph()
+    const definition = createComponentDefinition(source, ['threshold', 'gt'], 'cmp_boundary', 'threshold gate')
+    let graph = instantiateComponent(createEmptyGraph(), definition, { x: 200, y: 100 })
+    const instance = graph.components![0]
+    graph = unpackComponentInstance(graph, instance.id)
+    const boundaryNodeId = instance.boundaryMap.in_1.nodeId
+    graph = {
+      ...graph,
+      nodes: graph.nodes.filter((node) => node.id !== boundaryNodeId),
+      wires: graph.wires.filter((wire) => wire.fromNodeId !== boundaryNodeId && wire.toNodeId !== boundaryNodeId),
+    }
+    expect(() => updateComponentDefinitionFromInstance(graph, instance, definition)).toThrow(/边界端口|typed boundary/)
   })
 
   it('runs an instantiated player component through its exposed boundary ports', () => {

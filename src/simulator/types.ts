@@ -65,6 +65,7 @@ export type SimulatorComponentPort = {
 export type SimulatorComponentDefinition = {
   id: string
   name: string
+  revision?: number
   nodes: SimulatorNode[]
   wires: SimulatorWire[]
   ports: SimulatorComponentPort[]
@@ -73,6 +74,7 @@ export type SimulatorComponentDefinition = {
 export type SimulatorComponentInstance = {
   id: string
   definitionId: string
+  definitionRevision?: number
   x: number
   y: number
   nodeIds: string[]

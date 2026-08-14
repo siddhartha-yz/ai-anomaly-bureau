@@ -34,6 +34,7 @@ export function forkComponentDefinition(
   )
   return {
     ...fork,
+    revision: 1,
     ports: fork.ports.map((port) => {
       const sourcePort = sourceBoundaryByAddress.get(`${port.direction}:${port.nodeId}:${port.portId}`)
       return sourcePort ? { ...port, label: sourcePort.label } : port
@@ -123,6 +124,7 @@ export function createComponentDefinition(
   return {
     id,
     name: name.trim() || 'UNTITLED COMPONENT',
+    revision: 1,
     // A newly saved component owns a fresh abstraction boundary. Strip the old
     // instance ownership so this definition can be instantiated independently
     // and then be used again inside another player-built component.
@@ -198,6 +200,7 @@ export function instantiateComponent(
   const instance: SimulatorComponentInstance = {
     id: instanceId,
     definitionId: definition.id,
+    definitionRevision: definition.revision ?? 1,
     x: origin.x,
     y: origin.y,
     nodeIds: nodes.map((node) => node.id),
@@ -208,6 +211,50 @@ export function instantiateComponent(
     nodes: [...graph.nodes, ...nodes],
     wires: [...graph.wires, ...wires],
     components: [...(graph.components ?? []), instance],
+  }
+}
+
+export function updateComponentDefinitionFromInstance(
+  graph: SimulatorGraph,
+  instance: SimulatorComponentInstance,
+  source: SimulatorComponentDefinition,
+): SimulatorComponentDefinition {
+  for (const sourcePort of source.ports) {
+    const address = instance.boundaryMap[sourcePort.id]
+    const node = address ? graph.nodes.find((item) => item.id === address.nodeId) : undefined
+    const nodeDefinition = node ? NODE_DEFINITIONS[node.kind] : undefined
+    const actualPort = sourcePort.direction === 'input'
+      ? nodeDefinition?.inputs.find((port) => port.id === address?.portId)
+      : nodeDefinition?.outputs.find((port) => port.id === address?.portId)
+    if (!address || !node || !actualPort || actualPort.type !== sourcePort.type) {
+      throw new Error(`无法更新组件：边界端口 ${sourcePort.label} 的 typed boundary 已改变；请另存为新组件。`)
+    }
+  }
+  const draft = createComponentDefinition(graph, instance.nodeIds, source.id, source.name)
+  const draftByBoundary = new Map<string, SimulatorComponentDefinition['ports'][number]>(
+    draft.ports.map((port) => [`${port.direction}:${port.nodeId}:${port.portId}`, port]),
+  )
+  const nextPorts: SimulatorComponentDefinition['ports'] = []
+  for (const sourcePort of source.ports) {
+    const address = instance.boundaryMap[sourcePort.id]
+    if (!address) throw new Error(`无法更新组件：边界端口 ${sourcePort.label} 已不存在。`)
+    const key = `${sourcePort.direction}:${address.nodeId}:${address.portId}`
+    const draftPort = draftByBoundary.get(key)
+    if (!draftPort || draftPort.type !== sourcePort.type) {
+      throw new Error(`无法更新组件：${sourcePort.label} 的 typed boundary 已改变；请另存为新组件。`)
+    }
+    nextPorts.push({ ...draftPort, id: sourcePort.id, label: sourcePort.label })
+    draftByBoundary.delete(key)
+  }
+  if (draftByBoundary.size) {
+    throw new Error('无法更新组件：出现新的对外端口；改变接口请另存为新组件。')
+  }
+  return {
+    ...draft,
+    id: source.id,
+    name: source.name,
+    revision: (source.revision ?? 1) + 1,
+    ports: nextPorts,
   }
 }
 
@@ -302,7 +349,7 @@ export function parseComponentDefinitions(raw: string | null): SimulatorComponen
           && typeof port.portId === 'string'
           && validPortDirection(port.direction)
           && validSignalType(port.type))
-    })
+    }).map((definition) => ({ ...definition, revision: definition.revision ?? 1 }))
   } catch {
     return []
   }
