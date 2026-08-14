@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、191 个测试全部通过；Simulator V3 新增 signal-probe 回归，覆盖 watched stream 的最新样本读取、完整前缀保留和失效 wire 清理路径；既有 graph/runtime、Blueprint、Component、Undo/Redo 与框选测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-sJBRIEBJ.js` + `assets/index-DI95emgA.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：45 条 Chromium E2E 完整串行执行 45/45 通过。Simulator V3 路线新增验证选中 wire 后固定 SIGNAL PROBE、逐样本 STEP 时只显示当前已放行信号、PLAY 完成后保留 4-sample stream 前缀；既有 V3、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、192 个测试全部通过；Simulator V3 在 signal-probe 基础上新增条件暂停回归，覆盖 boolean TRUE/FALSE 与 number ≥/≤ 阈值匹配、只在被监视 source 真正产出值后命中，以及不改变 graph/runtime 计算语义；既有 graph/runtime、Blueprint、Component、Undo/Redo、框选与固定探针测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-BHmDe4Wl.js` + `assets/index-CCO6AvTb.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：45 条 Chromium E2E 完整串行执行 45/45 通过。Simulator V3 的 score-stream 路线现在还验证固定 P1 后设置 `BREAK ≥ 0.80`，PLAY 会精确停在第三个样本 `0.88` 刚由 source 发出、但下游尚未消费的时刻，再由 STEP/继续 PLAY 恢复执行；既有 V3、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

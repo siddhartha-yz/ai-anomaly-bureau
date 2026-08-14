@@ -70,6 +70,14 @@
 .sim-inspector section { margin-top: 10px; padding: 10px; border: 1px solid #283543; background: #090e14; }.sim-inspector section > small { color: #60738a; font-size: .48rem; letter-spacing: .1em; }.sim-inspector section > strong { display: block; margin-top: 6px; color: #cbd7e4; font-size: .62rem; }.sim-inspector section > p { margin: 7px 0 0; color: #78899b; font-size: .54rem; line-height: 1.55; }
 .sim-wire-inspector { border-color: #66551f !important; background: #151309 !important; }
 .sim-wire-inspector button { width: 100%; margin-top: 9px; padding: 7px; border: 1px solid #8b7022; background: #f0c34e; color: #151006; cursor: pointer; font: 800 .54rem/1 ui-monospace, monospace; }
+.sim-probe-break-config { margin-top: 9px; padding: 8px; border: 1px solid #3e536a; background: #09131d; }
+.sim-probe-break-config > small, .sim-probe-break-config > strong { display: block; }
+.sim-probe-break-config > small { color: #67829e; font-size: .44rem; letter-spacing: .08em; }
+.sim-probe-break-config > strong { margin-top: 4px; color: #b9d9f7; font-size: .53rem; }
+.sim-probe-break-config > div { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sim-probe-break-config input { width: 100%; margin-top: 7px; padding: 6px; border: 1px solid #34485d; border-radius: 0; background: #071018; color: #dce9f5; font: 700 .54rem/1 ui-monospace, monospace; }
+.sim-probe-break-config button { margin-top: 6px; border-color: #3f5d78; background: #0d1b28; color: #8db7dc; box-shadow: none; }
+.sim-probe-break-config button[aria-pressed="true"] { border-color: #e1bc47; background: #2a230d; color: #f2d66d; }
 .sim-trace-row { margin-top: 6px; display: grid; grid-template-columns: 24px 1fr auto; gap: 6px; padding: 6px; border: 1px solid #202b37; color: #49596a; font-size: .48rem; }.sim-trace-row.done { color: #80bfa7; border-color: #29483e; }.sim-trace-row strong { color: inherit; }
 @media (max-width: 1180px) { .sim-v3-layout { grid-template-columns: 190px 1fr; }.sim-inspector { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 180px repeat(3,1fr); gap: 8px; }.sim-inspector .sim-panel-title { border-bottom: 0; } }
 @media (max-width: 760px) { .sim-v3-shell { padding-inline: 8px; }.sim-v3-header { align-items: flex-start; padding: 10px 0; }.sim-v3-layout { grid-template-columns: 1fr; }.sim-palette, .sim-inspector { min-height: 0; }.sim-inspector { grid-column: auto; display: block; }.sim-board-wrap { overflow-x: auto; }.sim-board { min-width: 720px; }.sim-toolbar { align-items: flex-start; flex-direction: column; } }
@@ -106,4 +114,5 @@
 .sim-probe-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b9c9da; font-size: .49rem; }
 .sim-probe-row small { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #61768c; font-size: .42rem; }
 .sim-probe-row output { color: #79c6ff; font-weight: 900; font-size: .62rem; }
+.sim-probe-row > i { grid-column: 2 / -1; color: #f0c34e; font: normal 800 .43rem/1 ui-monospace, monospace; letter-spacing: .04em; }
 .sim-probe-row em { grid-column: 2 / -1; color: #708399; font: normal .43rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }

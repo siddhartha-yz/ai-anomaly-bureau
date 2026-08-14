@@ -5,7 +5,7 @@ import { componentBoundaryAddress, createComponentDefinition, instantiateCompone
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
-import { collectSignalProbeReadings } from './probes'
+import { collectSignalProbeReadings, matchingSignalProbeBreak, type SignalProbeBreakCondition } from './probes'
 import { moveSelectedUnits, normalizeBoardRect, selectVisibleUnitsInRect, type BoardRect } from './selection'
 import { signalKey, type PortAddress, type RuntimeResult, type RuntimeSession, type SignalValue, type SimulatorComponentDefinition, type SimulatorGraph, type SimulatorNodeKind } from './types'
 
@@ -120,6 +120,7 @@ export function SimulatorV3() {
   const [playDelay, setPlayDelay] = useState(180)
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null)
   const [probeWireIds, setProbeWireIds] = useState<string[]>([])
+  const [probeBreakConditions, setProbeBreakConditions] = useState<Record<string, SignalProbeBreakCondition>>({})
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedComponentInstanceIds, setSelectedComponentInstanceIds] = useState<string[]>([])
   const [breakpointNodeIds, setBreakpointNodeIds] = useState<string[]>([])
@@ -145,10 +146,24 @@ export function SimulatorV3() {
   useEffect(() => {
     const liveWireIds = new Set(graph.wires.map((wire) => wire.id))
     setProbeWireIds((current) => current.filter((wireId) => liveWireIds.has(wireId)))
+    setProbeBreakConditions((current) => Object.fromEntries(Object.entries(current).filter(([wireId]) => liveWireIds.has(wireId))))
   }, [graph.wires])
 
   const visibleValues = useMemo(() => runtime && stepIndex >= 0 ? visibleValuesAfterStep(runtime, stepIndex) : {}, [runtime, stepIndex])
   const probeReadings = useMemo(() => collectSignalProbeReadings(graph, probeWireIds, visibleValues), [graph, probeWireIds, visibleValues])
+
+  const probeSignalType = useCallback((wireId: string) => {
+    const wire = graph.wires.find((item) => item.id === wireId)
+    const node = wire ? graph.nodes.find((item) => item.id === wire.fromNodeId) : undefined
+    const port = node && wire ? NODE_DEFINITIONS[node.kind].outputs.find((item) => item.id === wire.fromPortId) : undefined
+    return port?.type
+  }, [graph])
+
+  const probeBreakLabel = useCallback((condition: SignalProbeBreakCondition | undefined) => {
+    if (!condition) return 'BREAK OFF'
+    if (condition.mode === 'boolean') return `BREAK ${condition.value ? 'TRUE' : 'FALSE'}`
+    return `BREAK ${condition.mode === 'number-at-least' ? '≥' : '≤'} ${condition.threshold}`
+  }, [])
   const editGraph = useCallback((updater: (current: SimulatorGraph) => SimulatorGraph) => {
     setGraphHistory((history) => applyGraphEdit(history, updater(history.present)))
   }, [])
@@ -356,6 +371,15 @@ export function SimulatorV3() {
         setClockTickIndex(stepped.session.tick - 1)
         const node = graph.nodes.find((item) => item.id === currentStep.nodeId)
         const complete = stepped.session.tick >= stepped.session.totalTicks && stepped.session.nodeIndex === 0
+        const probeBreak = fromPlayback
+          ? matchingSignalProbeBreak(graph, probeBreakConditions, frame.result.values, currentStep.nodeId)
+          : undefined
+        if (probeBreak) {
+          setPlaying(false)
+          const probeIndex = probeWireIds.indexOf(probeBreak.wireId) + 1
+          setStatus(`PROBE BREAK · P${probeIndex || '?'} · ${probeBreak.from} = ${formatValue(probeBreak.latest)} · STEP 可继续检查下游。`)
+          return false
+        }
         if (complete && fromPlayback) setPlaying(false)
         setStatus(complete
           ? fromPlayback
@@ -385,6 +409,15 @@ export function SimulatorV3() {
       setRuntime(result); setStepIndex(next)
       const node = graph.nodes.find((item) => item.id === result.steps[next]?.nodeId)
       const complete = next === result.steps.length - 1
+      const probeBreak = fromPlayback && cursorNodeId
+        ? matchingSignalProbeBreak(graph, probeBreakConditions, visibleValuesAfterStep(result, next), cursorNodeId)
+        : undefined
+      if (probeBreak) {
+        setPlaying(false)
+        const probeIndex = probeWireIds.indexOf(probeBreak.wireId) + 1
+        setStatus(`PROBE BREAK · P${probeIndex || '?'} · ${probeBreak.from} = ${formatValue(probeBreak.latest)} · STEP 可继续检查下游。`)
+        return false
+      }
       if (complete && fromPlayback) setPlaying(false)
       setStatus(complete
         ? fromPlayback
@@ -397,7 +430,7 @@ export function SimulatorV3() {
       setStatus(error instanceof Error ? error.message : '单步执行失败。')
       return true
     }
-  }, [breakpointNodeIds, clearRuntime, graph, runtime, runtimeNodeDisplayName, runtimeSession, stepIndex])
+  }, [breakpointNodeIds, clearRuntime, graph, probeBreakConditions, probeWireIds, runtime, runtimeNodeDisplayName, runtimeSession, stepIndex])
 
   useEffect(() => {
     if (!playing) return
@@ -688,8 +721,31 @@ export function SimulatorV3() {
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>空白处拖框可批量选择；拖动任一已选单元会整体移动，Delete 可整组删除。Blueprint 复制 primitive 结构；Component 可以继续封装成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={!selectedNodeIds.length && !selectedComponentInstanceIds.length} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
-                {selectedWireId && (() => { const wire = graph.wires.find((item) => item.id === selectedWireId); if (!wire) return null; const probed = probeWireIds.includes(wire.id); return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p><button type="button" onClick={() => { setProbeWireIds((current) => probed ? current.filter((id) => id !== wire.id) : [...current, wire.id]); setStatus(probed ? 'SIGNAL PROBE REMOVED' : 'SIGNAL PROBE PINNED · STEP / PLAY 时持续观察这根线。') }}>{probed ? 'REMOVE PROBE' : 'PIN SIGNAL PROBE'}</button><button type="button" onClick={() => { editGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button></section> })()}
-        {probeReadings.length > 0 && <section className="sim-probe-panel" aria-label="信号探针"><small>SIGNAL PROBES</small>{probeReadings.map((probe, index) => <div key={probe.wireId} className="sim-probe-row"><b>P{index + 1}</b><span><strong>{probe.from}</strong><small>→ {probe.to}</small></span><output>{formatValue(probe.latest)}</output>{Array.isArray(probe.value) && <em>{probe.sampleCount} samples · {formatValue(probe.value)}</em>}</div>)}</section>}
+                {selectedWireId && (() => {
+                  const wire = graph.wires.find((item) => item.id === selectedWireId)
+                  if (!wire) return null
+                  const probed = probeWireIds.includes(wire.id)
+                  const signalType = probeSignalType(wire.id)
+                  const condition = probeBreakConditions[wire.id]
+                  const isBooleanSignal = signalType === 'boolean' || signalType === 'boolean-stream'
+                  const isNumberSignal = signalType === 'number' || signalType === 'number-stream'
+                  const numberThreshold = condition && condition.mode !== 'boolean' ? condition.threshold : 0.5
+                  return <section className="sim-wire-inspector"><small>SELECTED WIRE</small><strong>{wire.fromNodeId}.{wire.fromPortId}</strong><p>→ {wire.toNodeId}.{wire.toPortId}</p>
+                    <button type="button" onClick={() => {
+                      setProbeWireIds((current) => probed ? current.filter((id) => id !== wire.id) : [...current, wire.id])
+                      if (probed) setProbeBreakConditions((current) => Object.fromEntries(Object.entries(current).filter(([wireId]) => wireId !== wire.id)))
+                      setStatus(probed ? 'SIGNAL PROBE REMOVED' : 'SIGNAL PROBE PINNED · STEP / PLAY 时持续观察这根线。')
+                    }}>{probed ? 'REMOVE PROBE' : 'PIN SIGNAL PROBE'}</button>
+                    {probed && <div className="sim-probe-break-config" aria-label="探针条件暂停">
+                      <small>CONDITIONAL BREAK</small><strong>{probeBreakLabel(condition)}</strong>
+                      {isBooleanSignal && <div><button type="button" aria-pressed={condition?.mode === 'boolean' && condition.value} onClick={() => setProbeBreakConditions((current) => ({ ...current, [wire.id]: { mode: 'boolean', value: true } }))}>BREAK TRUE</button><button type="button" aria-pressed={condition?.mode === 'boolean' && !condition.value} onClick={() => setProbeBreakConditions((current) => ({ ...current, [wire.id]: { mode: 'boolean', value: false } }))}>BREAK FALSE</button></div>}
+                      {isNumberSignal && <><input aria-label="探针断点阈值" type="number" step="0.01" value={numberThreshold} onChange={(event) => { const threshold = Number(event.target.value); if (!Number.isFinite(threshold)) return; setProbeBreakConditions((current) => ({ ...current, [wire.id]: condition?.mode === 'number-at-most' ? { mode: 'number-at-most', threshold } : { mode: 'number-at-least', threshold } })) }} /><div><button type="button" aria-pressed={condition?.mode === 'number-at-least'} onClick={() => setProbeBreakConditions((current) => ({ ...current, [wire.id]: { mode: 'number-at-least', threshold: numberThreshold } }))}>BREAK ≥</button><button type="button" aria-pressed={condition?.mode === 'number-at-most'} onClick={() => setProbeBreakConditions((current) => ({ ...current, [wire.id]: { mode: 'number-at-most', threshold: numberThreshold } }))}>BREAK ≤</button></div></>}
+                      {condition && <button type="button" onClick={() => setProbeBreakConditions((current) => Object.fromEntries(Object.entries(current).filter(([wireId]) => wireId !== wire.id)))}>BREAK OFF</button>}
+                    </div>}
+                    <button type="button" onClick={() => { editGraph((current) => removeWire(current, wire.id)); setSelectedWireId(null); clearRuntime(); setStatus('连线已移除；节点保持不变，可以重新接线。') }}>DELETE WIRE</button>
+                  </section>
+                })()}
+        {probeReadings.length > 0 && <section className="sim-probe-panel" aria-label="信号探针"><small>SIGNAL PROBES</small>{probeReadings.map((probe, index) => <div key={probe.wireId} className="sim-probe-row"><b>P{index + 1}</b><span><strong>{probe.from}</strong><small>→ {probe.to}</small></span><output>{formatValue(probe.latest)}</output>{probeBreakConditions[probe.wireId] && <i>{probeBreakLabel(probeBreakConditions[probe.wireId])}</i>}{Array.isArray(probe.value) && <em>{probe.sampleCount} samples · {formatValue(probe.value)}</em>}</div>)}</section>}
         <section><small>WIRE MODE</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : 'IDLE'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
         {streamClockLength(graph) > 0 && <section><small>SAMPLE CLOCK</small><strong>{runtimeSession ? `${runtimeSession.tick} / ${streamClockLength(graph)} · NODE ${runtimeSession.nodeIndex + 1}` : `0 / ${streamClockLength(graph)}`}</strong><p>STEP 每次只执行当前样本的一个节点；走完整张图后才推进到下一个样本。</p></section>}
         <section><small>STEP TRACE</small>{runtime ? traceRows.map((item, index) => <div key={`${item.key}-${index}`} className={`sim-trace-row ${item.stepIndex <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.label}</span><strong>{item.value}</strong></div>) : <p>PLAY 或 STEP 后，这里显示当前时钟内的实际求值顺序；自制 Component 只作为一个黑盒显示，不泄露内部节点。</p>}</section>

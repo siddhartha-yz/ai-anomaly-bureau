@@ -4,7 +4,7 @@ import { createComponentDefinition, instantiateComponent, moveComponentInstance,
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
-import { collectSignalProbeReadings, latestSignalValue } from '../src/simulator/probes'
+import { collectSignalProbeReadings, latestSignalValue, matchingSignalProbeBreak, signalProbeConditionMatches } from '../src/simulator/probes'
 import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
@@ -128,6 +128,23 @@ describe('Simulator V3 signal probes', () => {
     })
     expect(readings[0].value).toEqual([.72, .31, .88, .54])
     expect(latestSignalValue([true, false, true])).toBe(true)
+  })
+
+  it('can turn a watched signal into a conditional playback break without changing graph semantics', () => {
+    const graph = scoreThresholdGraph()
+    expect(signalProbeConditionMatches({ mode: 'number-at-least', threshold: .8 }, [.72, .31, .88])).toBe(true)
+    expect(signalProbeConditionMatches({ mode: 'number-at-most', threshold: .3 }, [.72, .31, .88])).toBe(false)
+    expect(signalProbeConditionMatches({ mode: 'boolean', value: false }, [true, false])).toBe(true)
+
+    const values = evaluateRuntimeTimeline(graph)[2].result.values
+    const match = matchingSignalProbeBreak(
+      graph,
+      { 'scores-decide-stream': { mode: 'number-at-least', threshold: .8 } },
+      values,
+      'scores',
+    )
+    expect(match).toMatchObject({ wireId: 'scores-decide-stream', latest: .88 })
+    expect(matchingSignalProbeBreak(graph, { 'scores-decide-stream': { mode: 'number-at-least', threshold: .8 } }, values, 'decide')).toBeUndefined()
   })
 })
 

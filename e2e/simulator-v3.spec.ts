@@ -149,6 +149,9 @@ test('number score streams can flow through a threshold primitive into boolean s
   await page.getByRole('button', { name: 'PIN SIGNAL PROBE' }).click()
   await expect(page.getByLabel('信号探针')).toContainText('P1')
   await expect(page.getByLabel('信号探针')).toContainText('—')
+  await page.getByLabel('探针断点阈值').fill('0.80')
+  await page.getByRole('button', { name: 'BREAK ≥' }).click()
+  await expect(page.getByLabel('信号探针')).toContainText('BREAK ≥ 0.8')
   await page.getByRole('button', { name: 'STEP' }).click()
   await expect(page.getByLabel('信号探针')).toContainText('0.72')
   await expect(page.getByLabel('信号探针')).toContainText('1 samples')
@@ -156,6 +159,14 @@ test('number score streams can flow through a threshold primitive into boolean s
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('—')
 
+  await page.getByRole('button', { name: '▶ PLAY' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('PROBE BREAK · P1 · number_stream_input_1.value = 0.88')
+  await expect(page.getByLabel('信号探针')).toContainText('3 samples')
+  await expect(page.getByLabel('信号探针')).toContainText('0.88')
+  // The probe breaks immediately after the watched source emits sample 3,
+  // before any downstream node consumes it.
+  await expect(page.getByLabel('number_output_1 输出值')).toHaveText('—')
+  await page.getByRole('button', { name: 'BREAK OFF' }).click()
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('2')
   await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
