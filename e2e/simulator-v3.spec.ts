@@ -58,7 +58,21 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await page.getByLabel('number_input_1 数值').fill('0.72')
   await page.getByLabel('constant_1 数值').fill('0.60')
 
-  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).dragTo(page.getByRole('button', { name: 'greater_than_1 输入 a number' }))
+  // Primary construction gesture is a live cable drag: the wire follows the
+  // pointer and connects on release, instead of feeling like two form clicks.
+  const cableFrom = page.getByRole('button', { name: 'number_input_1 输出 value number' })
+  const cableTo = page.getByRole('button', { name: 'greater_than_1 输入 a number' })
+  const fromBox = await cableFrom.boundingBox()
+  const toBox = await cableTo.boundingBox()
+  expect(fromBox).not.toBeNull()
+  expect(toBox).not.toBeNull()
+  await page.mouse.move(fromBox!.x + fromBox!.width / 2, fromBox!.y + fromBox!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move((fromBox!.x + toBox!.x) / 2, (fromBox!.y + toBox!.y) / 2, { steps: 4 })
+  await expect(page.getByLabel('正在拉线')).toBeVisible()
+  await page.mouse.move(toBox!.x + toBox!.width / 2, toBox!.y + toBox!.height / 2, { steps: 4 })
+  await page.mouse.up()
+  await expect(page.getByLabel('正在拉线')).toHaveCount(0)
   await page.getByRole('button', { name: 'constant_1 输出 value number' }).dragTo(page.getByRole('button', { name: 'greater_than_1 输入 b number' }))
   await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).dragTo(page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }))
   await expect(page.getByLabel('构造画布')).toContainText('4 NODES · 3 WIRES')

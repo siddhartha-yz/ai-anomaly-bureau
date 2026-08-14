@@ -54,6 +54,7 @@
 .sim-wire-layer g.hot path { stroke: #69b7ff; filter: drop-shadow(0 0 4px rgba(74,164,255,.55)); }
 .sim-wire-layer g.hot .sim-wire-hit { stroke: transparent; filter: none; }
 .sim-wire-layer g.selected path:not(.sim-wire-hit) { stroke: #f0c34e; stroke-width: 4; filter: drop-shadow(0 0 5px rgba(240,195,78,.5)); }
+.sim-wire-layer g.preview path { stroke: #f0c34e; stroke-width: 3; stroke-dasharray: 8 6; filter: drop-shadow(0 0 5px rgba(240,195,78,.45)); }
 .sim-wire-layer text { fill: #8bc5ff; font-size: 13px; font-weight: 800; paint-order: stroke; stroke: #07101a; stroke-width: 4px; }
 .sim-node { position: absolute; border: 2px solid #3a4c61; background: #0d141d; box-shadow: 4px 4px 0 #020305; user-select: none; cursor: move; }
 .sim-node.active { border-color: #5f9bc7; box-shadow: 4px 4px 0 #020305, inset 0 0 18px rgba(60,137,196,.12); }

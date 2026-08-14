@@ -112,6 +112,7 @@ export function SimulatorV3() {
   const [graphHistory, setGraphHistory] = useState(() => createGraphHistory(readGraph()))
   const graph = graphHistory.present
   const [pendingPort, setPendingPort] = useState<PortAddress | null>(null)
+  const [wireGesture, setWireGesture] = useState<{ from: PortAddress; x: number; y: number } | null>(null)
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null)
   const [runtimeSession, setRuntimeSession] = useState<RuntimeSession | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
@@ -133,6 +134,7 @@ export function SimulatorV3() {
   const groupDragRef = useRef<{ nodeIds: string[]; componentInstanceIds: string[]; startX: number; startY: number; snapshot: SimulatorGraph } | null>(null)
   const [selectionBox, setSelectionBox] = useState<BoardRect | null>(null)
   const boardRef = useRef<HTMLDivElement | null>(null)
+  const suppressPortClickRef = useRef(false)
 
   useEffect(() => {
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(graph)) } catch { /* persistence is optional */ }
@@ -330,6 +332,23 @@ export function SimulatorV3() {
     const [nodeId, portId] = raw.split('::')
     if (!nodeId || !portId) return
     connectPorts({ nodeId, portId }, to)
+  }
+
+  const beginWireGesture = (event: ReactPointerEvent<HTMLButtonElement>, from: PortAddress) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    const board = boardRef.current
+    if (!board) return
+    const rect = board.getBoundingClientRect()
+    const x = (event.clientX - rect.left) * (BOARD_W / rect.width)
+    const y = (event.clientY - rect.top) * (BOARD_H / rect.height)
+    setWireGesture({ from, x, y })
+    setPendingPort(from)
+    setSelectedWireId(null)
+    suppressPortClickRef.current = false
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setStatus('正在拉线；松开到兼容输入端口即可连接。')
   }
 
   const runtimeNodeDisplayName = useCallback((nodeId: string) => {
@@ -596,6 +615,14 @@ export function SimulatorV3() {
 
   const moveBoardObjects = (event: ReactPointerEvent<HTMLDivElement>) => {
     const board = boardRef.current
+    if (wireGesture && board) {
+      const rect = board.getBoundingClientRect()
+      const x = (event.clientX - rect.left) * (BOARD_W / rect.width)
+      const y = (event.clientY - rect.top) * (BOARD_H / rect.height)
+      if (Math.hypot(x - wireGesture.x, y - wireGesture.y) > 4) suppressPortClickRef.current = true
+      setWireGesture((current) => current ? { ...current, x, y } : null)
+      return
+    }
     const group = groupDragRef.current
     if (group && board) {
       const rect = board.getBoundingClientRect()
@@ -620,7 +647,21 @@ export function SimulatorV3() {
     }
   }
 
-  const finishBoardMove = () => {
+  const finishBoardMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (wireGesture) {
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>('button[data-sim-input-node][data-sim-input-port]')
+      const nodeId = target?.dataset.simInputNode
+      const portId = target?.dataset.simInputPort
+      if (nodeId && portId) {
+        connectPorts(wireGesture.from, { nodeId, portId })
+      } else {
+        setPendingPort(null)
+        setStatus('连线取消：请把线松开在兼容输入端口上。')
+      }
+      setWireGesture(null)
+      window.setTimeout(() => { suppressPortClickRef.current = false }, 0)
+      return
+    }
     const snapshot = dragRef.current?.snapshot ?? componentDragRef.current?.snapshot ?? groupDragRef.current?.snapshot
     if (snapshot) setGraphHistory((history) => recordGraphSnapshot(history, snapshot))
     dragRef.current = null
@@ -691,7 +732,7 @@ export function SimulatorV3() {
       <section className="sim-board-wrap" aria-label="构造画布">
         <div className="sim-toolbar"><div><small>BOARD</small><strong>{visibleUnitCount} NODES · {visibleWires.length} WIRES{streamClockLength(graph) ? ` · CLOCK ${clockTickIndex + 1}/${streamClockLength(graph)}` : ''}{playing ? ' · RUNNING' : ''}</strong></div><div><button type="button" aria-label="撤销画布编辑" disabled={!graphHistory.past.length} onClick={undo}>↶ UNDO</button><button type="button" aria-label="重做画布编辑" disabled={!graphHistory.future.length} onClick={redo}>↷ REDO</button><button type="button" onClick={step}>STEP</button>{playing ? <button type="button" className="pause" onClick={pause}>Ⅱ PAUSE</button> : <button type="button" className="run" onClick={play}>▶ PLAY</button>}<label className="sim-speed-control">SPEED<select aria-label="播放速度" value={playDelay} onChange={(event) => setPlayDelay(Number(event.target.value))}><option value="800">0.5×</option><option value="320">1×</option><option value="180">2×</option><option value="70">5×</option><option value="20">FAST</option></select></label><button type="button" onClick={() => { clearRuntime(); setStatus('信号已清空，电路保持不变。') }}>RESET SIGNAL</button><button type="button" onClick={() => { editGraph(() => createEmptyGraph()); setPendingPort(null); setSelectedWireId(null); setSelectedNodeIds([]); setSelectedComponentInstanceIds([]); setBreakpointNodeIds([]); clearRuntime(); setStatus('画布已清空。') }}>CLEAR BOARD</button></div></div>
         <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerDown={startBoardSelection} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ aspectRatio: `${BOARD_W} / ${BOARD_H}` }}>
-          <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); const probed = probeWireIds.includes(wire.id); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''} ${probed ? 'probed' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{probed ? 'P · ' : ''}{formatValue(value)}</text></g> })}</svg>
+          <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); const probed = probeWireIds.includes(wire.id); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''} ${probed ? 'probed' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{probed ? 'P · ' : ''}{formatValue(value)}</text></g> })}{wireGesture && (() => { const from = graph.nodes.find((node) => node.id === wireGesture.from.nodeId); if (!from) return null; const definition = NODE_DEFINITIONS[from.kind]; const index = definition.outputs.findIndex((port) => port.id === wireGesture.from.portId); const proxy = componentProxyPoint(graph, components, wireGesture.from, 'output'); const x1 = proxy?.x ?? from.x + NODE_W; const y1 = proxy?.y ?? portY(from.y, index, definition.outputs.length); const bend = Math.max(42, Math.abs(wireGesture.x - x1) * .4); const path = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${wireGesture.x - bend} ${wireGesture.y}, ${wireGesture.x} ${wireGesture.y}`; return <g className="preview" aria-label="正在拉线"><path d={path} /></g> })()}</svg>
           {selectionBox && (() => { const box = normalizeBoardRect(selectionBox); return <div className="sim-selection-box" aria-hidden="true" style={{ left: `${box.left / BOARD_W * 100}%`, top: `${box.top / BOARD_H * 100}%`, width: `${(box.right - box.left) / BOARD_W * 100}%`, height: `${(box.bottom - box.top) / BOARD_H * 100}%` }} /> })()}
           {graph.nodes.filter((node) => !node.componentInstanceId).map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; const breakpoint = breakpointNodeIds.includes(node.id); return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''} ${breakpoint ? 'breakpoint' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
             <div className="sim-node-head"><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{node.id}</small></span><button type="button" className="sim-node-breakpoint" aria-label={`${breakpoint ? '取消断点' : '设置断点'} ${node.id}`} aria-pressed={breakpoint} onClick={() => setBreakpointNodeIds((current) => current.includes(node.id) ? current.filter((id) => id !== node.id) : [...current, node.id])}>●</button><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { editGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setBreakpointNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
@@ -700,8 +741,8 @@ export function SimulatorV3() {
             {node.kind === 'boolean-stream-input' && <input aria-label={`${node.id} stream`} title="使用 1 / 0，以逗号或空格分隔" type="text" value={(node.config?.values ?? []).map((value) => value ? '1' : '0').join(',')} onChange={(event) => updateBooleanStream(node.id, event.target.value)} />}
             {node.kind === 'boolean-output' && <output aria-label={`${node.id} 输出值`}>{formatValue(outputValue)}</output>}
             {node.kind === 'number-output' && <output aria-label={`${node.id} 输出值`}>{formatValue(outputValue)}</output>}
-            <div className="sim-port-column inputs">{definition.inputs.map((port) => <button type="button" key={port.id} className="sim-port input" aria-label={`${node.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, { nodeId: node.id, portId: port.id })} onClick={() => choosePort({ nodeId: node.id, portId: port.id }, 'input')}><i /><span>{port.label}</span></button>)}</div>
-            <div className="sim-port-column outputs">{definition.outputs.map((port) => <button type="button" key={port.id} draggable className={`sim-port output ${pendingPort?.nodeId === node.id && pendingPort.portId === port.id ? 'pending' : ''}`} aria-label={`${node.id} 输出 ${port.label} ${port.type}`} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('application/x-aia-port', `${node.id}::${port.id}`); setPendingPort({ nodeId: node.id, portId: port.id }); setStatus('正在拉线；拖到兼容输入端口。') }} onDragEnd={() => setPendingPort(null)} onClick={() => choosePort({ nodeId: node.id, portId: port.id }, 'output')}><span>{port.label}</span><i /></button>)}</div>
+            <div className="sim-port-column inputs">{definition.inputs.map((port) => <button type="button" key={port.id} className="sim-port input" data-sim-input-node={node.id} data-sim-input-port={port.id} aria-label={`${node.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, { nodeId: node.id, portId: port.id })} onClick={() => choosePort({ nodeId: node.id, portId: port.id }, 'input')}><i /><span>{port.label}</span></button>)}</div>
+            <div className="sim-port-column outputs">{definition.outputs.map((port) => <button type="button" key={port.id} draggable className={`sim-port output ${pendingPort?.nodeId === node.id && pendingPort.portId === port.id ? 'pending' : ''}`} aria-label={`${node.id} 输出 ${port.label} ${port.type}`} onPointerDown={(event) => beginWireGesture(event, { nodeId: node.id, portId: port.id })} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('application/x-aia-port', `${node.id}::${port.id}`); setPendingPort({ nodeId: node.id, portId: port.id }); setStatus('正在拉线；拖到兼容输入端口。') }} onDragEnd={() => setPendingPort(null)} onClick={() => { if (suppressPortClickRef.current) return; choosePort({ nodeId: node.id, portId: port.id }, 'output') }}><span>{port.label}</span><i /></button>)}</div>
           </div> })}
           {(graph.components ?? []).map((instance) => {
             const definition = components.find((item) => item.id === instance.definitionId)
@@ -712,8 +753,8 @@ export function SimulatorV3() {
             return <div key={instance.id} className={`sim-component-instance ${selected ? 'selected' : ''}`} style={{ left: `${instance.x / BOARD_W * 100}%`, top: `${instance.y / BOARD_H * 100}%`, width: `${COMPONENT_W / BOARD_W * 100}%`, height: `${COMPONENT_H / BOARD_H * 100}%` }} onPointerDown={(event) => startComponentMove(event, instance.id)} aria-label={`组件 ${instance.id} ${definition.name}`}>
               <div className="sim-component-head"><b>IC</b><span><strong>{definition.name}</strong><small>{inputs.length} IN · {outputs.length} OUT</small></span><button type="button" className="sim-component-open" aria-label={`打开组件 ${instance.id}`} title="打开黑盒，把内部 primitive 恢复到画布继续调试" onClick={() => { editGraph((current) => unpackComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setSelectedWireId(null); clearRuntime(); setStatus(`BLACK BOX OPENED · ${definition.name} · 内部 primitive 已恢复到画布，可直接修改或重新封装。`) }}>↗</button><button type="button" className="sim-node-select" aria-label={`选择组件 ${instance.id}`} aria-pressed={selected} onClick={() => toggleComponentSelection(instance.id)}>◇</button><button type="button" aria-label={`删除组件 ${instance.id}`} onClick={() => { const nodeIds = new Set(instance.nodeIds); editGraph((current) => removeComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setBreakpointNodeIds((current) => current.filter((id) => !nodeIds.has(id))); setSelectedWireId(null); clearRuntime() }}>×</button></div>
               <div className="sim-component-core"><small>PLAYER-BUILT</small><strong>BLACK BOX</strong>{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); return address ? <output key={port.id}>{port.label}: {formatValue(visibleValues[signalKey(address.nodeId, address.portId)])}</output> : null })}</div>
-              <div className="sim-component-ports inputs">{inputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} className="sim-port input" aria-label={`${definition.name} ${instance.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, address)} onClick={() => choosePort(address, 'input')}><i /><span>{port.label}</span></button> })}</div>
-              <div className="sim-component-ports outputs">{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} draggable className={`sim-port output ${pendingPort?.nodeId === address.nodeId && pendingPort.portId === address.portId ? 'pending' : ''}`} aria-label={`${definition.name} ${instance.id} 输出 ${port.label} ${port.type}`} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('application/x-aia-port', `${address.nodeId}::${address.portId}`); setPendingPort(address); setStatus('正在从自定义组件拉线；拖到兼容输入端口。') }} onDragEnd={() => setPendingPort(null)} onClick={() => choosePort(address, 'output')}><span>{port.label}</span><i /></button> })}</div>
+              <div className="sim-component-ports inputs">{inputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} className="sim-port input" data-sim-input-node={address.nodeId} data-sim-input-port={address.portId} aria-label={`${definition.name} ${instance.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, address)} onClick={() => choosePort(address, 'input')}><i /><span>{port.label}</span></button> })}</div>
+              <div className="sim-component-ports outputs">{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; return <button type="button" key={port.id} draggable className={`sim-port output ${pendingPort?.nodeId === address.nodeId && pendingPort.portId === address.portId ? 'pending' : ''}`} aria-label={`${definition.name} ${instance.id} 输出 ${port.label} ${port.type}`} onPointerDown={(event) => beginWireGesture(event, address)} onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('application/x-aia-port', `${address.nodeId}::${address.portId}`); setPendingPort(address); setStatus('正在从自定义组件拉线；拖到兼容输入端口。') }} onDragEnd={() => setPendingPort(null)} onClick={() => { if (suppressPortClickRef.current) return; choosePort(address, 'output') }}><span>{port.label}</span><i /></button> })}</div>
             </div>
           })}
           {visibleUnitCount === 0 && <div className="sim-empty-board"><b>EMPTY CONSTRUCTION BOARD</b><span>把左侧元件拖进来。这里没有预设管线。</span></div>}
