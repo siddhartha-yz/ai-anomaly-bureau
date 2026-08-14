@@ -408,8 +408,18 @@ test('player can encapsulate a primitive circuit as a typed component and reuse 
   await expect(page.getByLabel('我的组件')).toContainText('MY THRESHOLD')
   await expect(page.getByLabel('模拟器状态')).toContainText('COMPONENT SAVED · MY THRESHOLD · 1 IN / 1 OUT')
 
-  await page.getByLabel('我的组件').getByRole('button', { name: /MY THRESHOLD/ }).click()
-  const component = page.locator('.sim-component-instance').filter({ hasText: 'MY THRESHOLD' }).first()
+  // A reusable black box needs a player-authored interface, not primitive
+  // implementation names such as "a" and "result" leaking forever.
+  await page.getByRole('button', { name: '编辑组件接口 MY THRESHOLD' }).click()
+  const interfaceEditor = page.getByLabel('组件接口编辑器')
+  await interfaceEditor.getByLabel('组件显示名称').fill('RISK GATE')
+  await interfaceEditor.getByLabel('组件端口 in_1 标签').fill('score')
+  await interfaceEditor.getByLabel('组件端口 out_1 标签').fill('flag')
+  await interfaceEditor.getByRole('button', { name: 'DONE' }).click()
+  await expect(page.getByLabel('我的组件')).toContainText('RISK GATE')
+
+  await page.getByLabel('我的组件').getByRole('button', { name: '放置组件 RISK GATE' }).click()
+  const component = page.locator('.sim-component-instance').filter({ hasText: 'RISK GATE' }).first()
   await expect(component).toBeVisible()
   await expect(component).toContainText('BLACK BOX')
   await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 3 WIRES')
@@ -418,13 +428,13 @@ test('player can encapsulate a primitive circuit as a typed component and reuse 
 
   await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
   await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
-  await component.getByRole('button', { name: /输入 a number/ }).click()
-  await component.getByRole('button', { name: /输出 result boolean/ }).click()
+  await component.getByRole('button', { name: /输入 score number/ }).click()
+  await component.getByRole('button', { name: /输出 flag boolean/ }).click()
   await page.getByRole('button', { name: 'boolean_output_2 输入 value boolean' }).click()
 
   await page.getByRole('button', { name: '▶ PLAY' }).click()
   await expect(page.getByLabel('boolean_output_2 输出值')).toHaveText('TRUE')
-  await expect(component).toContainText('result: TRUE')
+  await expect(component).toContainText('flag: TRUE')
 
   // A player-built black box can itself become a building block in a larger
   // custom component. This is the construction hierarchy the simulator needs:
@@ -438,7 +448,7 @@ test('player can encapsulate a primitive circuit as a typed component and reuse 
   await expect(page.getByLabel('模拟器状态')).toContainText('COMPONENT SAVED · MY DEPLOY GATE · 1 IN / 1 OUT')
 
   await page.getByRole('button', { name: 'CLEAR BOARD' }).click()
-  await page.getByLabel('我的组件').getByRole('button', { name: /MY DEPLOY GATE/ }).click()
+  await page.getByLabel('我的组件').getByRole('button', { name: '放置组件 MY DEPLOY GATE' }).click()
   const higher = page.locator('.sim-component-instance').filter({ hasText: 'MY DEPLOY GATE' }).first()
   await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
   await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
@@ -451,7 +461,7 @@ test('player can encapsulate a primitive circuit as a typed component and reuse 
   await expect(page.getByLabel('boolean_output_1 输出值')).toHaveText('TRUE')
 
   await page.reload()
-  await expect(page.getByLabel('我的组件')).toContainText('MY THRESHOLD')
+  await expect(page.getByLabel('我的组件')).toContainText('RISK GATE')
   await expect(page.getByLabel('我的组件')).toContainText('MY DEPLOY GATE')
   await expect(page.locator('.sim-component-instance').filter({ hasText: 'MY DEPLOY GATE' }).first()).toBeVisible()
 })
@@ -480,7 +490,7 @@ test('player can open a black box, edit its primitives, and keep external wiring
   await page.getByRole('button', { name: 'SAVE COMPONENT' }).click()
   await page.getByRole('button', { name: 'CLEAR BOARD' }).click()
 
-  await page.getByLabel('我的组件').getByRole('button', { name: /OPENABLE THRESHOLD/ }).click()
+  await page.getByLabel('我的组件').getByRole('button', { name: '放置组件 OPENABLE THRESHOLD' }).click()
   const component = page.locator('.sim-component-instance').filter({ hasText: 'OPENABLE THRESHOLD' }).first()
   await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
   await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()

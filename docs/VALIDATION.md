@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、195 个测试全部通过；Simulator V3 新增 viewport camera 纯函数回归，覆盖围绕指针缩放、缩放上下限、平移与整图 FIT。camera state 与 `SimulatorGraph` 分离，因此浏览大画布不会污染电路存档或 Undo/Redo。既有 graph/runtime、wiring-cycle guard、Blueprint、Component、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-DjlVHXws.js` + `assets/index-BO_jIj6v.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.8 分钟）；Simulator V3 新 camera 路线真实执行滚轮缩放、中键平移、FIT / RESET，并断言整个过程中 board localStorage 字节不变。既有 V3 构造/调试、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、196 个测试全部通过；Simulator V3 新增 Component interface 回归，确认玩家可以重命名黑盒与 typed port 标签，同时稳定保留 port id/type、内部 node/wire 与已有电气边界。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index--1R9lmzm.js` + `assets/index-D5t74P0Q.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：47 条 Chromium E2E 完整串行执行 47/47 通过（3.5 分钟）；Simulator V3 的 Component 路线真实执行 `MY THRESHOLD → RISK GATE` 重命名、`a/result → score/flag` 端口改名、重新放置、接线、运行、再封装与刷新持久化，确认接口语言可以由玩家定义而不改变电路行为。既有 V3 构造/调试、viewport camera、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

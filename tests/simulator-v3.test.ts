@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
-import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
+import { createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
 import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
@@ -440,6 +440,22 @@ describe('Simulator V3 pure graph/runtime', () => {
     ])
     expect(component.nodes).toHaveLength(2)
     expect(component.wires).toHaveLength(1)
+  })
+
+  it('lets the player rename a component interface without changing its electrical boundary', () => {
+    const graph = thresholdGraph()
+    const component = createComponentDefinition(graph, ['threshold', 'gt'], 'cmp_named', 'threshold gate')
+    const edited = editComponentInterface(component, {
+      name: 'RISK GATE',
+      portLabels: { in_1: 'score', out_1: 'flag' },
+    })
+    expect(edited.name).toBe('RISK GATE')
+    expect(edited.ports.map((port) => [port.id, port.label, port.type, port.nodeId, port.portId])).toEqual([
+      ['in_1', 'score', 'number', 'gt', 'a'],
+      ['out_1', 'flag', 'boolean', 'gt', 'result'],
+    ])
+    expect(edited.nodes).toEqual(component.nodes)
+    expect(edited.wires).toEqual(component.wires)
   })
 
   it('runs an instantiated player component through its exposed boundary ports', () => {

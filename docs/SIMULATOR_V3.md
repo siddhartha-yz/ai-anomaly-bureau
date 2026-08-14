@@ -112,7 +112,7 @@ stream：
 - Blueprint 可从 `MY BLUEPRINTS` 再次放入画布，实例拥有全新 node/wire id，不与原机器共享运行状态，并会优先寻找不遮挡已有节点的空位；
 - Blueprint 库使用独立 localStorage key 持久化，刷新后仍可复用；
 - 选中的 primitive 子图现在还能保存为 `Component`：系统从未被内部连线占用的输入端口、以及对外暴露的输出端口自动推导动态 typed boundary；
-- `MY COMPONENTS` 中再次放置时，内部 primitive 会展开到真实 graph/runtime 中执行，但编辑器只显示一个玩家命名的单一黑盒节点；外部连线直接接到它的动态边界端口，内部节点与内部 wire 不在画布上泄露；
+- `MY COMPONENTS` 中再次放置时，内部 primitive 会展开到真实 graph/runtime 中执行，但编辑器只显示一个玩家命名的单一黑盒节点；外部连线直接接到它的动态边界端口，内部节点与内部 wire 不在画布上泄露；组件库现在还能单独编辑黑盒名称与每个 typed port 的对外标签，例如把内部 `a/result` 改成 `score/flag`，已有实例与连线不受影响；
 - Component 实例可整体拖动、整体删除、整体选中，definition 与 board 分别持久化；同一个自制组件可以反复实例化，而每个实例拥有独立内部 node/wire id；
 - 已有自制 Component 现在还能和新的 primitive 一起再次封装成更高一级 Component。保存时会验证必须选中完整黑盒边界，再把内部 primitive 展平进新的 definition，因此玩家可以形成真正的 `build → encapsulate → reuse → encapsulate again` 层级构造链，而不会从 UI 偷穿已有黑盒内部。
 - 黑盒实例现在可以直接 `OPEN` 回画布：内部 primitive 与内部 wire 原样恢复为可编辑对象，原有外部输入/输出连线保持接通，电路行为在打开前后不变。玩家可以据此调试内部常量、删改线路，再把修好的结构重新封装成新组件；已有组件 definition 不会被这次实例级编辑静默改写。
@@ -123,7 +123,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装，并支持把某个实例打开回 primitive 继续编辑；**编辑后原地重新封装、保留显式层级而不是保存时展平、组件 definition 版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
 
-下一步仍优先补模拟器本身，而不是内容：大画布已经解决“复杂机器没有空间”的编辑器瓶颈，接下来更值得验证的是打开后的结构怎样自然重新封装、层级调试如何建立进入/退出语义，以及更一般的 sample primitive。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步仍优先补模拟器本身，而不是内容：大画布与可命名黑盒接口已经解决“复杂机器没空间”和“自制组件仍泄露 primitive 语义”两个基础问题。接下来更值得验证的是打开后的结构怎样自然重新封装、层级调试如何建立进入/退出语义，以及更一般的 sample primitive。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

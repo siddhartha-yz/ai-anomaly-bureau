@@ -1,6 +1,23 @@
 import { NODE_DEFINITIONS } from './catalog'
 import type { PortAddress, PortDirection, SignalType, SimulatorComponentDefinition, SimulatorComponentInstance, SimulatorGraph, SimulatorNode, SimulatorWire } from './types'
 
+export function editComponentInterface(
+  definition: SimulatorComponentDefinition,
+  update: { name?: string; portLabels?: Readonly<Record<string, string>> },
+): SimulatorComponentDefinition {
+  const name = update.name === undefined ? definition.name : update.name.trim() || definition.name
+  return {
+    ...definition,
+    name,
+    ports: definition.ports.map((port) => {
+      const raw = update.portLabels?.[port.id]
+      if (raw === undefined) return port
+      const label = raw.trim()
+      return label ? { ...port, label } : port
+    }),
+  }
+}
+
 function cloneNode(node: SimulatorNode): SimulatorNode {
   return {
     ...node,

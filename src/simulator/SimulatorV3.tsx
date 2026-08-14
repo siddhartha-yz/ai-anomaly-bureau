@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
-import { componentBoundaryAddress, createComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, unpackComponentInstance } from './components'
+import { componentBoundaryAddress, createComponentDefinition, editComponentInterface, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, unpackComponentInstance } from './components'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
@@ -129,6 +129,7 @@ export function SimulatorV3() {
   const [breakpointNodeIds, setBreakpointNodeIds] = useState<string[]>([])
   const [blueprints, setBlueprints] = useState<SimulatorBlueprint[]>(() => readBlueprints())
   const [components, setComponents] = useState<SimulatorComponentDefinition[]>(() => readComponents())
+  const [editingComponentId, setEditingComponentId] = useState<string | null>(null)
   const [blueprintName, setBlueprintName] = useState('')
   const [status, setStatus] = useState('空白板已就绪。拖入元件，自己接线。')
   const dragRef = useRef<{ nodeId: string; offsetX: number; offsetY: number; snapshot: SimulatorGraph } | null>(null)
@@ -264,6 +265,16 @@ export function SimulatorV3() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '组件封装失败。')
     }
+  }
+
+  const updateComponentInterface = (
+    definitionId: string,
+    update: { name?: string; portLabels?: Readonly<Record<string, string>> },
+  ) => {
+    setComponents((current) => current.map((definition) => definition.id === definitionId
+      ? editComponentInterface(definition, update)
+      : definition))
+    setStatus('COMPONENT INTERFACE UPDATED · existing instances keep the same wiring.')
   }
 
   const placeBlueprint = (blueprint: SimulatorBlueprint) => {
@@ -817,7 +828,7 @@ export function SimulatorV3() {
       <aside className="sim-palette" aria-label="元件库"><div className="sim-panel-title"><small>PRIMITIVES</small><strong>元件库</strong></div>
         {SIMULATOR_PALETTE.map((kind) => { const definition = NODE_DEFINITIONS[kind]; return <button type="button" key={kind} draggable onDragStart={(event) => event.dataTransfer.setData('application/x-aia-node', kind)} onClick={() => addNode(kind)} className="sim-palette-item" aria-label={`添加 ${definition.title}`}><b>{definition.short}</b><span><strong>{definition.title}</strong><small>{definition.outputs.map((port) => port.type).join(' · ') || definition.inputs.map((port) => port.type).join(' · ')}</small></span></button> })}
         {blueprints.length > 0 && <div className="sim-blueprint-list" aria-label="我的蓝图"><small>MY BLUEPRINTS</small>{blueprints.map((blueprint) => <button type="button" key={blueprint.id} onClick={() => placeBlueprint(blueprint)}><b>BP</b><span><strong>{blueprint.name}</strong><small>{blueprint.nodes.length} nodes · {blueprint.wires.length} wires</small></span></button>)}</div>}
-        {components.length > 0 && <div className="sim-component-list" aria-label="我的组件"><small>MY COMPONENTS</small>{components.map((definition) => <button type="button" key={definition.id} onClick={() => placeComponent(definition)}><b>IC</b><span><strong>{definition.name}</strong><small>{definition.ports.filter((port) => port.direction === 'input').length} in · {definition.ports.filter((port) => port.direction === 'output').length} out</small></span></button>)}</div>}
+        {components.length > 0 && <div className="sim-component-list" aria-label="我的组件"><small>MY COMPONENTS</small>{components.map((definition) => <div className="sim-component-library-row" key={definition.id}><button type="button" onClick={() => placeComponent(definition)} aria-label={`放置组件 ${definition.name}`}><b>IC</b><span><strong>{definition.name}</strong><small>{definition.ports.filter((port) => port.direction === 'input').length} in · {definition.ports.filter((port) => port.direction === 'output').length} out</small></span></button><button type="button" className="sim-component-library-edit" aria-label={`编辑组件接口 ${definition.name}`} onClick={() => setEditingComponentId(definition.id)}>EDIT</button></div>)}</div>}
         <div className="sim-palette-note"><small>自由实验</small><p>标量可以搭阈值机；NUMBER STREAM 可以逐样本过阈值，再接布尔 stream 原语自己拼指标。蓝图复制结构；组件把自己造的结构封成一个 typed 黑盒。这里没有 Accuracy / Recall 成品节点。</p></div>
       </aside>
       <section className="sim-board-wrap" aria-label="构造画布">
@@ -855,6 +866,11 @@ export function SimulatorV3() {
       </section>
       <aside className="sim-inspector" aria-label="模拟器状态"><div className="sim-panel-title"><small>RUNTIME</small><strong>信号 / Debug</strong></div><div className="sim-status" role="status">{status}</div>
         <section aria-label="画布视角说明"><small>VIEWPORT</small><strong>{Math.round(viewport.zoom * 100)}% ZOOM</strong><p>滚轮围绕指针缩放；按住 Space + 左键拖动，或直接中键拖动，可以平移大画布。FIT 会显示整张构造世界，不改机器本身。</p></section>
+        {editingComponentId && (() => {
+          const definition = components.find((item) => item.id === editingComponentId)
+          if (!definition) return null
+          return <section className="sim-component-interface-editor" aria-label="组件接口编辑器"><small>COMPONENT INTERFACE</small><strong>{definition.name}</strong><p>只改黑盒对外语言，不改内部电路、typed ports 或已有实例接线。</p><label>NAME<input aria-label="组件显示名称" defaultValue={definition.name} onBlur={(event) => updateComponentInterface(definition.id, { name: event.currentTarget.value })} /></label><div className="sim-component-interface-ports">{definition.ports.map((port) => <label key={port.id}><span>{port.direction === 'input' ? 'IN' : 'OUT'} · {port.type}</span><input aria-label={`组件端口 ${port.id} 标签`} defaultValue={port.label} onBlur={(event) => updateComponentInterface(definition.id, { portLabels: { [port.id]: event.currentTarget.value } })} /></label>)}</div><button type="button" onClick={() => setEditingComponentId(null)}>DONE</button></section>
+        })()}
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>空白处拖框可批量选择；拖动任一已选单元会整体移动，Delete 可整组删除。Blueprint 复制 primitive 结构；Component 可以继续封装成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={!selectedNodeIds.length && !selectedComponentInstanceIds.length} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
                 {selectedWireId && (() => {
                   const wire = graph.wires.find((item) => item.id === selectedWireId)
