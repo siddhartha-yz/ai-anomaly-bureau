@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、188 个测试全部通过；Simulator V3 新增画布历史回归，覆盖撤销/重做、分支失效与拖动单快照；既有 graph/runtime、Blueprint 与自制 Component 测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-BnY4beBW.js` + `assets/index-DohotFQE.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：44 条 Chromium E2E 完整串行执行 44/44 通过。新增路线验证节点添加、连线与 `CLEAR BOARD` 都可撤销/重做，不需要重搭机器；既有 Component OPEN、二次封装、stream、STEP、breakpoint、PAUSE、wire repair、Blueprint 路线继续覆盖；V2 2 条和 Legacy 33 条路线继续回归。
+- Vitest：27 个测试文件、190 个测试全部通过；Simulator V3 新增框选与混合单元整体移动回归，覆盖 primitive / 黑盒 Component 的可见选择边界及内部节点同步位移；既有 graph/runtime、Blueprint、Component 与 Undo/Redo 测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-YL7Tq9qU.js` + `assets/index-kJV4lsjB.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：45 条 Chromium E2E 完整串行执行 45/45 通过。新增路线验证空白处拖框批量选择、已选结构整体移动、Delete 整组删除以及 Undo 恢复；既有 Simulator V3、V2 与 Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

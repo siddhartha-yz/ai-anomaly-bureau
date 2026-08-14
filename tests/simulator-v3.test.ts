@@ -4,6 +4,7 @@ import { createComponentDefinition, instantiateComponent, moveComponentInstance,
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
+import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
 function thresholdGraph(): SimulatorGraph {
@@ -102,6 +103,37 @@ function scoreThresholdGraph(): SimulatorGraph {
   }
   return graph
 }
+
+function mixedSelectionGraph() {
+  const source = thresholdGraph()
+  const definition = createComponentDefinition(source, ['gt'], 'component-1', 'THRESHOLD CORE')
+  let graph = { ...createEmptyGraph(), nodes: [createNode('number-input', 'loose', 40, 40)] }
+  graph = instantiateComponent(graph, definition, { x: 330, y: 160 })
+  return graph
+}
+
+describe('Simulator V3 board selection', () => {
+  it('marquee-selects visible primitives and black boxes without leaking their hidden internals', () => {
+    const graph = mixedSelectionGraph()
+    const selected = selectVisibleUnitsInRect(graph, { x1: 20, y1: 20, x2: 540, y2: 320 }, { width: 164, height: 104 }, { width: 190, height: 118 })
+    expect(selected.nodeIds).toEqual(['loose'])
+    expect(selected.componentInstanceIds).toHaveLength(1)
+    const hiddenNodeId = graph.components![0].nodeIds[0]
+    expect(selected.nodeIds).not.toContain(hiddenNodeId)
+  })
+
+  it('moves a mixed multi-selection as one rigid group, including black-box internals', () => {
+    const graph = mixedSelectionGraph()
+    const instance = graph.components?.[0]
+    expect(instance).toBeDefined()
+    const hiddenNodeId = instance!.nodeIds[0]
+    const hiddenBefore = graph.nodes.find((node) => node.id === hiddenNodeId)!
+    const moved = moveSelectedUnits(graph, ['loose'], [instance!.id], 70, -20)
+    expect(moved.nodes.find((node) => node.id === 'loose')).toMatchObject({ x: 110, y: 20 })
+    expect(moved.components?.[0]).toMatchObject({ x: 400, y: 140 })
+    expect(moved.nodes.find((node) => node.id === hiddenNodeId)).toMatchObject({ x: hiddenBefore.x + 70, y: hiddenBefore.y - 20 })
+  })
+})
 
 describe('Simulator V3 graph edit history', () => {
   it('undoes and redoes structural edits without losing the redo branch until a new edit occurs', () => {

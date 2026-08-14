@@ -401,3 +401,52 @@ test('player can open a black box, edit its primitives, and keep external wiring
   await expect(page.getByLabel('构造画布')).toContainText('constant_1_unit')
   await expect(page.getByLabel('constant_1_unit 数值')).toHaveValue('0.8')
 })
+
+
+test('marquee selection turns a circuit fragment into one movable editing unit', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
+  await page.reload()
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+
+  const board = page.locator('.sim-board')
+  const box = await board.boundingBox()
+  expect(box).not.toBeNull()
+  const point = (x: number, y: number) => ({ x: box!.x + x / 1120 * box!.width, y: box!.y + y / 620 * box!.height })
+  const start = point(45, 85)
+  const end = point(640, 430)
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(end.x, end.y, { steps: 8 })
+  await expect(page.locator('.sim-selection-box')).toBeVisible()
+  await page.mouse.up()
+  await expect(page.getByLabel('蓝图工具')).toContainText('3 UNITS SELECTED')
+  await expect(page.locator('.sim-node.selected')).toHaveCount(3)
+
+  const firstBefore = await page.getByLabel('节点 number_input_1').boundingBox()
+  const secondBefore = await page.getByLabel('节点 constant_1').boundingBox()
+  const handle = await page.getByLabel('节点 greater_than_1').boundingBox()
+  expect(firstBefore && secondBefore && handle).toBeTruthy()
+  await page.mouse.move(handle!.x + handle!.width * .5, handle!.y + handle!.height * .62)
+  await page.mouse.down()
+  await page.mouse.move(handle!.x + handle!.width * .5 + 75, handle!.y + handle!.height * .62 + 35, { steps: 6 })
+  await page.mouse.up()
+
+  const firstAfter = await page.getByLabel('节点 number_input_1').boundingBox()
+  const secondAfter = await page.getByLabel('节点 constant_1').boundingBox()
+  expect(firstAfter && secondAfter).toBeTruthy()
+  const dx1 = firstAfter!.x - firstBefore!.x
+  const dx2 = secondAfter!.x - secondBefore!.x
+  const dy1 = firstAfter!.y - firstBefore!.y
+  const dy2 = secondAfter!.y - secondBefore!.y
+  expect(dx1).toBeGreaterThan(30)
+  expect(Math.abs(dx1 - dx2)).toBeLessThan(2)
+  expect(Math.abs(dy1 - dy2)).toBeLessThan(2)
+
+  await page.keyboard.press('Delete')
+  await expect(page.getByLabel('构造画布')).toContainText('EMPTY CONSTRUCTION BOARD')
+  await page.getByRole('button', { name: '撤销画布编辑' }).click()
+  await expect(page.getByLabel('构造画布')).toContainText('3 NODES · 0 WIRES')
+})
