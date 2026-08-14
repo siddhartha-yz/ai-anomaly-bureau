@@ -110,6 +110,14 @@
 .sim-blueprint-list strong { font-size: .55rem; }.sim-blueprint-list button small { margin-top: 3px; color: #857b5d; font-size: .43rem; }
 .sim-blueprint-inspector input { width: 100%; margin: 8px 0 0; padding: 6px 7px; border: 1px solid #34465b; border-radius: 0; background: #070d13; color: #dce6f2; font: inherit; font-size: .55rem; }
 .sim-blueprint-inspector button { width: 100%; margin-top: 7px; }
+.sim-test-bench input { width: 100%; margin: 8px 0 0; padding: 6px 7px; border: 1px solid #34465b; border-radius: 0; background: #070d13; color: #dce6f2; font: inherit; font-size: .55rem; }
+.sim-test-bench-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+.sim-test-bench button { min-height: 28px; border: 1px solid #3b4e64; background: #0d1722; color: #a9bdd3; cursor: pointer; font: 800 .48rem/1 ui-monospace, monospace; }
+.sim-test-bench button:disabled { opacity: .35; cursor: not-allowed; }
+.sim-test-case { margin-top: 7px; padding: 7px; display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; border: 1px solid #273443; background: #080d13; }
+.sim-test-case > span b, .sim-test-case > span small { display: block; }.sim-test-case > span b { color: #c3d0de; font-size: .53rem; }.sim-test-case > span small { margin-top: 3px; color: #5f7288; font-size: .43rem; }
+.sim-test-case > strong { align-self: center; color: #7b8da1; font-size: .5rem; }.sim-test-case.pass > strong { color: #70d3a9; }.sim-test-case.fail > strong { color: #ef7b70; }
+.sim-test-case > div { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 28px; gap: 5px; }.sim-test-case > em { grid-column: 1 / -1; color: #75879a; font: normal .45rem/1.35 ui-monospace, monospace; }
 
 .sim-selection-box {
   position: absolute;

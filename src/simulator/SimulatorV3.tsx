@@ -3,6 +3,7 @@ import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
 import { componentBoundaryAddress, createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, restoreComponentInstance, unpackComponentInstance, updateComponentDefinitionFromInstance } from './components'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
+import { applyTestInputs, captureTestCase, parseTestCases, runTestSuite, type SimulatorTestResult } from './harness'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { collectSignalProbeReadings, matchingSignalProbeBreak, type SignalProbeBreakCondition } from './probes'
@@ -13,6 +14,7 @@ import { fitViewport, panViewport, zoomViewportAtPoint, type SimulatorViewport }
 const STORAGE_KEY = 'aia.simulator-v3.board.v1'
 const BLUEPRINT_STORAGE_KEY = 'aia.simulator-v3.blueprints.v1'
 const COMPONENT_STORAGE_KEY = 'aia.simulator-v3.components.v1'
+const TEST_STORAGE_KEY = 'aia.simulator-v3.tests.v1'
 const NODE_W = 164
 const NODE_H = 104
 const COMPONENT_W = 190
@@ -49,6 +51,10 @@ function readBlueprints(): SimulatorBlueprint[] {
 
 function readComponents(): SimulatorComponentDefinition[] {
   try { return parseComponentDefinitions(window.localStorage.getItem(COMPONENT_STORAGE_KEY)) } catch { return [] }
+}
+
+function readTests() {
+  try { return parseTestCases(window.localStorage.getItem(TEST_STORAGE_KEY)) } catch { return [] }
 }
 
 function readGraph(): SimulatorGraph {
@@ -129,6 +135,9 @@ export function SimulatorV3() {
   const [breakpointNodeIds, setBreakpointNodeIds] = useState<string[]>([])
   const [blueprints, setBlueprints] = useState<SimulatorBlueprint[]>(() => readBlueprints())
   const [components, setComponents] = useState<SimulatorComponentDefinition[]>(() => readComponents())
+  const [benchTests, setBenchTests] = useState(() => readTests())
+  const [benchResults, setBenchResults] = useState<SimulatorTestResult[]>([])
+  const [benchTestName, setBenchTestName] = useState('')
   const [editingComponentId, setEditingComponentId] = useState<string | null>(null)
   const [openComponentScope, setOpenComponentScope] = useState<{ instance: SimulatorComponentInstance; name: string; definitionId: string } | null>(null)
   const [componentForkName, setComponentForkName] = useState('')
@@ -154,6 +163,9 @@ export function SimulatorV3() {
   useEffect(() => {
     try { window.localStorage.setItem(COMPONENT_STORAGE_KEY, JSON.stringify(components)) } catch { /* persistence is optional */ }
   }, [components])
+  useEffect(() => {
+    try { window.localStorage.setItem(TEST_STORAGE_KEY, JSON.stringify(benchTests)) } catch { /* persistence is optional */ }
+  }, [benchTests])
   useEffect(() => {
     const liveWireIds = new Set(graph.wires.map((wire) => wire.id))
     setProbeWireIds((current) => current.filter((wireId) => liveWireIds.has(wireId)))
@@ -657,6 +669,38 @@ export function SimulatorV3() {
     clearRuntime()
   }
 
+  const captureBenchTest = () => {
+    try {
+      const test = captureTestCase(graph, `test_${Date.now()}`, benchTestName)
+      setBenchTests((current) => [...current, test])
+      setBenchResults([])
+      setBenchTestName('')
+      setStatus(`TEST CAPTURED · ${test.name} · ${test.inputs.length} inputs / ${test.expected.length} outputs`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '测试快照保存失败。')
+    }
+  }
+
+  const runBenchTests = () => {
+    if (!benchTests.length) return
+    const results = runTestSuite(graph, benchTests)
+    setBenchResults(results)
+    const passed = results.filter((result) => result.passed).length
+    setStatus(`TEST SUITE · ${passed}/${results.length} PASS${passed === results.length ? ' · REGRESSION CLEAN' : ' · BEHAVIOR CHANGED'}`)
+  }
+
+  const loadBenchInputs = (testId: string) => {
+    const test = benchTests.find((item) => item.id === testId)
+    if (!test) return
+    try {
+      editGraph((current) => applyTestInputs(current, test))
+      clearRuntime()
+      setStatus(`TEST INPUTS LOADED · ${test.name} · expected outputs remain frozen.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '测试输入恢复失败。')
+    }
+  }
+
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
@@ -955,6 +999,7 @@ export function SimulatorV3() {
           return <section className="sim-component-interface-editor" aria-label="组件接口编辑器"><small>COMPONENT INTERFACE</small><strong>{definition.name}</strong><p>只改黑盒对外语言，不改内部电路、typed ports 或已有实例接线。</p><label>NAME<input aria-label="组件显示名称" defaultValue={definition.name} onBlur={(event) => updateComponentInterface(definition.id, { name: event.currentTarget.value })} /></label><div className="sim-component-interface-ports">{definition.ports.map((port) => <label key={port.id}><span>{port.direction === 'input' ? 'IN' : 'OUT'} · {port.type}</span><input aria-label={`组件端口 ${port.id} 标签`} defaultValue={port.label} onBlur={(event) => updateComponentInterface(definition.id, { portLabels: { [port.id]: event.currentTarget.value } })} /></label>)}</div><button type="button" onClick={() => setEditingComponentId(null)}>DONE</button></section>
         })()}
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>空白处拖框可批量选择；拖动任一已选单元会整体移动，Delete 可整组删除。Blueprint 复制 primitive 结构；Component 可以继续封装成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={Boolean(openComponentScope) || (!selectedNodeIds.length && !selectedComponentInstanceIds.length)} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
+        <section className="sim-test-bench" aria-label="模拟器测试台"><small>TEST HARNESS</small><strong>{benchTests.length ? `${benchTests.length} SAVED CASES` : 'NO TESTS CAPTURED'}</strong><p>把当前输入与输出冻结成回归样例。之后可以重接线、改组件，再一次运行全部样例检查行为有没有被破坏。</p><input aria-label="测试名称" value={benchTestName} onChange={(event) => setBenchTestName(event.target.value)} placeholder="例如 score 0.72 should pass" /><div className="sim-test-bench-actions"><button type="button" onClick={captureBenchTest}>CAPTURE CURRENT</button><button type="button" disabled={!benchTests.length} onClick={runBenchTests}>RUN SUITE</button></div>{benchTests.map((test) => { const result = benchResults.find((item) => item.id === test.id); return <div className={`sim-test-case ${result ? result.passed ? 'pass' : 'fail' : ''}`} key={test.id}><span><b>{test.name}</b><small>{test.inputs.length} IN · {test.expected.length} OUT</small></span><strong>{result ? result.passed ? 'PASS' : 'FAIL' : 'READY'}</strong><div><button type="button" onClick={() => loadBenchInputs(test.id)}>LOAD INPUTS</button><button type="button" aria-label={`删除测试 ${test.name}`} onClick={() => { setBenchTests((current) => current.filter((item) => item.id !== test.id)); setBenchResults((current) => current.filter((item) => item.id !== test.id)) }}>×</button></div>{result?.error && <em>{result.error}</em>}{result && !result.error && result.outputs.map((output) => <em key={output.nodeId}>{output.nodeId}: {formatValue(output.actual)} / expected {formatValue(output.expected)}</em>)}</div> })}</section>
                 {selectedWireId && (() => {
                   const wire = graph.wires.find((item) => item.id === selectedWireId)
                   if (!wire) return null

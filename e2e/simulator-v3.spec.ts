@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 const BOARD_KEY = 'aia.simulator-v3.board.v1'
 const BLUEPRINT_KEY = 'aia.simulator-v3.blueprints.v1'
 const COMPONENT_KEY = 'aia.simulator-v3.components.v1'
+const TEST_KEY = 'aia.simulator-v3.tests.v1'
 
 test('default route is an empty construction simulator, not a scripted level', async ({ page }) => {
   await page.goto('/')
@@ -645,4 +646,42 @@ test('marquee selection turns a circuit fragment into one movable editing unit',
   await expect(page.getByLabel('构造画布')).toContainText('EMPTY CONSTRUCTION BOARD')
   await page.getByRole('button', { name: '撤销画布编辑' }).click()
   await expect(page.getByLabel('构造画布')).toContainText('3 NODES · 0 WIRES')
+})
+
+test('player can freeze behavior as a reusable test suite before refactoring the machine', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate(([boardKey, testKey]) => { localStorage.removeItem(boardKey); localStorage.removeItem(testKey) }, [BOARD_KEY, TEST_KEY])
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 NUMBER INPUT' }).click()
+  await page.getByRole('button', { name: '添加 CONSTANT' }).click()
+  await page.getByRole('button', { name: '添加 GREATER THAN' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: 'number_input_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 a number' }).click()
+  await page.getByRole('button', { name: 'constant_1 输出 value number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输入 b number' }).click()
+  await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
+
+  const bench = page.getByLabel('模拟器测试台')
+  await bench.getByLabel('测试名称').fill('HIGH SCORE')
+  await bench.getByRole('button', { name: 'CAPTURE CURRENT' }).click()
+  await page.getByLabel('number_input_1 数值').fill('0.42')
+  await bench.getByLabel('测试名称').fill('LOW SCORE')
+  await bench.getByRole('button', { name: 'CAPTURE CURRENT' }).click()
+  await expect(bench).toContainText('2 SAVED CASES')
+  await bench.getByRole('button', { name: 'RUN SUITE' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('TEST SUITE · 2/2 PASS')
+
+  await page.getByLabel('constant_1 数值').fill('0.80')
+  await bench.getByRole('button', { name: 'RUN SUITE' }).click()
+  await expect(page.getByLabel('模拟器状态')).toContainText('TEST SUITE · 1/2 PASS · BEHAVIOR CHANGED')
+  await expect(bench.locator('.sim-test-case.fail')).toContainText('HIGH SCORE')
+  await expect(bench.locator('.sim-test-case.fail')).toContainText('FALSE / expected TRUE')
+  await bench.getByRole('button', { name: 'LOAD INPUTS' }).first().click()
+  await expect(page.getByLabel('number_input_1 数值')).toHaveValue('0.72')
+
+  await page.reload()
+  await expect(page.getByLabel('模拟器测试台')).toContainText('2 SAVED CASES')
 })

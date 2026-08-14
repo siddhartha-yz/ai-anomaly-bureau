@@ -46,6 +46,7 @@ src/simulator/
   catalog.ts        primitive definitions and pure evaluation
   graph.ts          connection rules / topology
   runtime.ts        deterministic graph execution / sample clock / STEP trace
+  harness.ts        reusable I/O test cases / regression runner
   viewport.ts       pan / zoom camera math, independent from graph state
   SimulatorV3.tsx   board editor and visualization
 ```
@@ -106,6 +107,7 @@ stream：
 - 任意连线可固定为 `SIGNAL PROBE`：探针在 STEP / PLAY 期间持续显示当前标量或 stream 的最新样本，同时保留已经放行的完整前缀；探针附着在线路而不是节点上，删线后会自动失效，便于盯住中间信号而不反复点选；
 - 已固定的 `SIGNAL PROBE` 现在还能设置条件暂停：boolean 信号可在 TRUE / FALSE 出现时中断，number 信号可在最新值达到 `≥ / ≤` 阈值时中断。条件命中发生在被监视源真正产出该值之后、下游节点消费之前，因此 PLAY 可以直接跑到“有意思的样本”再交给 STEP 继续定位，而不需要人工盯完整条 stream；
 - Runtime 面板显示实际求值顺序；
+- `TEST HARNESS` 可以把当前机器的 source 输入与 OUTPUT 行为冻结成多个测试样例，之后任意改线、调参数或重构 Component，再一键重放整套行为；失败项直接显示 actual / expected，并可把旧输入重新载入当前画布。测试数据与 graph 分开持久化，不会因为改机器而偷偷更新 expected output。这是未来关卡 `I/O + tests` 的底层执行接口，但当前仍只是自由沙盒里的玩家自建回归台；
 - `RESET SIGNAL` 只清执行状态，不清机器；
 - board 自动写入独立 localStorage key，刷新保留机器；
 - 节点可多选并保存为 `Blueprint`；Blueprint 只封存选区内部节点与内部连线，跨选区的输入/输出边界保持开放；

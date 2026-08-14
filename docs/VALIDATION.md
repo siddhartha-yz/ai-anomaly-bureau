@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、200 个测试全部通过；Simulator V3 新增 Component definition versioning 回归：已打开实例可显式更新组件库 definition 并递增 revision，但旧实例继续固定原内部实现；新放置实例使用最新版。更新必须保持原 typed boundary，接口变化会被拒绝并要求另存新组件。既有 graph/runtime、viewport camera、wiring-cycle guard、Blueprint、Component scope/fork、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-DHDZx--r.js` + `assets/index-BtI7Yayo.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：48 条 Chromium E2E 完整串行执行 48/48 通过（3.6 分钟）；新增 Component definition update 路线真实放置两个 v1 实例，编辑其中一个并更新库到 v2，确认未编辑 sibling 仍固定 v1、新实例使用 v2，且刷新后版本关系保持。既有 V3 构造/调试、Component fork、viewport camera、V2 与 Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、202 个测试全部通过；Simulator V3 新增纯 TypeScript `TEST HARNESS` 回归：可冻结当前 source 输入与 OUTPUT 期望值、重放多组测试并识别改线/改参数后的行为回归。既有 graph/runtime、Component versioning、viewport camera、wiring-cycle guard、Blueprint、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-CJpXeJIr.js` + `assets/index-DR0n4I_-.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：49 条 Chromium E2E 全部实际执行通过。受 local-shell 单次 120 秒上限影响，Legacy 33 条按 29 + 4 分组执行，V2 2/2、Simulator V3 14/14；新增测试台路线真实冻结 HIGH/LOW 两组行为，修改阈值后得到 1/2 FAIL，能显示 actual/expected、重新载入旧输入，并在刷新后保留测试集。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

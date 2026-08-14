@@ -3,6 +3,7 @@ import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprin
 import { createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, restoreComponentInstance, unpackComponentInstance, updateComponentDefinitionFromInstance } from '../src/simulator/components'
 import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
+import { applyTestInputs, captureTestCase, parseTestCases, runTestSuite } from '../src/simulator/harness'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { collectSignalProbeReadings, latestSignalValue, matchingSignalProbeBreak, signalProbeConditionMatches } from '../src/simulator/probes'
 import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
@@ -242,6 +243,30 @@ describe('Simulator V3 graph edit history', () => {
 })
 
 describe('Simulator V3 pure graph/runtime', () => {
+  it('captures runnable source inputs and frozen output expectations as simulator-native test cases', () => {
+    const graph = thresholdGraph()
+    const test = captureTestCase(graph, 't1', 'threshold true')
+    expect(test.inputs).toEqual([{ nodeId: 'score', value: .72 }])
+    expect(test.expected).toEqual([{ nodeId: 'out', value: true }])
+    expect(parseTestCases(JSON.stringify([test]))).toEqual([test])
+  })
+
+  it('replays saved inputs against an edited machine and reports behavioral regressions', () => {
+    const graph = thresholdGraph()
+    const passCase = captureTestCase(graph, 't1', 'score .72')
+    const lowInput = applyTestInputs(graph, { ...passCase, inputs: [{ nodeId: 'score', value: .42 }] })
+    const failCase = captureTestCase(lowInput, 't2', 'score .42')
+    expect(runTestSuite(graph, [passCase, failCase]).map((result) => result.passed)).toEqual([true, true])
+
+    const stricter = {
+      ...graph,
+      nodes: graph.nodes.map((node) => node.id === 'threshold' ? { ...node, config: { ...node.config, value: .8 } } : node),
+    }
+    const results = runTestSuite(stricter, [passCase, failCase])
+    expect(results.map((result) => result.passed)).toEqual([false, true])
+    expect(results[0].outputs[0]).toMatchObject({ expected: true, actual: false, passed: false })
+  })
+
   it('builds a threshold machine from primitives and evaluates actual signals', () => {
     const result = evaluateGraph(thresholdGraph())
     expect(result.values[signalKey('score', 'value')]).toBe(.72)
