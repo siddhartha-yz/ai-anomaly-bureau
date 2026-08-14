@@ -96,3 +96,14 @@
   box-shadow: inset 0 0 0 1px rgba(240, 195, 78, .15);
   pointer-events: none;
 }
+
+.sim-wire-layer g.probed path:not(.sim-wire-hit) { stroke-dasharray: 7 5; }
+.sim-wire-layer g.probed text { fill: #f2d56c; }
+.sim-probe-panel { border-color: #31516d !important; background: #09131d !important; }
+.sim-probe-row { margin-top: 7px; display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 7px; align-items: center; padding: 7px; border: 1px solid #263c50; background: #081019; }
+.sim-probe-row > b { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid #8b7728; color: #f0cf60; font-size: .48rem; }
+.sim-probe-row span, .sim-probe-row strong, .sim-probe-row small { display: block; min-width: 0; }
+.sim-probe-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b9c9da; font-size: .49rem; }
+.sim-probe-row small { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #61768c; font-size: .42rem; }
+.sim-probe-row output { color: #79c6ff; font-weight: 900; font-size: .62rem; }
+.sim-probe-row em { grid-column: 2 / -1; color: #708399; font: normal .43rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }

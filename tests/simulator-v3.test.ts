@@ -4,6 +4,7 @@ import { createComponentDefinition, instantiateComponent, moveComponentInstance,
 import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
+import { collectSignalProbeReadings, latestSignalValue } from '../src/simulator/probes'
 import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 
@@ -111,6 +112,24 @@ function mixedSelectionGraph() {
   graph = instantiateComponent(graph, definition, { x: 330, y: 160 })
   return graph
 }
+
+
+describe('Simulator V3 signal probes', () => {
+  it('tracks the latest sample on a watched stream wire without losing its accumulated history', () => {
+    const graph = scoreThresholdGraph()
+    const values = evaluateGraph(graph).values
+    const readings = collectSignalProbeReadings(graph, ['scores-decide-stream', 'missing'], values)
+    expect(readings).toHaveLength(1)
+    expect(readings[0]).toMatchObject({
+      from: 'scores.value',
+      to: 'decide.stream',
+      sampleCount: 4,
+      latest: .54,
+    })
+    expect(readings[0].value).toEqual([.72, .31, .88, .54])
+    expect(latestSignalValue([true, false, true])).toBe(true)
+  })
+})
 
 describe('Simulator V3 board selection', () => {
   it('marquee-selects visible primitives and black boxes without leaking their hidden internals', () => {

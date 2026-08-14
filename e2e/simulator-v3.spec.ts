@@ -145,7 +145,13 @@ test('number score streams can flow through a threshold primitive into boolean s
   await connect('count_true_1 输出 count number', 'number_output_1 输入 value number')
 
   await expect(page.getByLabel('构造画布')).toContainText('5 NODES · 4 WIRES · CLOCK 0/4')
+  await page.locator('.sim-wire-layer g').first().locator('.sim-wire-hit').click()
+  await page.getByRole('button', { name: 'PIN SIGNAL PROBE' }).click()
+  await expect(page.getByLabel('信号探针')).toContainText('P1')
+  await expect(page.getByLabel('信号探针')).toContainText('—')
   await page.getByRole('button', { name: 'STEP' }).click()
+  await expect(page.getByLabel('信号探针')).toContainText('0.72')
+  await expect(page.getByLabel('信号探针')).toContainText('1 samples')
   await expect(page.getByLabel('模拟器状态')).toContainText('SAMPLE 1/4 · NODE 1/5')
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
   await expect(page.getByLabel('number_output_1 输出值')).toHaveText('—')
@@ -155,6 +161,8 @@ test('number score streams can flow through a threshold primitive into boolean s
   await expect(page.getByLabel('模拟器状态')).toContainText('PLAY COMPLETE · 4 个样本时钟已执行')
   await expect(page.locator('.sim-wire-layer')).toContainText('[0.72 0.31 0.88 0.54]')
   await expect(page.locator('.sim-wire-layer')).toContainText('[T F T F]')
+  await expect(page.getByLabel('信号探针')).toContainText('4 samples')
+  await expect(page.getByLabel('信号探针')).toContainText('[0.72 0.31 0.88 0.54]')
 })
 
 test('player can compose a recall-like conditional metric from generic stream primitives', async ({ page }) => {
