@@ -7,6 +7,7 @@ import { applyTestInputs, captureTestCase, parseTestCases, runTestSuite } from '
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { collectSignalProbeReadings, latestSignalValue, matchingSignalProbeBreak, signalProbeConditionMatches } from '../src/simulator/probes'
 import { moveSelectedUnits, selectVisibleUnitsInRect } from '../src/simulator/selection'
+import { appendRuntimeTrace } from '../src/simulator/trace'
 import { signalKey, type SimulatorGraph } from '../src/simulator/types'
 import { MAX_SIM_ZOOM, MIN_SIM_ZOOM, fitViewport, panViewport, zoomViewportAtPoint } from '../src/simulator/viewport'
 
@@ -171,6 +172,41 @@ describe('Simulator V3 signal probes', () => {
     )
     expect(match).toMatchObject({ wireId: 'scores-decide-stream', latest: .88 })
     expect(matchingSignalProbeBreak(graph, { 'scores-decide-stream': { mode: 'number-at-least', threshold: .8 } }, values, 'decide')).toBeUndefined()
+  })
+})
+
+describe('Simulator V3 run trace', () => {
+  it('keeps signal snapshots across sample/node micro-steps', () => {
+    const graph = scoreThresholdGraph()
+    let session = createRuntimeSession(graph)
+    let trace = [] as ReturnType<typeof appendRuntimeTrace>
+
+    const first = stepRuntimeSession(graph, session)
+    session = first.session
+    trace = appendRuntimeTrace(trace, first.frame)
+    const second = stepRuntimeSession(graph, session)
+    trace = appendRuntimeTrace(trace, second.frame)
+
+    expect(trace.map((entry) => [entry.sequence, entry.tick, entry.nodeIndex, entry.nodeId])).toEqual([
+      [1, 1, 0, 'scores'],
+      [2, 1, 1, 'threshold'],
+    ])
+    expect(trace[0].values[signalKey('scores', 'value')]).toEqual([.72])
+    expect(trace[0].values).not.toBe(trace[1].values)
+    expect(trace[1].values[signalKey('threshold', 'value')]).toBe(.6)
+  })
+
+  it('bounds long traces while keeping monotonic sequence numbers', () => {
+    const graph = scoreThresholdGraph()
+    let session = createRuntimeSession(graph)
+    let trace = [] as ReturnType<typeof appendRuntimeTrace>
+    for (let index = 0; index < 4; index += 1) {
+      const stepped = stepRuntimeSession(graph, session)
+      session = stepped.session
+      trace = appendRuntimeTrace(trace, stepped.frame, 2)
+    }
+    expect(trace).toHaveLength(2)
+    expect(trace.map((entry) => entry.sequence)).toEqual([3, 4])
   })
 })
 

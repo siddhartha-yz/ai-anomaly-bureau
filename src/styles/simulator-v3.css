@@ -93,6 +93,17 @@
 .sim-probe-break-config button { margin-top: 6px; border-color: #3f5d78; background: #0d1b28; color: #8db7dc; box-shadow: none; }
 .sim-probe-break-config button[aria-pressed="true"] { border-color: #e1bc47; background: #2a230d; color: #f2d66d; }
 .sim-trace-row { margin-top: 6px; display: grid; grid-template-columns: 24px 1fr auto; gap: 6px; padding: 6px; border: 1px solid #202b37; color: #49596a; font-size: .48rem; }.sim-trace-row.done { color: #80bfa7; border-color: #29483e; }.sim-trace-row strong { color: inherit; }
+.sim-trace-history { max-height: 320px; overflow: auto; padding-right: 3px; }
+.sim-trace-history .sim-trace-row { width: 100%; text-align: left; background: #101820; cursor: pointer; align-items: center; }
+.sim-trace-history .sim-trace-row:hover { background: #14212b; border-color: #3d6658; }
+.sim-trace-history .sim-trace-row.inspecting { background: #173027; border-color: #70c7a2; box-shadow: inset 3px 0 0 #70c7a2; }
+.sim-trace-row span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sim-trace-row span small { color: #60798a; font-size: .42rem; }
+.sim-trace-row em { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; color: #9ab5a9; }
+.sim-trace-inspection { margin-top: 8px; padding: 8px; border: 1px solid #31594a; border-radius: 7px; background: #10261f; display: grid; gap: 5px; }
+.sim-trace-inspection span { color: #7d9b90; font-size: .48rem; }
+.sim-trace-inspection button { justify-self: start; }
+.sim-component-instance.active { border-color: #70c7a2; box-shadow: 0 0 0 2px rgba(112, 199, 162, .12), 0 0 20px rgba(112, 199, 162, .12); }
 @media (max-width: 1180px) { .sim-v3-layout { grid-template-columns: 190px 1fr; }.sim-inspector { grid-column: 1 / -1; min-height: 0; display: grid; grid-template-columns: 180px repeat(3,1fr); gap: 8px; }.sim-inspector .sim-panel-title { border-bottom: 0; } }
 @media (max-width: 900px) { .sim-component-scope-bar { grid-template-columns: 1fr 1fr; }.sim-component-scope-bar p { grid-column: 1 / -1; }.sim-component-fork-name { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .sim-v3-shell { padding-inline: 8px; }.sim-v3-header { align-items: flex-start; padding: 10px 0; }.sim-v3-layout { grid-template-columns: 1fr; }.sim-palette, .sim-inspector { min-height: 0; }.sim-inspector { grid-column: auto; display: block; }.sim-board-viewport { height: 560px; }.sim-toolbar { align-items: flex-start; flex-direction: column; }.sim-component-scope-bar { grid-template-columns: 1fr; }.sim-component-scope-bar p, .sim-component-fork-name { grid-column: auto; } }

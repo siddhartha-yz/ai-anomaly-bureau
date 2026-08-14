@@ -8,6 +8,7 @@ import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, rep
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { collectSignalProbeReadings, matchingSignalProbeBreak, type SignalProbeBreakCondition } from './probes'
 import { moveSelectedUnits, normalizeBoardRect, selectVisibleUnitsInRect, type BoardRect } from './selection'
+import { appendRuntimeTrace, type RuntimeTraceEntry } from './trace'
 import { signalKey, type PortAddress, type RuntimeResult, type RuntimeSession, type SignalValue, type SimulatorComponentDefinition, type SimulatorComponentInstance, type SimulatorGraph, type SimulatorNodeKind } from './types'
 import { fitViewport, panViewport, zoomViewportAtPoint, type SimulatorViewport } from './viewport'
 
@@ -161,6 +162,8 @@ export function SimulatorV3() {
   const [wireGestureTarget, setWireGestureTarget] = useState<{ to: PortAddress; ok: boolean } | null>(null)
   const [runtime, setRuntime] = useState<RuntimeResult | null>(null)
   const [runtimeSession, setRuntimeSession] = useState<RuntimeSession | null>(null)
+  const [traceHistory, setTraceHistory] = useState<RuntimeTraceEntry[]>([])
+  const [inspectedTraceIndex, setInspectedTraceIndex] = useState<number | null>(null)
   const [stepIndex, setStepIndex] = useState(-1)
   const [clockTickIndex, setClockTickIndex] = useState(-1)
   const [playing, setPlaying] = useState(false)
@@ -210,7 +213,9 @@ export function SimulatorV3() {
     setProbeBreakConditions((current) => Object.fromEntries(Object.entries(current).filter(([wireId]) => liveWireIds.has(wireId))))
   }, [graph.wires])
 
-  const visibleValues = useMemo(() => runtime && stepIndex >= 0 ? visibleValuesAfterStep(runtime, stepIndex) : {}, [runtime, stepIndex])
+  const liveVisibleValues = useMemo(() => runtime && stepIndex >= 0 ? visibleValuesAfterStep(runtime, stepIndex) : {}, [runtime, stepIndex])
+  const inspectedTrace = inspectedTraceIndex === null ? undefined : traceHistory[inspectedTraceIndex]
+  const visibleValues = inspectedTrace?.values ?? liveVisibleValues
   const probeReadings = useMemo(() => collectSignalProbeReadings(graph, probeWireIds, visibleValues), [graph, probeWireIds, visibleValues])
 
   const probeSignalType = useCallback((wireId: string) => {
@@ -240,6 +245,8 @@ export function SimulatorV3() {
   const clearRuntime = useCallback(() => {
     setRuntime(null)
     setRuntimeSession(null)
+    setTraceHistory([])
+    setInspectedTraceIndex(null)
     setStepIndex(-1)
     setClockTickIndex(-1)
     setPlaying(false)
@@ -513,6 +520,7 @@ export function SimulatorV3() {
 
   const advanceStep = useCallback((fromPlayback = false) => {
     try {
+      setInspectedTraceIndex(null)
       const clockLength = streamClockLength(graph)
       if (clockLength > 0) {
         const session = runtimeSession ?? createRuntimeSession(graph)
@@ -534,6 +542,7 @@ export function SimulatorV3() {
         const sampleStart = session.nodeIndex === 0
         const steps = sampleStart ? [currentStep] : [...previousSteps, currentStep]
         setRuntime({ steps, values: frame.result.values })
+        setTraceHistory((history) => appendRuntimeTrace(history, frame))
         setStepIndex(steps.length - 1)
         setRuntimeSession(stepped.session)
         setClockTickIndex(stepped.session.tick - 1)
@@ -575,6 +584,17 @@ export function SimulatorV3() {
         return false
       }
       setRuntime(result); setStepIndex(next)
+      setTraceHistory((history) => appendRuntimeTrace(history, {
+        tick: 1,
+        totalTicks: 1,
+        nodeIndex: next,
+        nodeCount: result.steps.length,
+        sampleComplete: complete,
+        result: {
+          steps: [result.steps[next]],
+          values: visibleValuesAfterStep(result, next),
+        },
+      }))
       const node = graph.nodes.find((item) => item.id === result.steps[next]?.nodeId)
       const complete = next === result.steps.length - 1
       const probeBreak = fromPlayback && cursorNodeId
@@ -632,6 +652,14 @@ export function SimulatorV3() {
   const step = () => {
     if (playing) setPlaying(false)
     advanceStep(false)
+  }
+
+  const inspectTrace = (index: number) => {
+    const entry = traceHistory[index]
+    if (!entry) return
+    setPlaying(false)
+    setInspectedTraceIndex(index)
+    setStatus(`历史现场 · STEP ${entry.sequence} · SAMPLE ${entry.tick}/${entry.totalTicks} · ${runtimeNodeDisplayName(entry.nodeId)}`)
   }
 
   const resetTransientBoardState = useCallback(() => {
@@ -984,25 +1012,18 @@ export function SimulatorV3() {
       || node.kind === 'number-output'
     ))
     : undefined
-  const traceRows: { key: string; label: string; value: string; stepIndex: number }[] = []
-  if (runtime) {
-    runtime.steps.forEach((stepItem, index) => {
-      const node = graph.nodes.find((item) => item.id === stepItem.nodeId)
-      const ownerId = node?.componentInstanceId
-      if (ownerId) {
-        const previous = traceRows.at(-1)
-        if (previous?.key === ownerId) {
-          previous.stepIndex = index
-          return
-        }
-        const instance = (graph.components ?? []).find((item) => item.id === ownerId)
-        const definition = instance ? components.find((item) => item.id === instance.definitionId) : undefined
-        traceRows.push({ key: ownerId, label: definition?.name ?? '自制组件', value: '内部隐藏', stepIndex: index })
-        return
-      }
-      traceRows.push({ key: stepItem.nodeId, label: stepItem.nodeId, value: Object.values(stepItem.outputs).map(formatValue).join(', '), stepIndex: index })
-    })
-  }
+  const traceRows = traceHistory.map((entry, index) => {
+    const node = graph.nodes.find((item) => item.id === entry.nodeId)
+    const ownerId = node?.componentInstanceId
+    const instance = ownerId ? (graph.components ?? []).find((item) => item.id === ownerId) : undefined
+    const definition = instance ? components.find((item) => item.id === instance.definitionId) : undefined
+    return {
+      entry,
+      index,
+      label: definition?.name ?? (node ? localizedNodeTitle(node.kind) : entry.nodeId),
+      detail: ownerId ? '组件内部' : Object.values(entry.outputs).map(formatValue).join(', '),
+    }
+  })
 
   return <main className="sim-v3-shell" aria-label="AI系统模拟器 V3">
     <header className="sim-v3-header"><div><b>异常局 / 工坊</b><span><strong>系统构造实验室</strong><small>自由构造 · 信号调试 · 组件封装</small></span></div><div className="sim-v3-header-actions"><span className="sim-mode-badge">实验模式</span><button type="button" onClick={() => { window.location.href = '?v2=1' }}>V2 原型</button><button type="button" onClick={() => { window.location.href = '?legacy=1' }}>旧版</button></div></header>
@@ -1020,7 +1041,7 @@ export function SimulatorV3() {
         <div className="sim-board" ref={boardRef} onDragOver={(event) => event.preventDefault()} onDrop={handlePaletteDrop} onPointerDown={startBoardSelection} onPointerMove={moveBoardObjects} onPointerUp={finishBoardMove} style={{ width: BOARD_W, height: BOARD_H, transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})` }}>
           <svg className="sim-wire-layer" viewBox={`0 0 ${BOARD_W} ${BOARD_H}`} preserveAspectRatio="none" aria-label="连线层">{visibleWires.map((wire) => { const value = visibleValues[signalKey(wire.fromNodeId, wire.fromPortId)]; const from = graph.nodes.find((node) => node.id === wire.fromNodeId); const proxy = componentProxyPoint(graph, components, { nodeId: wire.fromNodeId, portId: wire.fromPortId }, 'output'); const probed = probeWireIds.includes(wire.id); return <g key={wire.id} className={`${value !== undefined ? 'hot' : ''} ${selectedWireId === wire.id ? 'selected' : ''} ${probed ? 'probed' : ''}`} onClick={() => { setSelectedWireId(wire.id); setPendingPort(null); setStatus(`已选中连线 ${wire.fromNodeId}.${wire.fromPortId} → ${wire.toNodeId}.${wire.toPortId}`) }}><path className="sim-wire-hit" d={wirePath(graph, components, wire)} /><path d={wirePath(graph, components, wire)} /><text x={(proxy?.x ?? (from?.x ?? 0) + NODE_W) + 24} y={(proxy?.y ?? (from?.y ?? 0) + 44)}>{probed ? 'P · ' : ''}{formatValue(value)}</text></g> })}{wireGesture && (() => { const from = graph.nodes.find((node) => node.id === wireGesture.from.nodeId); if (!from) return null; const definition = NODE_DEFINITIONS[from.kind]; const index = definition.outputs.findIndex((port) => port.id === wireGesture.from.portId); const proxy = componentProxyPoint(graph, components, wireGesture.from, 'output'); const x1 = proxy?.x ?? from.x + NODE_W; const y1 = proxy?.y ?? portY(from.y, index, definition.outputs.length); const bend = Math.max(42, Math.abs(wireGesture.x - x1) * .4); const path = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${wireGesture.x - bend} ${wireGesture.y}, ${wireGesture.x} ${wireGesture.y}`; const previewClass = wireGestureTarget ? wireGestureTarget.ok ? 'preview valid' : 'preview invalid' : 'preview'; return <g className={previewClass} aria-label="正在拉线"><path d={path} /></g> })()}</svg>
           {selectionBox && (() => { const box = normalizeBoardRect(selectionBox); return <div className="sim-selection-box" aria-hidden="true" style={{ left: `${box.left / BOARD_W * 100}%`, top: `${box.top / BOARD_H * 100}%`, width: `${(box.right - box.left) / BOARD_W * 100}%`, height: `${(box.bottom - box.top) / BOARD_H * 100}%` }} /> })()}
-          {graph.nodes.filter((node) => !node.componentInstanceId).map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; const breakpoint = breakpointNodeIds.includes(node.id); return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''} ${breakpoint ? 'breakpoint' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
+          {graph.nodes.filter((node) => !node.componentInstanceId).map((node) => { const definition = NODE_DEFINITIONS[node.kind]; const active = inspectedTrace ? inspectedTrace.nodeId === node.id : runtime && stepIndex >= 0 && runtime.steps.slice(0, stepIndex + 1).some((item) => item.nodeId === node.id); const outputValue = definition.outputs[0] ? visibleValues[signalKey(node.id, definition.outputs[0].id)] : undefined; const breakpoint = breakpointNodeIds.includes(node.id); return <div key={node.id} className={`sim-node ${active ? 'active' : ''} ${selectedNodeIds.includes(node.id) ? 'selected' : ''} ${breakpoint ? 'breakpoint' : ''}`} style={{ left: `${node.x / BOARD_W * 100}%`, top: `${node.y / BOARD_H * 100}%`, width: `${NODE_W / BOARD_W * 100}%`, height: `${NODE_H / BOARD_H * 100}%` }} onPointerDown={(event) => startMove(event, node.id)} aria-label={`节点 ${node.id}`}>
             <div className="sim-node-head"><b>{definition.short}</b><span><strong>{localizedNodeTitle(node.kind)}</strong><small>{node.id}</small></span><button type="button" className="sim-node-breakpoint" aria-label={`${breakpoint ? '取消断点' : '设置断点'} ${node.id}`} aria-pressed={breakpoint} onClick={() => setBreakpointNodeIds((current) => current.includes(node.id) ? current.filter((id) => id !== node.id) : [...current, node.id])}>●</button><button type="button" className="sim-node-select" aria-label={`选择 ${node.id}`} aria-pressed={selectedNodeIds.includes(node.id)} onClick={() => toggleNodeSelection(node.id)}>◇</button><button type="button" aria-label={`删除 ${node.id}`} onClick={() => { editGraph((current) => removeNode(current, node.id)); setSelectedNodeIds((current) => current.filter((id) => id !== node.id)); setBreakpointNodeIds((current) => current.filter((id) => id !== node.id)); setSelectedWireId(null); clearRuntime() }}>×</button></div>
             {(node.kind === 'number-input' || node.kind === 'constant') && <input aria-label={`${node.id} 数值`} type="number" step="0.01" value={node.config?.value ?? 0} onChange={(event) => updateNumber(node.id, Number(event.target.value))} />}
             {node.kind === 'number-stream-input' && <input aria-label={`${node.id} stream`} title="使用数字，以逗号或空格分隔" type="text" value={(node.config?.numberValues ?? []).join(',')} onChange={(event) => updateNumberStream(node.id, event.target.value)} />}
@@ -1036,7 +1057,8 @@ export function SimulatorV3() {
             const inputs = definition.ports.filter((port) => port.direction === 'input')
             const outputs = definition.ports.filter((port) => port.direction === 'output')
             const selected = selectedComponentInstanceIds.includes(instance.id)
-            return <div key={instance.id} className={`sim-component-instance ${selected ? 'selected' : ''}`} style={{ left: `${instance.x / BOARD_W * 100}%`, top: `${instance.y / BOARD_H * 100}%`, width: `${COMPONENT_W / BOARD_W * 100}%`, height: `${COMPONENT_H / BOARD_H * 100}%` }} onPointerDown={(event) => startComponentMove(event, instance.id)} aria-label={`组件 ${instance.id} ${definition.name}`}>
+            const active = inspectedTrace ? instance.nodeIds.includes(inspectedTrace.nodeId) : false
+            return <div key={instance.id} className={`sim-component-instance ${selected ? 'selected' : ''} ${active ? 'active' : ''}`} style={{ left: `${instance.x / BOARD_W * 100}%`, top: `${instance.y / BOARD_H * 100}%`, width: `${COMPONENT_W / BOARD_W * 100}%`, height: `${COMPONENT_H / BOARD_H * 100}%` }} onPointerDown={(event) => startComponentMove(event, instance.id)} aria-label={`组件 ${instance.id} ${definition.name}`}>
               <div className="sim-component-head"><b>IC</b><span><strong>{definition.name}</strong><small>v{instance.definitionRevision ?? 1}{(instance.definitionRevision ?? 1) < (definition.revision ?? 1) ? ` · LIB v${definition.revision ?? 1}` : ''} · {inputs.length} IN · {outputs.length} OUT</small></span><button type="button" className="sim-component-open" aria-label={`打开组件 ${instance.id}`} title="进入黑盒内部调试；完成后可原地关闭回同一个实例" disabled={Boolean(openComponentScope)} onClick={() => openComponent(instance, definition)}>↗</button><button type="button" className="sim-node-select" aria-label={`选择组件 ${instance.id}`} aria-pressed={selected} onClick={() => toggleComponentSelection(instance.id)}>◇</button><button type="button" aria-label={`删除组件 ${instance.id}`} onClick={() => { const nodeIds = new Set(instance.nodeIds); editGraph((current) => removeComponentInstance(current, instance.id)); setSelectedComponentInstanceIds((current) => current.filter((id) => id !== instance.id)); setBreakpointNodeIds((current) => current.filter((id) => !nodeIds.has(id))); setSelectedWireId(null); clearRuntime() }}>×</button></div>
               <div className="sim-component-core"><small>玩家自制</small><strong>黑盒组件</strong>{outputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); return address ? <output key={port.id}>{port.label}: {formatValue(visibleValues[signalKey(address.nodeId, address.portId)])}</output> : null })}</div>
               <div className="sim-component-ports inputs">{inputs.map((port) => { const address = componentBoundaryAddress(instance, port.id); if (!address) return null; const connection = wireGesture ? canConnect(graph, wireGesture.from, address) : null; const target = wireGestureTarget?.to.nodeId === address.nodeId && wireGestureTarget.to.portId === address.portId; return <button type="button" key={port.id} className={`sim-port input ${connection ? connection.ok ? 'compatible' : 'incompatible' : ''} ${target ? 'gesture-target' : ''}`} data-sim-input-node={address.nodeId} data-sim-input-port={address.portId} aria-label={`${definition.name} ${instance.id} 输入 ${port.label} ${port.type}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropWire(event, address)} onClick={() => choosePort(address, 'input')}><i /><span>{localizedPortLabel(port.label)}</span></button> })}</div>
@@ -1084,7 +1106,7 @@ export function SimulatorV3() {
         {probeReadings.length > 0 && <section className="sim-probe-panel" aria-label="信号探针"><small>信号探针</small>{probeReadings.map((probe, index) => <div key={probe.wireId} className="sim-probe-row"><b>P{index + 1}</b><span><strong>{probe.from}</strong><small>→ {probe.to}</small></span><output>{formatValue(probe.latest)}</output>{probeBreakConditions[probe.wireId] && <i>{probeBreakLabel(probeBreakConditions[probe.wireId])}</i>}{Array.isArray(probe.value) && <em>{probe.sampleCount} 个样本 · {formatValue(probe.value)}</em>}</div>)}</section>}
         <section><small>接线状态</small><strong>{pendingPort ? `${pendingPort.nodeId}.${pendingPort.portId}` : '空闲'}</strong><p>{pendingPort ? '现在点一个同类型输入端口。' : '点击输出端口，再点击输入端口。'}</p>{pendingPort && <button type="button" onClick={() => setPendingPort(null)}>取消连线</button>}</section>
         {streamClockLength(graph) > 0 && <section><small>样本时钟</small><strong>{runtimeSession ? `${runtimeSession.tick} / ${streamClockLength(graph)} · 节点 ${runtimeSession.nodeIndex + 1}` : `0 / ${streamClockLength(graph)}`}</strong><p>STEP 每次只执行当前样本的一个节点；走完整张图后才推进到下一个样本。</p></section>}
-        <section><small>执行轨迹</small>{runtime ? traceRows.map((item, index) => <div key={`${item.key}-${index}`} className={`sim-trace-row ${item.stepIndex <= stepIndex ? 'done' : ''}`}><b>{String(index + 1).padStart(2, '0')}</b><span>{item.label}</span><strong>{item.value}</strong></div>) : <p>运行或单步后，这里显示当前时钟内的实际求值顺序；自制组件只作为一个黑盒显示，不泄露内部节点。</p>}</section>
+        <section className="sim-trace-panel" aria-label="执行轨迹历史"><small>执行轨迹 · RUN TRACE</small>{inspectedTrace && <div className="sim-trace-inspection"><strong>正在查看 STEP {inspectedTrace.sequence}</strong><span>SAMPLE {inspectedTrace.tick}/{inspectedTrace.totalTicks} · NODE {inspectedTrace.nodeIndex + 1}/{inspectedTrace.nodeCount}</span><button type="button" onClick={() => { setInspectedTraceIndex(null); setStatus('已返回实时执行现场。') }}>返回实时</button></div>}{traceRows.length ? <div className="sim-trace-history">{traceRows.map((item) => <button type="button" key={item.entry.sequence} className={`sim-trace-row done ${inspectedTraceIndex === item.index ? 'inspecting' : ''}`} aria-pressed={inspectedTraceIndex === item.index} onClick={() => inspectTrace(item.index)}><b>{String(item.entry.sequence).padStart(2, '0')}</b><span><strong>{item.label}</strong><small>S{item.entry.tick}/{item.entry.totalTicks} · N{item.entry.nodeIndex + 1}/{item.entry.nodeCount}</small></span><em>{item.detail}</em></button>)}</div> : <p>运行或单步后，这里保留整次执行的逐节点历史。点击任一步即可把画布恢复到当时的信号现场，不会改动机器或运行游标。</p>}</section>
         <section><small>模拟器约定</small><p>界面只负责编辑图；真实求值由独立 graph/runtime 完成。以后关卡只提供 I/O 与测试，不拥有模拟器规则。</p></section>
       </aside>
     </div>

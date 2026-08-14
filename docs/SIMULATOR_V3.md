@@ -107,6 +107,7 @@ stream：
 - 任意连线可固定为 `SIGNAL PROBE`：探针在 STEP / PLAY 期间持续显示当前标量或 stream 的最新样本，同时保留已经放行的完整前缀；探针附着在线路而不是节点上，删线后会自动失效，便于盯住中间信号而不反复点选；
 - 已固定的 `SIGNAL PROBE` 现在还能设置条件暂停：boolean 信号可在 TRUE / FALSE 出现时中断，number 信号可在最新值达到 `≥ / ≤` 阈值时中断。条件命中发生在被监视源真正产出该值之后、下游节点消费之前，因此 PLAY 可以直接跑到“有意思的样本”再交给 STEP 继续定位，而不需要人工盯完整条 stream；
 - Runtime 面板显示实际求值顺序；
+- `RUN TRACE` 不再只显示当前 sample 的瞬时列表，而是保留整次运行的逐节点时间线；玩家可以点击任意历史 STEP，把画布、线路值与节点高亮恢复到那个执行瞬间。历史查看只切换观察快照，不回滚 graph，也不移动真实 runtime cursor；点击“返回实时”即可继续看当前执行现场。长运行最多保留最近 500 个 micro-step，避免调试历史无限增长；
 - `TEST HARNESS` 可以把当前机器的 source 输入与 OUTPUT 行为冻结成多个测试样例，之后任意改线、调参数或重构 Component，再一键重放整套行为；失败项直接显示 actual / expected，并可把旧输入重新载入当前画布。测试数据与 graph 分开持久化，不会因为改机器而偷偷更新 expected output。这是未来关卡 `I/O + tests` 的底层执行接口，但当前仍只是自由沙盒里的玩家自建回归台；
 - source / OUTPUT 现在可以显式命名为稳定的 **I/O terminal contract**。TEST HARNESS 优先按 terminal 名绑定输入输出，而不是按内部 node id：玩家把整台机器删掉重搭、换成另一种拓扑甚至重新生成 node id，只要对外 `score → decision` 之类的 typed I/O 契约不变，旧测试仍然可直接验收。若可运行电路里出现重复 terminal 名则拒绝捕获，避免测试静默绑错端口；
 - `RESET SIGNAL` 只清执行状态，不清机器；
@@ -126,7 +127,7 @@ stream：
 
 本阶段不要为了看起来像完整游戏提前加入 LEVEL / CASE、任务评分、术语教学弹窗、固定正确拓扑、成品 ML 指标节点、Duty / Bureau 迁移。当前 Component 已支持逐层再封装、实例级 `OPEN → 调试 → CLOSE`，并且能把修改后的实例显式 **fork 成新的 definition**；**把实例修改原地升级为新版 definition、保留 definition 内部显式层级而不是保存时展平、组件版本迁移**仍未实现，这些边界继续留在模拟器层解决，不借关卡脚本绕过去。
 
-下一步仍优先补模拟器本身，而不是内容。现在“实例修改 → 分叉新 definition”的安全语义已经成立；如果继续推进组件系统，应先设计清楚“UPDATE DEFINITION 时哪些既有实例跟随、哪些保持旧版本”的版本语义，再实现原地升级。wire probe 已从静态观察升级到条件暂停；后续若继续增强调试，应优先考虑 probe-to-probe 比较或层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
+下一步仍优先补模拟器本身，而不是内容。现在“实例修改 → 分叉新 definition”的安全语义已经成立；如果继续推进组件系统，应先设计清楚“UPDATE DEFINITION 时哪些既有实例跟随、哪些保持旧版本”的版本语义，再实现原地升级。wire probe 已从静态观察升级到条件暂停，整次运行也已有可回看的 RUN TRACE；后续若继续增强调试，应优先考虑 probe-to-probe 比较或真正的层级内外 trace，而不是堆更多静态仪表。只有当 Sandbox 自身已经值得摆弄，再讨论关卡系统。
 
 ## 验收原则
 

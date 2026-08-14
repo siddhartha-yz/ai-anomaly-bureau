@@ -205,6 +205,18 @@ test('player can construct, wire, run and step-debug a threshold machine', async
   await expect(page.getByLabel('模拟器状态')).toContainText('NODE 1/4')
   await expect(page.locator('.sim-trace-row.done')).toHaveCount(1)
   await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
+  await page.getByRole('button', { name: '单步' }).click()
+  await expect(page.locator('.sim-trace-row.done')).toHaveCount(2)
+  await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(2)
+
+  // Run trace is a time-traveling inspector, not a second runtime. Looking at
+  // an old step restores its signal snapshot while leaving the live cursor at
+  // the newer step; returning live brings the latest signals back.
+  await page.locator('.sim-trace-history .sim-trace-row').first().click()
+  await expect(page.getByLabel('执行轨迹历史')).toContainText('正在查看 STEP 1')
+  await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(1)
+  await page.getByRole('button', { name: '返回实时' }).click()
+  await expect(page.locator('.sim-wire-layer g.hot')).toHaveCount(2)
 
   await page.reload()
   await expect(page.getByLabel('构造画布')).toContainText('5 元件 · 3 连线')
