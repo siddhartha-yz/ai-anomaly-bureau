@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createBlueprint, instantiateBlueprint } from '../src/simulator/blueprints'
 import { createComponentDefinition, instantiateComponent, moveComponentInstance, removeComponentInstance, unpackComponentInstance } from '../src/simulator/components'
-import { connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
+import { canConnect, connect, createEmptyGraph, createNode, topologicalOrder } from '../src/simulator/graph'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, undoGraph } from '../src/simulator/history'
 import { createRuntimeSession, evaluateGraph, evaluateRuntimeTimeline, runtimeCursorNodeId, stepRuntimeSession, visibleValuesAfterStep } from '../src/simulator/runtime'
 import { collectSignalProbeReadings, latestSignalValue, matchingSignalProbeBreak, signalProbeConditionMatches } from '../src/simulator/probes'
@@ -145,6 +145,23 @@ describe('Simulator V3 signal probes', () => {
     )
     expect(match).toMatchObject({ wireId: 'scores-decide-stream', latest: .88 })
     expect(matchingSignalProbeBreak(graph, { 'scores-decide-stream': { mode: 'number-at-least', threshold: .8 } }, values, 'decide')).toBeUndefined()
+  })
+})
+
+describe('Simulator V3 wiring guards', () => {
+  it('rejects a feedback wire before it can create a cycle in the editable graph', () => {
+    let graph: SimulatorGraph = {
+      nodes: [
+        createNode('boolean-output', 'relayA', 0, 0),
+        createNode('boolean-output', 'relayB', 0, 0),
+      ],
+      wires: [],
+    }
+    graph = connect(graph, { id: 'a-to-b', fromNodeId: 'relayA', fromPortId: 'value', toNodeId: 'relayB', toPortId: 'value' })
+
+    const check = canConnect(graph, { nodeId: 'relayB', portId: 'value' }, { nodeId: 'relayA', portId: 'value' })
+    expect(check).toEqual({ ok: false, reason: '这根线会形成环路；当前模拟器只允许无环数据流。' })
+    expect(() => connect(graph, { id: 'b-to-a', fromNodeId: 'relayB', fromPortId: 'value', toNodeId: 'relayA', toPortId: 'value' })).toThrow(/环路/)
   })
 })
 

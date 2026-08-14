@@ -49,7 +49,21 @@ export function canConnect(graph: SimulatorGraph, from: PortAddress, to: PortAdd
   const toType = portType(graph, to)
   if (!fromType || !toType || fromType !== toType) return { ok: false, reason: `端口类型不匹配：${fromType ?? '?'} → ${toType ?? '?'}` }
   if (graph.wires.some((wire) => wire.toNodeId === to.nodeId && wire.toPortId === to.portId)) return { ok: false, reason: '这个输入端口已经有信号。' }
+  if (hasDirectedPath(graph, to.nodeId, from.nodeId)) return { ok: false, reason: '这根线会形成环路；当前模拟器只允许无环数据流。' }
   return { ok: true }
+}
+
+function hasDirectedPath(graph: SimulatorGraph, startNodeId: string, targetNodeId: string) {
+  const pending = [startNodeId]
+  const visited = new Set<string>()
+  while (pending.length) {
+    const nodeId = pending.pop()!
+    if (nodeId === targetNodeId) return true
+    if (visited.has(nodeId)) continue
+    visited.add(nodeId)
+    for (const wire of graph.wires) if (wire.fromNodeId === nodeId && !visited.has(wire.toNodeId)) pending.push(wire.toNodeId)
+  }
+  return false
 }
 
 export function connect(graph: SimulatorGraph, wire: SimulatorWire): SimulatorGraph {

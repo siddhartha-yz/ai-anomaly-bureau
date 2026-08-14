@@ -44,6 +44,34 @@ test('construction edits can be undone and redone without rebuilding the machine
   await expect(page.getByLabel('构造画布')).toContainText('3 NODES · 1 WIRES')
 })
 
+test('live wiring rejects feedback loops before they enter the graph', async ({ page }) => {
+  await page.goto('/?sim=1')
+  await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)
+  await page.reload()
+
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: '添加 BOOLEAN OUTPUT' }).click()
+  await page.getByRole('button', { name: 'boolean_output_1 输出 value boolean' }).dragTo(page.getByRole('button', { name: 'boolean_output_2 输入 value boolean' }))
+  await expect(page.getByLabel('构造画布')).toContainText('2 NODES · 1 WIRES')
+
+  const from = page.getByRole('button', { name: 'boolean_output_2 输出 value boolean' })
+  const to = page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' })
+  const fromBox = await from.boundingBox()
+  const toBox = await to.boundingBox()
+  expect(fromBox).not.toBeNull()
+  expect(toBox).not.toBeNull()
+  await page.mouse.move(fromBox!.x + fromBox!.width / 2, fromBox!.y + fromBox!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(toBox!.x + toBox!.width / 2, toBox!.y + toBox!.height / 2, { steps: 5 })
+  await expect(to).toHaveClass(/incompatible/)
+  await expect(to).toHaveClass(/gesture-target/)
+  await expect(page.getByLabel('正在拉线')).toHaveClass(/invalid/)
+  await page.mouse.up()
+
+  await expect(page.getByLabel('构造画布')).toContainText('2 NODES · 1 WIRES')
+  await expect(page.getByLabel('模拟器状态')).toContainText('环路')
+})
+
 test('player can construct, wire, run and step-debug a threshold machine', async ({ page }) => {
   await page.goto('/?sim=1')
   await page.evaluate((key) => window.localStorage.removeItem(key), BOARD_KEY)

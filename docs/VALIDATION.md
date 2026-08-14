@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、192 个测试全部通过；Simulator V3 在 signal-probe 基础上新增条件暂停回归，覆盖 boolean TRUE/FALSE 与 number ≥/≤ 阈值匹配、只在被监视 source 真正产出值后命中，以及不改变 graph/runtime 计算语义；既有 graph/runtime、Blueprint、Component、Undo/Redo、框选与固定探针测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-DBHP-9EG.js` + `assets/index-8oetfvwm.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：45 条 Chromium E2E 完整串行执行 45/45 通过（3.6 分钟）。Simulator V3 的阈值机构造路线真实执行“按住 output port → 拖出可见 cable → 松到 input port”手势，并验证拉线期间兼容端口高亮、错误类型端口降权、悬停目标与预览线同步显示 valid / invalid；既有 score-stream、Recall-like 指标、Blueprint、黑盒 Component、Undo/Redo、框选、Signal Probe、条件断点以及 V2 / Legacy 路线全部继续通过。
+- Vitest：27 个测试文件、193 个测试全部通过；Simulator V3 新增 wiring-cycle guard 回归：typed port 连线不仅检查方向、类型与占用，还会在编辑阶段拒绝任何会形成有向环路的反馈线，避免玩家直到 PLAY 才发现整张机器不可执行。既有 graph/runtime、Blueprint、Component、Undo/Redo、框选、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-qj_20LOb.js` + `assets/index-8oetfvwm.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：46 条 Chromium E2E 完整串行执行 46/46 通过（3.6 分钟）；新增一条真实反馈环路拉线回归，要求目标端口在拖线时立即显示 incompatible / invalid，松手后不增加 wire，并明确报告环路原因。既有 score-stream、Recall-like 指标、Blueprint、黑盒 Component、Undo/Redo、框选、Signal Probe、条件断点以及 V2 / Legacy 路线全部继续通过。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标
