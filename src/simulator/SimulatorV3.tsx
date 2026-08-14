@@ -3,7 +3,7 @@ import { NODE_DEFINITIONS, SIMULATOR_PALETTE } from './catalog'
 import { createBlueprint, instantiateBlueprint, parseBlueprints, type SimulatorBlueprint } from './blueprints'
 import { componentBoundaryAddress, createComponentDefinition, editComponentInterface, forkComponentDefinition, instantiateComponent, moveComponentInstance, parseComponentDefinitions, removeComponentInstance, restoreComponentInstance, unpackComponentInstance, updateComponentDefinitionFromInstance } from './components'
 import { canConnect, connect, createEmptyGraph, createNode, removeNode, removeWire } from './graph'
-import { applyTestInputs, captureTestCase, parseTestCases, runTestSuite, type SimulatorTestResult } from './harness'
+import { applyTestInputs, captureTestCase, parseTestCases, runTestSuite, simulatorTerminalName, type SimulatorTestResult } from './harness'
 import { applyGraphEdit, createGraphHistory, recordGraphSnapshot, redoGraph, replaceGraphPresent, undoGraph } from './history'
 import { createRuntimeSession, evaluateGraph, runtimeCursorNodeId, stepRuntimeSession, streamClockLength, visibleValuesAfterStep } from './runtime'
 import { collectSignalProbeReadings, matchingSignalProbeBreak, type SignalProbeBreakCondition } from './probes'
@@ -669,6 +669,15 @@ export function SimulatorV3() {
     clearRuntime()
   }
 
+  const updateTerminalLabel = (nodeId: string, label: string) => {
+    editGraph((current) => ({
+      ...current,
+      nodes: current.nodes.map((node) => node.id === nodeId ? { ...node, config: { ...node.config, label } } : node),
+    }))
+    setBenchResults([])
+    setStatus(`I/O TERMINAL RENAMED · ${label.trim() || nodeId}`)
+  }
+
   const captureBenchTest = () => {
     try {
       const test = captureTestCase(graph, `test_${Date.now()}`, benchTestName)
@@ -928,6 +937,15 @@ export function SimulatorV3() {
     return !fromOwner || !toOwner || fromOwner !== toOwner
   })
   const visibleUnitCount = graph.nodes.filter((node) => !node.componentInstanceId).length + (graph.components ?? []).length
+  const selectedTerminalNode = selectedNodeIds.length === 1
+    ? graph.nodes.find((node) => node.id === selectedNodeIds[0] && (
+      node.kind === 'number-input'
+      || node.kind === 'number-stream-input'
+      || node.kind === 'boolean-stream-input'
+      || node.kind === 'boolean-output'
+      || node.kind === 'number-output'
+    ))
+    : undefined
   const traceRows: { key: string; label: string; value: string; stepIndex: number }[] = []
   if (runtime) {
     runtime.steps.forEach((stepItem, index) => {
@@ -998,8 +1016,9 @@ export function SimulatorV3() {
           if (!definition) return null
           return <section className="sim-component-interface-editor" aria-label="组件接口编辑器"><small>COMPONENT INTERFACE</small><strong>{definition.name}</strong><p>只改黑盒对外语言，不改内部电路、typed ports 或已有实例接线。</p><label>NAME<input aria-label="组件显示名称" defaultValue={definition.name} onBlur={(event) => updateComponentInterface(definition.id, { name: event.currentTarget.value })} /></label><div className="sim-component-interface-ports">{definition.ports.map((port) => <label key={port.id}><span>{port.direction === 'input' ? 'IN' : 'OUT'} · {port.type}</span><input aria-label={`组件端口 ${port.id} 标签`} defaultValue={port.label} onBlur={(event) => updateComponentInterface(definition.id, { portLabels: { [port.id]: event.currentTarget.value } })} /></label>)}</div><button type="button" onClick={() => setEditingComponentId(null)}>DONE</button></section>
         })()}
+        {selectedTerminalNode && <section className="sim-terminal-editor" aria-label="I/O 端口契约"><small>I/O CONTRACT</small><strong>{simulatorTerminalName(selectedTerminalNode)}</strong><p>测试台优先按这个名字绑定输入/输出，而不是绑定内部 node id。重搭线路时保留同名 terminal，旧测试仍可复用。</p><label>TERMINAL NAME<input aria-label={`${selectedTerminalNode.id} terminal name`} value={selectedTerminalNode.config?.label ?? ''} onChange={(event) => updateTerminalLabel(selectedTerminalNode.id, event.target.value)} /></label></section>}
         <section className="sim-blueprint-inspector" aria-label="蓝图工具"><small>REUSE TOOL</small><strong>{selectedNodeIds.length || selectedComponentInstanceIds.length ? `${selectedNodeIds.length + selectedComponentInstanceIds.length} UNITS SELECTED` : 'SELECT NODES / COMPONENTS'}</strong><p>空白处拖框可批量选择；拖动任一已选单元会整体移动，Delete 可整组删除。Blueprint 复制 primitive 结构；Component 可以继续封装成更高一级零件。</p><input aria-label="蓝图名称" value={blueprintName} onChange={(event) => setBlueprintName(event.target.value)} placeholder="例如 MY THRESHOLD" /><button type="button" disabled={!selectedNodeIds.length || selectedComponentInstanceIds.length > 0} onClick={saveBlueprint}>SAVE BLUEPRINT</button><button type="button" disabled={Boolean(openComponentScope) || (!selectedNodeIds.length && !selectedComponentInstanceIds.length)} onClick={saveComponent}>SAVE COMPONENT</button>{(selectedNodeIds.length > 0 || selectedComponentInstanceIds.length > 0) && <button type="button" onClick={() => { setSelectedNodeIds([]); setSelectedComponentInstanceIds([]) }}>CLEAR SELECTION</button>}</section>
-        <section className="sim-test-bench" aria-label="模拟器测试台"><small>TEST HARNESS</small><strong>{benchTests.length ? `${benchTests.length} SAVED CASES` : 'NO TESTS CAPTURED'}</strong><p>把当前输入与输出冻结成回归样例。之后可以重接线、改组件，再一次运行全部样例检查行为有没有被破坏。</p><input aria-label="测试名称" value={benchTestName} onChange={(event) => setBenchTestName(event.target.value)} placeholder="例如 score 0.72 should pass" /><div className="sim-test-bench-actions"><button type="button" onClick={captureBenchTest}>CAPTURE CURRENT</button><button type="button" disabled={!benchTests.length} onClick={runBenchTests}>RUN SUITE</button></div>{benchTests.map((test) => { const result = benchResults.find((item) => item.id === test.id); return <div className={`sim-test-case ${result ? result.passed ? 'pass' : 'fail' : ''}`} key={test.id}><span><b>{test.name}</b><small>{test.inputs.length} IN · {test.expected.length} OUT</small></span><strong>{result ? result.passed ? 'PASS' : 'FAIL' : 'READY'}</strong><div><button type="button" onClick={() => loadBenchInputs(test.id)}>LOAD INPUTS</button><button type="button" aria-label={`删除测试 ${test.name}`} onClick={() => { setBenchTests((current) => current.filter((item) => item.id !== test.id)); setBenchResults((current) => current.filter((item) => item.id !== test.id)) }}>×</button></div>{result?.error && <em>{result.error}</em>}{result && !result.error && result.outputs.map((output) => <em key={output.nodeId}>{output.nodeId}: {formatValue(output.actual)} / expected {formatValue(output.expected)}</em>)}</div> })}</section>
+        <section className="sim-test-bench" aria-label="模拟器测试台"><small>TEST HARNESS</small><strong>{benchTests.length ? `${benchTests.length} SAVED CASES` : 'NO TESTS CAPTURED'}</strong><p>把当前 I/O 行为冻结成回归样例。测试优先绑定命名 terminal，所以内部线路甚至 node id 全部重做后，只要 I/O 契约没变，旧样例仍能验收。</p><input aria-label="测试名称" value={benchTestName} onChange={(event) => setBenchTestName(event.target.value)} placeholder="例如 score 0.72 should pass" /><div className="sim-test-bench-actions"><button type="button" onClick={captureBenchTest}>CAPTURE CURRENT</button><button type="button" disabled={!benchTests.length} onClick={runBenchTests}>RUN SUITE</button></div>{benchTests.map((test) => { const result = benchResults.find((item) => item.id === test.id); return <div className={`sim-test-case ${result ? result.passed ? 'pass' : 'fail' : ''}`} key={test.id}><span><b>{test.name}</b><small>{test.inputs.map((input) => input.terminal ?? input.nodeId).join(', ')} → {test.expected.map((output) => output.terminal ?? output.nodeId).join(', ')}</small></span><strong>{result ? result.passed ? 'PASS' : 'FAIL' : 'READY'}</strong><div><button type="button" onClick={() => loadBenchInputs(test.id)}>LOAD INPUTS</button><button type="button" aria-label={`删除测试 ${test.name}`} onClick={() => { setBenchTests((current) => current.filter((item) => item.id !== test.id)); setBenchResults((current) => current.filter((item) => item.id !== test.id)) }}>×</button></div>{result?.error && <em>{result.error}</em>}{result && !result.error && result.outputs.map((output) => <em key={`${output.terminal ?? output.nodeId}-${output.nodeId}`}>{output.terminal ?? output.nodeId}: {formatValue(output.actual)} / expected {formatValue(output.expected)}</em>)}</div> })}</section>
                 {selectedWireId && (() => {
                   const wire = graph.wires.find((item) => item.id === selectedWireId)
                   if (!wire) return null

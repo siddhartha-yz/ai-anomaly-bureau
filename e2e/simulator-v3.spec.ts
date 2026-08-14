@@ -664,6 +664,15 @@ test('player can freeze behavior as a reusable test suite before refactoring the
   await page.getByRole('button', { name: 'greater_than_1 输出 result boolean' }).click()
   await page.getByRole('button', { name: 'boolean_output_1 输入 value boolean' }).click()
 
+  await page.getByRole('button', { name: '选择 number_input_1' }).click()
+  const contract = page.getByLabel('I/O 端口契约')
+  await expect(contract).toContainText('score')
+  await contract.getByLabel('number_input_1 terminal name').fill('risk-score')
+  await page.getByRole('button', { name: '选择 number_input_1' }).click()
+  await page.getByRole('button', { name: '选择 boolean_output_1' }).click()
+  await page.getByLabel('I/O 端口契约').getByLabel('boolean_output_1 terminal name').fill('ship')
+  await page.getByRole('button', { name: '选择 boolean_output_1' }).click()
+
   const bench = page.getByLabel('模拟器测试台')
   await bench.getByLabel('测试名称').fill('HIGH SCORE')
   await bench.getByRole('button', { name: 'CAPTURE CURRENT' }).click()
@@ -671,6 +680,7 @@ test('player can freeze behavior as a reusable test suite before refactoring the
   await bench.getByLabel('测试名称').fill('LOW SCORE')
   await bench.getByRole('button', { name: 'CAPTURE CURRENT' }).click()
   await expect(bench).toContainText('2 SAVED CASES')
+  await expect(bench).toContainText('risk-score → ship')
   await bench.getByRole('button', { name: 'RUN SUITE' }).click()
   await expect(page.getByLabel('模拟器状态')).toContainText('TEST SUITE · 2/2 PASS')
 

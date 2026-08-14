@@ -1,14 +1,16 @@
 import { executionGraph } from './graph'
 import { evaluateGraph } from './runtime'
-import { signalKey, type SignalValue, type SimulatorGraph } from './types'
+import { signalKey, type SignalValue, type SimulatorGraph, type SimulatorNode } from './types'
 
 export type SimulatorTestInput = {
   nodeId: string
+  terminal?: string
   value: number | readonly number[] | readonly boolean[]
 }
 
 export type SimulatorTestExpectation = {
   nodeId: string
+  terminal?: string
   value: number | boolean
 }
 
@@ -23,8 +25,38 @@ export type SimulatorTestResult = {
   id: string
   name: string
   passed: boolean
-  outputs: { nodeId: string; expected: number | boolean; actual?: number | boolean; passed: boolean }[]
+  outputs: { nodeId: string; terminal?: string; expected: number | boolean; actual?: number | boolean; passed: boolean }[]
   error?: string
+}
+
+const isHarnessInputNode = (node: SimulatorNode) => node.kind === 'number-input'
+  || node.kind === 'number-stream-input'
+  || node.kind === 'boolean-stream-input'
+
+const isHarnessOutputNode = (node: SimulatorNode) => node.kind === 'boolean-output'
+  || node.kind === 'number-output'
+
+export function simulatorTerminalName(node: SimulatorNode) {
+  const label = node.config?.label?.trim()
+  return label || node.id
+}
+
+function uniqueTerminalNode(graph: SimulatorGraph, terminal: string, direction: 'input' | 'output') {
+  const candidates = graph.nodes.filter((node) => (direction === 'input' ? isHarnessInputNode(node) : isHarnessOutputNode(node))
+    && simulatorTerminalName(node) === terminal)
+  if (candidates.length > 1) throw new Error(`TEST HARNESS: ${direction.toUpperCase()} terminal “${terminal}” 重复；端口名必须唯一。`)
+  return candidates[0]
+}
+
+function resolveTestNode(graph: SimulatorGraph, nodeId: string, terminal: string | undefined, direction: 'input' | 'output') {
+  if (terminal) {
+    const byTerminal = uniqueTerminalNode(graph, terminal, direction)
+    if (byTerminal) return byTerminal
+    return undefined
+  }
+  const byId = graph.nodes.find((node) => node.id === nodeId)
+  if (!byId || !(direction === 'input' ? isHarnessInputNode(byId) : isHarnessOutputNode(byId))) return undefined
+  return byId
 }
 
 function cloneInputValue(value: SimulatorTestInput['value']): SimulatorTestInput['value'] {
@@ -43,23 +75,31 @@ export function captureTestCase(graph: SimulatorGraph, id: string, name: string)
   const result = evaluateGraph(graph)
   const inputs: SimulatorTestInput[] = []
   for (const node of runnable.nodes) {
-    if (node.kind === 'number-input') inputs.push({ nodeId: node.id, value: node.config?.value ?? 0 })
-    if (node.kind === 'number-stream-input') inputs.push({ nodeId: node.id, value: [...(node.config?.numberValues ?? [])] })
-    if (node.kind === 'boolean-stream-input') inputs.push({ nodeId: node.id, value: [...(node.config?.values ?? [])] })
+    const terminal = simulatorTerminalName(node)
+    if (isHarnessInputNode(node)) uniqueTerminalNode(runnable, terminal, 'input')
+    if (node.kind === 'number-input') inputs.push({ nodeId: node.id, terminal, value: node.config?.value ?? 0 })
+    if (node.kind === 'number-stream-input') inputs.push({ nodeId: node.id, terminal, value: [...(node.config?.numberValues ?? [])] })
+    if (node.kind === 'boolean-stream-input') inputs.push({ nodeId: node.id, terminal, value: [...(node.config?.values ?? [])] })
   }
-  const expected = runnable.nodes
+  const expected: SimulatorTestExpectation[] = runnable.nodes
     .filter((node) => node.kind === 'boolean-output' || node.kind === 'number-output')
-    .map((node) => ({ nodeId: node.id, value: outputValue(runnable, node.id, result.values) }))
-    .filter((item): item is SimulatorTestExpectation => item.value !== undefined)
+    .flatMap((node) => {
+      const terminal = simulatorTerminalName(node)
+      uniqueTerminalNode(runnable, terminal, 'output')
+      const value = outputValue(runnable, node.id, result.values)
+      return value === undefined ? [] : [{ nodeId: node.id, terminal, value }]
+    })
   if (!expected.length) throw new Error('TEST BENCH 需要至少一个已接通的 BOOLEAN / NUMBER OUTPUT。')
   return { id, name: name.trim() || `TEST ${id}`, inputs, expected }
 }
 
 export function applyTestInputs(graph: SimulatorGraph, test: SimulatorTestCase): SimulatorGraph {
-  const byId = new Map(test.inputs.map((input) => [input.nodeId, input]))
-  for (const input of test.inputs) {
-    if (!graph.nodes.some((node) => node.id === input.nodeId)) throw new Error(`TEST ${test.name}: 输入 ${input.nodeId} 已不存在。`)
-  }
+  const resolvedInputs = test.inputs.map((input) => {
+    const node = resolveTestNode(graph, input.nodeId, input.terminal, 'input')
+    if (!node) throw new Error(`TEST ${test.name}: 输入 ${input.terminal ?? input.nodeId} 已不存在。`)
+    return { input, node }
+  })
+  const byId = new Map(resolvedInputs.map(({ input, node }) => [node.id, input]))
   return {
     ...graph,
     nodes: graph.nodes.map((node) => {
@@ -87,8 +127,9 @@ export function runTestCase(graph: SimulatorGraph, test: SimulatorTestCase): Sim
     const testGraph = applyTestInputs(graph, test)
     const values = evaluateGraph(testGraph).values
     const outputs = test.expected.map((expectation) => {
-      const actual = outputValue(testGraph, expectation.nodeId, values)
-      return { nodeId: expectation.nodeId, expected: expectation.value, actual, passed: valuesEqual(expectation.value, actual) }
+      const node = resolveTestNode(testGraph, expectation.nodeId, expectation.terminal, 'output')
+      const actual = node ? outputValue(testGraph, node.id, values) : undefined
+      return { nodeId: node?.id ?? expectation.nodeId, terminal: expectation.terminal, expected: expectation.value, actual, passed: valuesEqual(expectation.value, actual) }
     })
     return { id: test.id, name: test.name, passed: outputs.every((output) => output.passed), outputs }
   } catch (error) {
@@ -113,6 +154,7 @@ export function parseTestCases(raw: string | null): SimulatorTestCase[] {
         && Array.isArray(test.inputs)
         && test.inputs.every((input) => {
           if (!input || typeof input !== 'object' || typeof input.nodeId !== 'string') return false
+          if ('terminal' in input && input.terminal !== undefined && typeof input.terminal !== 'string') return false
           if (typeof input.value === 'number') return Number.isFinite(input.value)
           if (!Array.isArray(input.value)) return false
           return input.value.every((value) => typeof value === 'boolean')
@@ -120,6 +162,7 @@ export function parseTestCases(raw: string | null): SimulatorTestCase[] {
         })
         && Array.isArray(test.expected)
         && test.expected.every((output) => output && typeof output === 'object' && typeof output.nodeId === 'string'
+          && (!('terminal' in output) || output.terminal === undefined || typeof output.terminal === 'string')
           && (typeof output.value === 'boolean' || (typeof output.value === 'number' && Number.isFinite(output.value))))
     }).map((test) => ({
       ...test,

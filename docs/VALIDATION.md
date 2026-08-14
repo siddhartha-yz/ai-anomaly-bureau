@@ -20,9 +20,9 @@ npm run test:e2e
 
 - ESLint：通过，0 warning / 0 error。
 - TypeScript strict typecheck：通过。
-- Vitest：27 个测试文件、202 个测试全部通过；Simulator V3 新增纯 TypeScript `TEST HARNESS` 回归：可冻结当前 source 输入与 OUTPUT 期望值、重放多组测试并识别改线/改参数后的行为回归。既有 graph/runtime、Component versioning、viewport camera、wiring-cycle guard、Blueprint、Signal Probe 与条件暂停测试继续通过。
-- Vite production build：通过；当前本地构建为 `assets/index-CJpXeJIr.js` + `assets/index-DR0n4I_-.css`（推送并完成 Pages 部署后再记录远端哈希）。
-- Playwright：49 条 Chromium E2E 全部实际执行通过。受 local-shell 单次 120 秒上限影响，Legacy 33 条按 29 + 4 分组执行，V2 2/2、Simulator V3 14/14；新增测试台路线真实冻结 HIGH/LOW 两组行为，修改阈值后得到 1/2 FAIL，能显示 actual/expected、重新载入旧输入，并在刷新后保留测试集。
+- Vitest：27 个测试文件、204 个测试全部通过；Simulator V3 `TEST HARNESS` 现在按稳定命名的 I/O terminal contract 绑定测试，而不是绑定内部 node id：整台机器换拓扑、换 node id 后，只要 typed I/O 契约不变，旧测试仍能验收；重复 terminal 名会被拒绝，避免静默绑错端口。既有 graph/runtime、Component versioning、viewport camera、wiring-cycle guard、Blueprint、Signal Probe 与条件暂停测试继续通过。
+- Vite production build：通过；当前本地构建为 `assets/index-BIOMo_PN.js` + `assets/index-DR0n4I_-.css`（推送并完成 Pages 部署后再记录远端哈希）。
+- Playwright：49 条 Chromium E2E 全部实际执行通过（49/49）。Simulator V3 专项路线覆盖命名 I/O contract 的真实浏览器操作：把 `score / decision` 改为 `risk-score / ship` 后冻结 HIGH/LOW 两组行为，测试台按 terminal 名显示并继续支持 actual/expected、重新载入输入与刷新持久化。
 - GitHub Actions CI：本地发布级验证已通过；本轮远端 CI 状态在提交推送后单独核验，不在本地结果中预先声明。
 
 ## 固定 seed 教学指标

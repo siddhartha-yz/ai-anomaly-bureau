@@ -56,6 +56,7 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     short: 'OUT',
     inputs: [input('value', 'value', 'boolean')],
     outputs: [output('value', 'value', 'boolean')],
+    defaultConfig: { label: 'decision' },
     evaluate: (inputs) => ({ value: Boolean(inputs.value) }),
   },
   'number-stream-input': {
@@ -64,7 +65,7 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     short: 'NUMS',
     inputs: [],
     outputs: [output('value', 'stream', 'number-stream')],
-    defaultConfig: { numberValues: [.72, .31, .88, .54] },
+    defaultConfig: { label: 'scores', numberValues: [.72, .31, .88, .54] },
     evaluate: (_inputs, node) => ({ value: [...(node.config?.numberValues ?? [])] }),
   },
   'boolean-stream-input': {
@@ -73,7 +74,7 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     short: 'BITS',
     inputs: [],
     outputs: [output('value', 'stream', 'boolean-stream')],
-    defaultConfig: { values: [true, false, true, true, false, true] },
+    defaultConfig: { label: 'bits', values: [true, false, true, true, false, true] },
     evaluate: (_inputs, node) => ({ value: [...(node.config?.values ?? [])] }),
   },
   'stream-greater-than': {
@@ -148,6 +149,7 @@ export const NODE_DEFINITIONS: Record<SimulatorNodeKind, NodeDefinition> = {
     short: 'OUT#',
     inputs: [input('value', 'value', 'number')],
     outputs: [output('value', 'value', 'number')],
+    defaultConfig: { label: 'result' },
     evaluate: (inputs) => ({ value: Number(inputs.value) }),
   },
 }

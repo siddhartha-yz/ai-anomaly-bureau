@@ -246,9 +246,43 @@ describe('Simulator V3 pure graph/runtime', () => {
   it('captures runnable source inputs and frozen output expectations as simulator-native test cases', () => {
     const graph = thresholdGraph()
     const test = captureTestCase(graph, 't1', 'threshold true')
-    expect(test.inputs).toEqual([{ nodeId: 'score', value: .72 }])
-    expect(test.expected).toEqual([{ nodeId: 'out', value: true }])
+    expect(test.inputs).toEqual([{ nodeId: 'score', terminal: 'score', value: .72 }])
+    expect(test.expected).toEqual([{ nodeId: 'out', terminal: 'decision', value: true }])
     expect(parseTestCases(JSON.stringify([test]))).toEqual([test])
+  })
+
+  it('keeps a test suite valid when the player rebuilds the machine with new node ids but the same named I/O contract', () => {
+    const graph = thresholdGraph()
+    graph.nodes = graph.nodes.map((node) => node.id === 'score'
+      ? { ...node, config: { ...node.config, label: 'score' } }
+      : node.id === 'out' ? { ...node, config: { ...node.config, label: 'decision' } } : node)
+    const test = captureTestCase(graph, 't1', 'stable interface')
+
+    const renamedIds: Record<string, string> = { score: 'input_v2', threshold: 'constant_v2', gt: 'compare_v2', out: 'output_v2' }
+    const rebuilt: SimulatorGraph = {
+      ...graph,
+      nodes: graph.nodes.map((node) => ({ ...node, id: renamedIds[node.id] ?? node.id })),
+      wires: graph.wires.map((wire) => ({
+        ...wire,
+        id: `rebuilt-${wire.id}`,
+        fromNodeId: renamedIds[wire.fromNodeId] ?? wire.fromNodeId,
+        toNodeId: renamedIds[wire.toNodeId] ?? wire.toNodeId,
+      })),
+    }
+
+    const [result] = runTestSuite(rebuilt, [test])
+    expect(result.passed).toBe(true)
+    expect(result.outputs[0]).toMatchObject({ terminal: 'decision', nodeId: 'output_v2', actual: true })
+  })
+
+  it('rejects ambiguous named terminals instead of silently binding a test to the wrong source', () => {
+    let graph = thresholdGraph()
+    graph.nodes.push({ ...createNode('number-input', 'other-score', 0, 0), config: { value: .1, label: 'score' } })
+    graph.nodes.push(createNode('greater-than', 'other-gt', 0, 0), createNode('boolean-output', 'other-out', 0, 0))
+    graph = connect(graph, { id: 'other-w1', fromNodeId: 'other-score', fromPortId: 'value', toNodeId: 'other-gt', toPortId: 'a' })
+    graph = connect(graph, { id: 'other-w2', fromNodeId: 'threshold', fromPortId: 'value', toNodeId: 'other-gt', toPortId: 'b' })
+    graph = connect(graph, { id: 'other-w3', fromNodeId: 'other-gt', fromPortId: 'result', toNodeId: 'other-out', toPortId: 'value' })
+    expect(() => captureTestCase(graph, 't1', 'ambiguous')).toThrow(/terminal.*score.*重复/)
   })
 
   it('replays saved inputs against an edited machine and reports behavioral regressions', () => {
